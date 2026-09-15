@@ -89,11 +89,20 @@ handlers, forms, executable SVG, third-party iframes, and `javascript:`,
 fragment links are allowed, as are remote or relative images. External links
 receive safe `rel` attributes.
 
+Allowing remote images has a deliberate privacy consequence: Reader View causes
+the user's browser to request those URLs directly from their origins. Those
+requests can expose the reader's IP address, user agent, timing, and referrer
+information according to browser policy. Issue #67 accepts this tradeoff to
+preserve article images. Proxying or removing remote images requires a separate
+product and privacy decision.
+
 The same policy is enforced at the crawler or archive write boundary and again
 defensively immediately before Reader View injection. The policy has a direct
-sanitizer test and a Reader View integration test. Where an original raw asset
-exists, it remains separately downloadable and is never used as trusted reader
-markup.
+sanitizer test and a Reader View integration test. The Reader View test must
+include an allowed remote image and make the direct browser request visible in
+its assertions, while also proving that disallowed URL forms are not
+requested. Where an original raw asset exists, it remains separately
+downloadable and is never used as trusted reader markup.
 
 The malicious fixture must prove that scripts, event handlers, forms,
 executable SVG, and third-party iframes disappear while safe text, links,
