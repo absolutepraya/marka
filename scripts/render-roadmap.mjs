@@ -33,8 +33,7 @@ const DEFAULT_REPOSITORY = "absolutepraya/marka";
 const FRAME_WIDTH = 3;
 const FRAME_RADIUS = 24;
 const EXPECTED_ISSUES = [
-  25, 26, 28, 34, 37, 38, 46, 55, 62, 63, 64, 65, 66, 67, 68, 69, 72, 73, 74,
-  75, 78,
+  25, 26, 28, 34, 37, 38, 46, 55, 62, 63, 64, 65, 66, 67, 68, 69, 75, 78,
 ];
 const LIGHT_THEME = {
   id: "light",

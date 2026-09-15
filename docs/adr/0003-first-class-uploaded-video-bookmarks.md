@@ -16,8 +16,8 @@ new bookmark content kind:
 
 `BookmarkTypes` describes the broad content shape (`link`, `text`, or
 `asset`). The asset subtype and MIME type describe the uploaded file and its
-renderer. This keeps uploaded images, PDFs, videos, audio, and future office
-documents on one extensible binary-asset path.
+renderer. This keeps uploaded images, PDFs, videos, audio, and any future
+binary asset formats on one extensible binary-asset path.
 
 ## Decisions
 
