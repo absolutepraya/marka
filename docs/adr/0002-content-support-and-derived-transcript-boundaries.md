@@ -24,6 +24,6 @@ The attachment column does not imply playback, focused reading, or a dedicated r
 
 ## Focused viewing contract
 
-Bookmark types remain `LINK`, `TEXT`, `ASSET`, and `UNKNOWN`. Video, audio, PDF, image, and future Office files remain asset subtypes rather than new top-level bookmark types. `TEXT` content carries a Markdown or plain-text format, defaulting to Markdown for existing rows and older clients.
+Bookmark types remain `LINK`, `TEXT`, `ASSET`, and `UNKNOWN`. Video, audio, PDF, and image remain asset subtypes rather than new top-level bookmark types. `TEXT` content carries a Markdown or plain-text format, defaulting to Markdown for existing rows and older clients.
 
-Reader View is the default focused surface for cached HTML links and text bookmarks. Plain text preserves its source whitespace without Markdown interpretation. PDFs and other binary assets stay in their dedicated preview surfaces and expose download actions to every authorized viewer. Full-fidelity Office viewing and editing remain separate future capabilities under #72 and #73.
+Reader View is the default focused surface for cached HTML links and text bookmarks. Plain text preserves its source whitespace without Markdown interpretation. PDFs and other binary assets stay in their dedicated preview surfaces and expose download actions to every authorized viewer. Office ingestion, provider-backed viewing, and editing are explicitly outside the current product scope; the retired proposals and their rationale are recorded in ADR 0006.

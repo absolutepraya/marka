@@ -8,7 +8,7 @@ Marka needs one public visual roadmap that shows the current full future-facing 
 
 ## Decision
 
-The authored source is docs/roadmap/roadmap.excalidraw. The initial single canvas contains the current scoped issues #25, #26, #28, #34, #37, #38, #46, #55, #62 to #69, #72 to #75, and #78. The source stores explicit issue metadata, stable node identities, links, colors, placement, area labels, and hard-prerequisite edges.
+The authored source is docs/roadmap/roadmap.excalidraw. The single canvas currently contains the scoped issues #25, #26, #28, #34, #37, #38, #46, #55, #62 to #69, #75, and #78. The source stores explicit issue metadata, stable node identities, links, colors, placement, area labels, and hard-prerequisite edges. Retired Office proposals #72 to #74 are preserved in GitHub history but are not roadmap nodes.
 
 The roadmap flows from top to bottom. It uses a portrait-friendly layout with simple normal-case area labels: Content support, Reader and media, Collaboration, Public surfaces, and Platform and operations. A compact legend below the title maps authored fill colors to those areas; colors are grouping cues only, not status or priority. Grouping and visual spacing are containment only. An arrow means the source issue is a hard prerequisite for the destination issue.
 
