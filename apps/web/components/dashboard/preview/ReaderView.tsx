@@ -253,40 +253,41 @@ export default function ReaderView({
     const reviewContentKey = `${bookmarkId}:html`;
 
     return renderTrackedReader(
-      <BookmarkHTMLHighlighter
-        className={className}
-        style={style}
-        htmlContent={safeHtmlContent}
-        highlights={highlights?.highlights ?? []}
-        readOnly={readOnly}
-        onDeleteHighlight={(h) =>
-          deleteHighlight({
-            highlightId: h.id,
-          })
-        }
-        onUpdateHighlight={(h) =>
-          updateHighlight({
-            highlightId: h.id,
-            color: h.color,
-            note: h.note,
-          })
-        }
-        onHighlight={(h) =>
-          createHighlight({
-            startOffset: h.startOffset,
-            endOffset: h.endOffset,
-            color: h.color,
-            bookmarkId,
-            text: h.text,
-            contextBefore: h.contextBefore ?? null,
-            contextAfter: h.contextAfter ?? null,
-            note: h.note ?? null,
-          })
-        }
-        onHighlightNeedsReview={(h) =>
-          onHighlightNeedsReview?.(h.id, reviewContentKey)
-        }
-      />,
+      <div className={cn("max-w-none break-words", className)} style={style}>
+        <BookmarkHTMLHighlighter
+          className="reader-html-content"
+          htmlContent={safeHtmlContent}
+          highlights={highlights?.highlights ?? []}
+          readOnly={readOnly}
+          onDeleteHighlight={(h) =>
+            deleteHighlight({
+              highlightId: h.id,
+            })
+          }
+          onUpdateHighlight={(h) =>
+            updateHighlight({
+              highlightId: h.id,
+              color: h.color,
+              note: h.note,
+            })
+          }
+          onHighlight={(h) =>
+            createHighlight({
+              startOffset: h.startOffset,
+              endOffset: h.endOffset,
+              color: h.color,
+              bookmarkId,
+              text: h.text,
+              contextBefore: h.contextBefore ?? null,
+              contextAfter: h.contextAfter ?? null,
+              note: h.note ?? null,
+            })
+          }
+          onHighlightNeedsReview={(h) =>
+            onHighlightNeedsReview?.(h.id, reviewContentKey)
+          }
+        />
+      </div>,
       contentKey,
     );
   };

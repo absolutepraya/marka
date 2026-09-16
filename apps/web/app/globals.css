@@ -437,8 +437,8 @@ textarea,
   }
 }
 
-/* Compact text surfaces keep bookmark previews from inheriting article-scale
-   typography from the default prose preset. */
+/* Compact bookmark text surfaces keep previews and reader content from
+   inheriting article-scale typography from the default prose preset. */
 .bookmark-markdown-preview.prose {
   font-size: 1rem;
   line-height: 1.5;
@@ -510,63 +510,76 @@ textarea,
   line-height: 1.5;
 }
 
-.reader-markdown-content.prose {
+.reader-markdown-content.prose,
+.reader-html-content.prose {
   font-size: 0.9375em;
   line-height: 1.5;
 }
 
-.reader-markdown-content.prose :is(h1, h2, h3, h4, h5, h6) {
+.reader-markdown-content.prose :is(h1, h2, h3, h4, h5, h6),
+.reader-html-content.prose :is(h1, h2, h3, h4, h5, h6) {
   line-height: 1.2;
 }
 
-.reader-markdown-content.prose h1 {
+.reader-markdown-content.prose h1,
+.reader-html-content.prose h1 {
   margin-block: 1.1em 0.6em;
   font-size: 1.75em;
 }
 
-.reader-markdown-content.prose h2 {
+.reader-markdown-content.prose h2,
+.reader-html-content.prose h2 {
   margin-block: 1em 0.55em;
   font-size: 1.45em;
 }
 
-.reader-markdown-content.prose h3 {
+.reader-markdown-content.prose h3,
+.reader-html-content.prose h3 {
   margin-block: 0.9em 0.5em;
   font-size: 1.3em;
 }
 
-.reader-markdown-content.prose :is(h4, h5, h6) {
+.reader-markdown-content.prose :is(h4, h5, h6),
+.reader-html-content.prose :is(h4, h5, h6) {
   margin-block: 0.8em 0.45em;
   font-size: 1.15em;
 }
 
-.reader-markdown-content.prose :is(p, ul, ol, blockquote, pre, table) {
+.reader-markdown-content.prose :is(p, ul, ol, blockquote, pre, table),
+.reader-html-content.prose :is(p, ul, ol, blockquote, pre, table) {
   margin-block: 0.8em;
 }
 
-.reader-markdown-content.prose li {
+.reader-markdown-content.prose li,
+.reader-html-content.prose li {
   margin-block: 0.25em;
 }
 
-.reader-markdown-content.prose :is(code, kbd, samp) {
+.reader-markdown-content.prose :is(code, kbd, samp),
+.reader-html-content.prose :is(code, kbd, samp) {
   font-size: 0.875em;
   line-height: 1.4;
 }
 
-.reader-markdown-content.prose pre {
+.reader-markdown-content.prose pre,
+.reader-html-content.prose pre {
   font-size: 0.875em;
   line-height: 1.4;
 }
 
-.reader-markdown-content.prose pre > div {
+.reader-markdown-content.prose pre > div,
+.reader-html-content.prose pre > div {
   font-size: inherit;
   line-height: inherit;
 }
 
-.reader-markdown-content.prose :is(th, td) {
+.reader-markdown-content.prose :is(th, td),
+.reader-html-content.prose :is(th, td) {
   padding: 0.45em 0.7em;
 }
 
-.reader-markdown-content.prose hr {
+.reader-markdown-content.prose hr,
+.reader-html-content.prose hr {
   margin-block: 1.1em;
   border: 0;
 }
