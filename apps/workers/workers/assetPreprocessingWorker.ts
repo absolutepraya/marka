@@ -1,5 +1,8 @@
+import fs from "fs";
 import os from "os";
+import path from "path";
 import { and, eq } from "drizzle-orm";
+import { execa } from "execa";
 import { workerStatsCounter } from "metrics";
 import PDFParser from "pdf2json";
 import { fromBuffer } from "pdf2pic";
@@ -275,6 +278,111 @@ export async function extractAndSavePDFScreenshot(
   }
 }
 
+async function extractAndSaveVideoScreenshot(
+  jobId: string,
+  asset: Buffer,
+  bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
+  isFixMode: boolean,
+): Promise<boolean> {
+  {
+    const alreadyHasScreenshot =
+      bookmark.assets.find(
+        (r) => r.assetType === AssetTypes.ASSET_SCREENSHOT,
+      ) !== undefined;
+    if (alreadyHasScreenshot && isFixMode) {
+      logger.info(
+        `[assetPreprocessing][${jobId}] Skipping video screenshot generation as it's already been generated.`,
+      );
+      return false;
+    }
+  }
+
+  logger.info(
+    `[assetPreprocessing][${jobId}] Attempting to generate video first-frame screenshot for bookmarkId: ${bookmark.id}`,
+  );
+
+  let tempDir: string | undefined;
+  try {
+    tempDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), "video-screenshot-"),
+    );
+    const videoPath = path.join(tempDir, "video");
+    const screenshotPath = path.join(tempDir, "screenshot.jpg");
+
+    await fs.promises.writeFile(videoPath, asset);
+    await execa("ffmpeg", [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-i",
+      videoPath,
+      "-map",
+      "0:v:0",
+      "-frames:v",
+      "1",
+      "-q:v",
+      "2",
+      "-f",
+      "image2",
+      screenshotPath,
+    ]);
+
+    const screenshot = await fs.promises.readFile(screenshotPath);
+
+    // Check storage quota before inserting
+    const quotaApproved = await QuotaService.checkStorageQuota(
+      db,
+      bookmark.userId,
+      screenshot.byteLength,
+    );
+
+    const assetId = newAssetId();
+    const fileName = "screenshot.jpg";
+    const contentType = "image/jpeg";
+    await saveAsset({
+      userId: bookmark.userId,
+      assetId,
+      asset: screenshot,
+      metadata: {
+        contentType,
+        fileName,
+      },
+      quotaApproved,
+    });
+
+    await db.insert(assets).values({
+      id: assetId,
+      bookmarkId: bookmark.id,
+      userId: bookmark.userId,
+      assetType: AssetTypes.ASSET_SCREENSHOT,
+      contentType,
+      size: screenshot.byteLength,
+      fileName,
+    });
+
+    logger.info(
+      `[assetPreprocessing][${jobId}] Successfully saved video first-frame screenshot to database`,
+    );
+    return true;
+  } catch (error) {
+    if (error instanceof StorageQuotaError) {
+      logger.warn(
+        `[assetPreprocessing][${jobId}] Skipping video screenshot due to quota exceeded: ${error.message}`,
+      );
+      return true;
+    }
+    logger.error(
+      `[assetPreprocessing][${jobId}] Failed to process video screenshot: ${error}`,
+    );
+    return false;
+  } finally {
+    if (tempDir) {
+      await fs.promises.rm(tempDir, { recursive: true, force: true });
+    }
+  }
+}
+
 async function extractAndSaveImageText(
   jobId: string,
   asset: Buffer,
@@ -405,7 +513,7 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
 
   if (!bookmark.asset) {
     throw new Error(
-      `[assetPreprocessing][${jobId}] Bookmark is not an asset (not an image or pdf)`,
+      `[assetPreprocessing][${jobId}] Bookmark is not an asset (not an image, pdf, or video)`,
     );
   }
 
@@ -455,6 +563,16 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
         isFixMode,
       );
       anythingChanged ||= extractedText || extractedScreenshot;
+      break;
+    }
+    case "video": {
+      const extractedScreenshot = await extractAndSaveVideoScreenshot(
+        jobId,
+        asset,
+        bookmark,
+        isFixMode,
+      );
+      anythingChanged ||= extractedScreenshot;
       break;
     }
     default:

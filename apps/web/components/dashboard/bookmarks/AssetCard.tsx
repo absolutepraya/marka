@@ -63,13 +63,29 @@ function AssetImage({
       );
     }
     case "video": {
+      const screenshotAssetId = bookmark.assets.find(
+        (r) => r.assetType === "assetScreenshot",
+      )?.id;
+      if (!screenshotAssetId) {
+        return (
+          <div
+            className={cn(className, "flex items-center justify-center")}
+            title="Video first-frame preview is not available. Run asset preprocessing to generate it"
+          >
+            <Video size={80} aria-hidden="true" />
+          </div>
+        );
+      }
       return (
-        <Link
-          href={`/dashboard/preview/${bookmark.id}`}
-          aria-label={`Preview ${bookmarkedAsset.fileName ?? "video"}`}
-          className={cn(className, "flex items-center justify-center")}
-        >
-          <Video size={80} aria-hidden="true" />
+        <Link href={`/dashboard/preview/${bookmark.id}`}>
+          <Image
+            alt="Video first-frame preview"
+            src={getAssetUrl(screenshotAssetId)}
+            fill={true}
+            sizes="(max-width: 768px) 100vw, 33vw"
+            unoptimized
+            className={`${className ?? ""} ease-(--ease-out) transition-transform duration-300 group-hover:scale-[1.02]`}
+          />
         </Link>
       );
     }
