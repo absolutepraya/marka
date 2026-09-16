@@ -44,7 +44,7 @@ export default function BookmarkActionBar({
   return (
     <div
       className={cn(
-        "pointer-coarse:opacity-100 ease-(--ease-out) pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 flex items-center gap-0.5 text-muted-foreground transition-opacity duration-150",
+        "pointer-coarse:opacity-100 ease-(--ease-out) sm:pointer-fine:opacity-0 sm:pointer-fine:group-hover:opacity-100 sm:pointer-fine:group-focus-within:opacity-100 flex items-center gap-0.5 text-muted-foreground transition-opacity duration-150",
         alwaysVisibleOnDesktop && "sm:pointer-fine:opacity-100",
       )}
     >
