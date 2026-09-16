@@ -45,11 +45,21 @@ export default function ReaderViewPage() {
   const { t } = useTranslation();
   const { settings } = useReaderSettings();
   const [showHighlights, setShowHighlights] = useState(false);
+  const [needsReviewState, setNeedsReviewState] = useState<{
+    contentKey: string;
+    ids: Set<string>;
+  }>({ contentKey: "", ids: new Set() });
   const isOwner = session?.user?.id === bookmark?.userId;
   const canUseReader =
     bookmark?.content.type === BookmarkTypes.TEXT ||
     bookmark?.content.type === BookmarkTypes.LINK;
   const canHighlight = bookmark?.content.type === BookmarkTypes.LINK;
+  const readerContentKey =
+    bookmark?.content.type === BookmarkTypes.LINK ? `${bookmarkId}:html` : "";
+  const needsReviewHighlightIds =
+    needsReviewState.contentKey === readerContentKey
+      ? needsReviewState.ids
+      : new Set<string>();
 
   const onClose = () => {
     if (window.history.length > 1) {
@@ -220,6 +230,21 @@ export default function ReaderViewPage() {
                       readOnly={!isOwner}
                       fallbackHref={`/dashboard/preview/${bookmarkId}`}
                       progressBarStyle={{ position: "fixed", top: "3.5rem" }}
+                      onHighlightNeedsReview={(highlightId, contentKey) =>
+                        setNeedsReviewState((current) => {
+                          if (current.contentKey !== contentKey) {
+                            return {
+                              contentKey,
+                              ids: new Set([highlightId]),
+                            };
+                          }
+                          if (current.ids.has(highlightId)) return current;
+                          return {
+                            contentKey,
+                            ids: new Set(current.ids).add(highlightId),
+                          };
+                        })
+                      }
                     />
                   </div>
                 </Suspense>
@@ -274,8 +299,9 @@ export default function ReaderViewPage() {
                       <HighlightCard
                         key={highlight.id}
                         highlight={highlight}
-                        clickable={true}
+                        clickable={!needsReviewHighlightIds.has(highlight.id)}
                         readOnly={!isOwner}
+                        needsReview={needsReviewHighlightIds.has(highlight.id)}
                       />
                     ))}
                   </div>

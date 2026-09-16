@@ -5,6 +5,8 @@ import { describe, expect, test, vi } from "vitest";
 import {
   normalizeText,
   normalizeTextLength,
+  scrollToReadingPercentage,
+  scrollToReadingStart,
   scrollToReadingPosition,
 } from "./reading-progress-dom";
 
@@ -82,6 +84,48 @@ describe("scrollToReadingPosition", () => {
       block: "start",
     });
 
+    container.remove();
+  });
+});
+
+describe("scrollToReadingStart", () => {
+  test("scrolls the window to the beginning", () => {
+    const container = document.createElement("article");
+    const scrollTo = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+    document.body.append(container);
+
+    scrollToReadingStart(container, "auto");
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" });
+    scrollTo.mockRestore();
+    container.remove();
+  });
+
+  test("falls back to a saved percentage", () => {
+    const container = document.createElement("article");
+    const scrollTo = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+    Object.defineProperty(document.body, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 100,
+    });
+    document.body.append(container);
+
+    expect(scrollToReadingPercentage(container, 50, "auto")).toBe(true);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 450, behavior: "auto" });
+
+    scrollTo.mockRestore();
     container.remove();
   });
 });

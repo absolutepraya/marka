@@ -5,17 +5,24 @@ import { BookOpen, X } from "lucide-react";
 
 export default function ReadingProgressBanner({
   percent,
+  isRestarted = false,
   onContinue,
+  onStartOver,
+  onUndoStartOver,
   onDismiss,
 }: {
   percent?: number | null;
+  isRestarted?: boolean;
   onContinue: () => void;
+  onStartOver?: () => void;
+  onUndoStartOver?: () => void;
   onDismiss: () => void;
 }) {
   const { t } = useTranslation();
 
-  const message =
-    percent && percent > 0
+  const message = isRestarted
+    ? t("preview.reading_restarted")
+    : percent && percent > 0
       ? t("preview.continue_reading_percent", { percent })
       : t("preview.continue_reading");
 
@@ -24,13 +31,34 @@ export default function ReadingProgressBanner({
       <div className="flex items-center gap-3 rounded-full border border-border/60 bg-background/80 px-4 py-2 text-sm shadow-sm backdrop-blur-md">
         <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="truncate text-muted-foreground">{message}</span>
-        <button
-          type="button"
-          onClick={onContinue}
-          className="ease-(--ease-out) shrink-0 rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background transition-[transform,opacity] duration-150 hover:opacity-80 active:scale-[0.97] motion-reduce:transition-opacity motion-reduce:active:scale-100"
-        >
-          {t("preview.continue_button")}
-        </button>
+        {isRestarted ? (
+          <button
+            type="button"
+            onClick={onUndoStartOver}
+            className="ease-(--ease-out) shrink-0 rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background transition-[transform,opacity] duration-150 hover:opacity-80 active:scale-[0.97] motion-reduce:transition-opacity motion-reduce:active:scale-100"
+          >
+            {t("preview.undo")}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onContinue}
+              className="ease-(--ease-out) shrink-0 rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background transition-[transform,opacity] duration-150 hover:opacity-80 active:scale-[0.97] motion-reduce:transition-opacity motion-reduce:active:scale-100"
+            >
+              {t("preview.continue_button")}
+            </button>
+            {onStartOver && (
+              <button
+                type="button"
+                onClick={onStartOver}
+                className="ease-(--ease-out) shrink-0 rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground transition-[transform,background-color] duration-150 hover:bg-muted active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100"
+              >
+                {t("preview.start_over")}
+              </button>
+            )}
+          </>
+        )}
         <button
           type="button"
           onClick={onDismiss}

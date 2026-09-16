@@ -597,6 +597,16 @@
             "type": "string",
             "nullable": true
           },
+          "contextBefore": {
+            "type": "string",
+            "nullable": true,
+            "default": null
+          },
+          "contextAfter": {
+            "type": "string",
+            "nullable": true,
+            "default": null
+          },
           "note": {
             "type": "string",
             "nullable": true
@@ -3427,6 +3437,16 @@
                   "text": {
                     "type": "string",
                     "nullable": true
+                  },
+                  "contextBefore": {
+                    "type": "string",
+                    "nullable": true,
+                    "default": null
+                  },
+                  "contextAfter": {
+                    "type": "string",
+                    "nullable": true,
+                    "default": null
                   },
                   "note": {
                     "type": "string",

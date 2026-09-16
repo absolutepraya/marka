@@ -883,14 +883,21 @@ export const bookmarksAppRouter = router({
     )
     .use(ensureBookmarkAccess)
     .mutation(async ({ input, ctx }) => {
-      // Validate this is a LINK bookmark - reading progress only applies to links
-      const linkBookmark = await ctx.db.query.bookmarkLinks.findFirst({
-        where: eq(bookmarkLinks.id, input.bookmarkId),
+      // Reader View supports progress for cached links and text/Markdown
+      // bookmarks. Asset previews have their own viewers and are excluded.
+      const bookmark = await ctx.db.query.bookmarks.findFirst({
+        columns: { type: true },
+        where: eq(bookmarks.id, input.bookmarkId),
       });
-      if (!linkBookmark) {
+      if (
+        !bookmark ||
+        (bookmark.type !== BookmarkTypes.LINK &&
+          bookmark.type !== BookmarkTypes.TEXT)
+      ) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Reading progress can only be saved for link bookmarks",
+          message:
+            "Reading progress can only be saved for link and text bookmarks",
         });
       }
 

@@ -245,11 +245,10 @@ export function scrollToReadingPosition(
   offset: number,
   behavior: ScrollBehavior = "smooth",
   anchor?: string | null,
+  percent?: number | null,
 ): boolean {
-  if (offset <= 0) return false;
-
   // Strategy 1: Try to find paragraph by anchor text (most reliable)
-  if (anchor) {
+  if (offset > 0 && anchor) {
     const paragraphs = Array.from(
       container.querySelectorAll(PARAGRAPH_SELECTOR_STRING),
     );
@@ -286,50 +285,116 @@ export function scrollToReadingPosition(
   }
 
   // Strategy 2: Fall back to offset-based lookup
-  const walker = document.createTreeWalker(
-    container,
-    NodeFilter.SHOW_TEXT,
-    null,
-  );
+  if (offset > 0) {
+    const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      null,
+    );
 
-  let currentOffset = 0;
-  let node: Node | null;
-  while ((node = walker.nextNode())) {
-    const textContent = node.textContent ?? "";
-    // Use normalized length for consistent offset calculation
-    const nodeLength = normalizeTextLength(textContent);
+    let currentOffset = 0;
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      const textContent = node.textContent ?? "";
+      // Use normalized length for consistent offset calculation
+      const nodeLength = normalizeTextLength(textContent);
 
-    // Skip nodes with no meaningful content (whitespace-only nodes normalize to length 0)
-    if (nodeLength === 0) {
-      continue;
-    }
+      // Skip nodes with no meaningful content (whitespace-only nodes normalize to length 0)
+      if (nodeLength === 0) {
+        continue;
+      }
 
-    // Check if we've passed the target offset
-    if (currentOffset + nodeLength >= offset) {
-      // Found the text node containing our offset
-      // Find the enclosing paragraph element
-      let targetElement: HTMLElement | null = node.parentElement;
-      while (targetElement && targetElement !== container) {
-        if (targetElement.matches(PARAGRAPH_SELECTOR_STRING)) {
-          break;
+      // Check if we've passed the target offset
+      if (currentOffset + nodeLength >= offset) {
+        // Found the text node containing our offset
+        // Find the enclosing paragraph element
+        let targetElement: HTMLElement | null = node.parentElement;
+        while (targetElement && targetElement !== container) {
+          if (targetElement.matches(PARAGRAPH_SELECTOR_STRING)) {
+            break;
+          }
+          targetElement = targetElement.parentElement;
         }
-        targetElement = targetElement.parentElement;
+
+        // Use the text node's parent if no paragraph found
+        if (!targetElement || targetElement === container) {
+          targetElement = node.parentElement;
+        }
+
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior, block: "start" });
+          return true;
+        }
+        break;
       }
 
-      // Use the text node's parent if no paragraph found
-      if (!targetElement || targetElement === container) {
-        targetElement = node.parentElement;
-      }
-
-      if (targetElement) {
-        targetElement.scrollIntoView({ behavior, block: "start" });
-        return true;
-      }
-      break;
+      currentOffset += nodeLength;
     }
-
-    currentOffset += nodeLength;
   }
 
-  return false;
+  return scrollToReadingPercentage(container, percent, behavior);
+}
+
+/**
+ * Restores a saved percentage when an anchor and character offset no longer
+ * identify a usable location in the current content.
+ */
+export function scrollToReadingPercentage(
+  container: HTMLElement,
+  percent: number | null | undefined,
+  behavior: ScrollBehavior = "smooth",
+): boolean {
+  if (percent == null || !Number.isFinite(percent)) return false;
+
+  const clampedPercent = Math.min(100, Math.max(0, percent));
+  const scrollParent = findScrollableParent(container);
+  const isWindowScroll = scrollParent === document.documentElement;
+  const scrollHeight = isWindowScroll
+    ? Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+      )
+    : scrollParent.scrollHeight;
+  const clientHeight = isWindowScroll
+    ? window.innerHeight
+    : scrollParent.clientHeight;
+  const top = Math.max(0, scrollHeight - clientHeight) * (clampedPercent / 100);
+
+  if (isWindowScroll) {
+    if (typeof window.scrollTo === "function") {
+      window.scrollTo({ top, behavior });
+    } else {
+      document.documentElement.scrollTop = top;
+    }
+  } else if (typeof scrollParent.scrollTo === "function") {
+    scrollParent.scrollTo({ top, behavior });
+  } else {
+    scrollParent.scrollTop = top;
+  }
+
+  return true;
+}
+
+/**
+ * Scrolls the content back to its beginning, respecting nested scroll areas.
+ */
+export function scrollToReadingStart(
+  container: HTMLElement,
+  behavior: ScrollBehavior = "smooth",
+): void {
+  const scrollParent = findScrollableParent(container);
+  if (scrollParent === document.documentElement) {
+    if (typeof window.scrollTo === "function") {
+      window.scrollTo({ top: 0, behavior });
+    } else {
+      document.documentElement.scrollTop = 0;
+    }
+    return;
+  }
+
+  if (typeof scrollParent.scrollTo === "function") {
+    scrollParent.scrollTo({ top: 0, behavior });
+  } else {
+    scrollParent.scrollTop = 0;
+  }
 }

@@ -13,6 +13,10 @@ import {
   SUPPORTED_HIGHLIGHT_COLORS,
   ZHighlightColor,
 } from "@karakeep/shared/types/highlights";
+import {
+  getHighlightRangesForOffsets,
+  recoverHighlight,
+} from "@karakeep/shared/utils/highlight-recovery";
 
 import { HIGHLIGHT_COLOR_MAP } from "./highlights";
 import { Button } from "./ui/button";
@@ -81,6 +85,8 @@ const HighlightForm: React.FC<HighlightFormProps> = ({
                 key={color}
                 onClick={() => setSelectedColor(color)}
                 variant="none"
+                aria-label={color}
+                aria-pressed={selectedColor === color}
                 className={cn(
                   `size-8 rounded-full hover:border focus-visible:ring-0`,
                   HIGHLIGHT_COLOR_MAP.bg[color],
@@ -105,7 +111,7 @@ const HighlightForm: React.FC<HighlightFormProps> = ({
         <div className="flex items-center justify-between gap-2">
           <div className="flex gap-2">
             <Button onClick={handleSave} size="sm">
-              Save
+              {isMobile ? "Highlight" : "Save"}
             </Button>
             <Button onClick={onClose} variant="outline" size="sm">
               Cancel
@@ -133,6 +139,8 @@ export interface Highlight {
   endOffset: number;
   color: ZHighlightColor;
   text: string | null;
+  contextBefore?: string | null;
+  contextAfter?: string | null;
   note?: string | null;
 }
 
@@ -145,6 +153,7 @@ interface HTMLHighlighterProps {
   onHighlight?: (highlight: Highlight) => void;
   onUpdateHighlight?: (highlight: Highlight) => void;
   onDeleteHighlight?: (highlight: Highlight) => void;
+  onHighlightNeedsReview?: (highlight: Highlight) => void;
 }
 
 const BookmarkHTMLHighlighter = forwardRef<
@@ -160,6 +169,7 @@ const BookmarkHTMLHighlighter = forwardRef<
     onHighlight,
     onUpdateHighlight,
     onDeleteHighlight,
+    onHighlightNeedsReview,
   },
   ref,
 ) {
@@ -183,6 +193,10 @@ const BookmarkHTMLHighlighter = forwardRef<
       typeof window !== "undefined" &&
       window.matchMedia("(pointer: coarse)").matches,
   )[0];
+  const onHighlightNeedsReviewRef = useRef(onHighlightNeedsReview);
+  useEffect(() => {
+    onHighlightNeedsReviewRef.current = onHighlightNeedsReview;
+  }, [onHighlightNeedsReview]);
 
   // Apply existing highlights when component mounts or highlights change
   useEffect(() => {
@@ -202,11 +216,18 @@ const BookmarkHTMLHighlighter = forwardRef<
       }
     });
 
-    // Apply all highlights
+    // Apply all highlights only when their saved text can be verified or
+    // recovered uniquely. Ambiguous and missing matches stay in the sidebar
+    // as Needs review and receive no inline mark.
     highlights.forEach((highlight) => {
-      applyHighlightByOffset(highlight);
+      const recovery = recoverHighlight(contentRef.current!, highlight);
+      if (recovery.status === "needs_review") {
+        onHighlightNeedsReviewRef.current?.(highlight);
+        return;
+      }
+      applyHighlightRanges(recovery.ranges, highlight);
     });
-  });
+  }, [htmlContent, highlights]);
 
   // Re-apply the selection when the pending range changes
   useEffect(() => {
@@ -321,6 +342,20 @@ const BookmarkHTMLHighlighter = forwardRef<
     return -1;
   };
 
+  const getContentText = (): string => {
+    if (!contentRef.current) return "";
+    const walker = document.createTreeWalker(
+      contentRef.current,
+      NodeFilter.SHOW_TEXT,
+      null,
+    );
+    let text = "";
+    while (walker.nextNode()) {
+      text += walker.currentNode.textContent ?? "";
+    }
+    return text;
+  };
+
   const createHighlightFromRange = (
     range: Range,
     color: ZHighlightColor,
@@ -333,55 +368,47 @@ const BookmarkHTMLHighlighter = forwardRef<
 
     if (startOffset === -1 || endOffset === -1) return null;
 
+    const contentText = getContentText();
+    const contextLength = 80;
+
     const highlight: Highlight = {
       id: "NOT_SET",
       startOffset,
       endOffset,
       color,
       text: range.toString(),
+      contextBefore: contentText.slice(
+        Math.max(0, startOffset - contextLength),
+        startOffset,
+      ),
+      contextAfter: contentText.slice(
+        endOffset,
+        Math.min(contentText.length, endOffset + contextLength),
+      ),
     };
 
-    applyHighlightByOffset(highlight);
+    const ranges = getRangeFromHighlight(highlight);
+    if (ranges) {
+      applyHighlightRanges(ranges, highlight);
+    }
     return highlight;
   };
 
   const getRangeFromHighlight = (highlight: Highlight) => {
     if (!contentRef.current) return;
-
-    let currentOffset = 0;
-    const walker = document.createTreeWalker(
-      contentRef.current,
-      NodeFilter.SHOW_TEXT,
-      null,
+    return (
+      getHighlightRangesForOffsets(
+        contentRef.current,
+        highlight.startOffset,
+        highlight.endOffset,
+      ) ?? undefined
     );
-
-    const ranges: { node: Text; start: number; end: number }[] = [];
-
-    // Find all text nodes that need highlighting
-    let node: Text | null;
-    while ((node = walker.nextNode() as Text)) {
-      const nodeLength = node.length;
-      const nodeStart = currentOffset;
-      const nodeEnd = nodeStart + nodeLength;
-
-      if (nodeStart < highlight.endOffset && nodeEnd > highlight.startOffset) {
-        ranges.push({
-          node,
-          start: Math.max(0, highlight.startOffset - nodeStart),
-          end: Math.min(nodeLength, highlight.endOffset - nodeStart),
-        });
-      }
-
-      currentOffset += nodeLength;
-    }
-    return ranges;
   };
 
-  const applyHighlightByOffset = (highlight: Highlight) => {
-    const ranges = getRangeFromHighlight(highlight);
-    if (!ranges) {
-      return;
-    }
+  const applyHighlightRanges = (
+    ranges: { node: Text; start: number; end: number }[],
+    highlight: Highlight,
+  ) => {
     // Apply highlights to found ranges
     ranges.forEach(({ node, start, end }) => {
       if (start > 0) {

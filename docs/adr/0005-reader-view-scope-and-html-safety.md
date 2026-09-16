@@ -108,6 +108,9 @@ The malicious fixture must prove that scripts, event handlers, forms,
 executable SVG, and third-party iframes disappear while safe text, links,
 images, tables, and code remain.
 
+The reproducible local Chromium command and the manual VoiceOver checklist are
+documented in [Reader View verification](../reader-view-verification.md).
+
 ## Consequences
 
 Issue #67 can improve the reading flow without creating a new content model or

@@ -424,6 +424,8 @@ export const highlights = sqliteTable(
       .default("yellow")
       .notNull(),
     text: text("text"),
+    contextBefore: text("contextBefore"),
+    contextAfter: text("contextAfter"),
     note: text("note"),
     createdAt: createdAtField(),
   },

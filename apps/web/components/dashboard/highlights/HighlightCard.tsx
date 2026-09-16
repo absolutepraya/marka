@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/ui/action-button";
 import { toast } from "@/components/ui/sonner";
+import { useTranslation } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 
@@ -33,12 +34,15 @@ export default function HighlightCard({
   clickable,
   className,
   readOnly,
+  needsReview = false,
 }: {
   highlight: ZHighlight;
   clickable: boolean;
   className?: string;
   readOnly: boolean;
+  needsReview?: boolean;
 }) {
+  const { t } = useTranslation();
   const { mutate: deleteHighlight, isPending: isDeleting } = useDeleteHighlight(
     {
       onSuccess: () => {
@@ -56,6 +60,7 @@ export default function HighlightCard({
   );
 
   const onBookmarkClick = () => {
+    if (needsReview) return;
     document
       .querySelector(`[data-highlight-id="${highlight.id}"]`)
       ?.scrollIntoView({
@@ -71,6 +76,11 @@ export default function HighlightCard({
         onClick={onBookmarkClick}
         className="flex flex-col gap-2 text-left"
       >
+        {needsReview && (
+          <span className="w-fit rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+            {t("preview.highlight_needs_review")}
+          </span>
+        )}
         <blockquote
           cite={highlight.bookmarkId}
           className={cn(
@@ -78,8 +88,13 @@ export default function HighlightCard({
             HIGHLIGHT_COLOR_MAP["border-l"][highlight.color],
           )}
         >
-          <p>{highlight.text}</p>
+          <p>{highlight.text || t("preview.highlight_no_saved_text")}</p>
         </blockquote>
+        {needsReview && (
+          <p className="text-xs text-muted-foreground">
+            {t("preview.highlight_needs_review_description")}
+          </p>
+        )}
         {highlight.note && (
           <span className="text-sm text-muted-foreground">
             {highlight.note}

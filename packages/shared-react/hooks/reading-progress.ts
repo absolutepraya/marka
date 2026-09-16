@@ -51,11 +51,19 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
   const [restoreRequestedBookmarkId, setRestoreRequestedBookmarkId] = useState<
     string | null
   >(null);
+  const [startOverBookmarkId, setStartOverBookmarkId] = useState<string | null>(
+    null,
+  );
+  const [undoAvailableBookmarkId, setUndoAvailableBookmarkId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     lastSavedPosition.current = null;
     setBannerDismissedBookmarkId(null);
     setRestoreRequestedBookmarkId(null);
+    setStartOverBookmarkId(null);
+    setUndoAvailableBookmarkId(null);
   }, [bookmarkId]);
 
   useEffect(() => {
@@ -97,14 +105,15 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
   const initialAnchor = activeInitialProgress?.anchor ?? null;
   const initialPercent = activeInitialProgress?.percent ?? null;
   const bannerDismissed = bannerDismissedBookmarkId === bookmarkId;
-
-  const showBanner =
+  const isRestarted = startOverBookmarkId === bookmarkId;
+  const canOfferResume =
     !!initialOffset &&
     initialOffset > 0 &&
     initialPercent != null &&
     initialPercent >= 10 &&
-    initialPercent < 100 &&
-    !bannerDismissed;
+    initialPercent < 100;
+
+  const showBanner = (canOfferResume || isRestarted) && !bannerDismissed;
 
   // Save mutation
   const { mutate: updateProgress } = useMutation(
@@ -120,7 +129,7 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
   // Lazy save — called by ScrollProgressTracker on idle/visibility/beforeunload/unmount
   const onSavePosition = useCallback(
     (position: ReadingPosition) => {
-      if (showBanner) return;
+      if (showBanner && !isRestarted) return;
       if (
         lastSavedPosition.current?.bookmarkId === bookmarkId &&
         lastSavedPosition.current.offset === position.offset
@@ -135,37 +144,84 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
         readingProgressPercent: position.percent,
       });
     },
-    [bookmarkId, showBanner, updateProgress],
+    [bookmarkId, isRestarted, showBanner, updateProgress],
   );
 
   const onScrollPositionChange = useCallback(
     (position: ReadingPosition) => {
-      if (showBanner && position.percent > 15) {
+      if (showBanner && !isRestarted && position.percent > 15) {
         setBannerDismissedBookmarkId(bookmarkId);
       }
     },
-    [bookmarkId, showBanner],
+    [bookmarkId, isRestarted, showBanner],
   );
 
   const onContinue = useCallback(() => {
     setRestoreRequestedBookmarkId(bookmarkId);
     setBannerDismissedBookmarkId(bookmarkId);
+    setStartOverBookmarkId(null);
+    setUndoAvailableBookmarkId(null);
   }, [bookmarkId]);
+
+  const onStartOver = useCallback(() => {
+    if (!initialOffset || initialOffset <= 0) return;
+
+    lastSavedPosition.current = { bookmarkId, offset: 0 };
+    setRestoreRequestedBookmarkId(null);
+    setStartOverBookmarkId(bookmarkId);
+    setUndoAvailableBookmarkId(bookmarkId);
+    setBannerDismissedBookmarkId(null);
+    updateProgress({
+      bookmarkId,
+      readingProgressOffset: 0,
+      readingProgressAnchor: null,
+      readingProgressPercent: 0,
+    });
+  }, [bookmarkId, initialOffset, updateProgress]);
+
+  const onUndoStartOver = useCallback(() => {
+    if (!initialOffset || initialOffset <= 0) return;
+
+    lastSavedPosition.current = { bookmarkId, offset: initialOffset };
+    setStartOverBookmarkId(null);
+    setUndoAvailableBookmarkId(null);
+    setRestoreRequestedBookmarkId(bookmarkId);
+    setBannerDismissedBookmarkId(bookmarkId);
+    updateProgress({
+      bookmarkId,
+      readingProgressOffset: initialOffset,
+      readingProgressAnchor: initialAnchor,
+      readingProgressPercent: initialPercent,
+    });
+  }, [
+    bookmarkId,
+    initialAnchor,
+    initialOffset,
+    initialPercent,
+    updateProgress,
+  ]);
 
   const onDismiss = useCallback(() => {
     setBannerDismissedBookmarkId(bookmarkId);
+    setUndoAvailableBookmarkId(null);
   }, [bookmarkId]);
 
   return {
     // Banner
     showBanner,
     bannerPercent: initialPercent,
+    isRestarted,
+    undoAvailable: undoAvailableBookmarkId === bookmarkId,
     onContinue,
+    onStartOver,
+    onUndoStartOver,
     onDismiss,
     // ScrollProgressTracker props
     restorePosition: restoreRequestedBookmarkId === bookmarkId,
+    resetPosition: startOverBookmarkId === bookmarkId,
     readingProgressOffset: initialOffset,
     readingProgressAnchor: initialAnchor,
+    readingProgressPercent: initialPercent,
     onSavePosition,
     onScrollPositionChange,
   };
