@@ -18,9 +18,6 @@ import { getAssetUrl } from "@karakeep/shared/utils/assetUtils";
 import { AudioPlayer } from "./AudioPlayer";
 import ContentDownloadButton from "./ContentDownloadButton";
 
-// 20 MB
-const BIG_FILE_SIZE = 20 * 1024 * 1024;
-
 function PDFContentSection({ bookmark }: { bookmark: ZBookmark }) {
   if (bookmark.content.type != BookmarkTypes.ASSET) {
     throw new Error("Invalid content type");
@@ -32,14 +29,6 @@ function PDFContentSection({ bookmark }: { bookmark: ZBookmark }) {
       throw new Error("Invalid content type");
     }
 
-    const screenshot = bookmark.assets.find(
-      (item) => item.assetType === "assetScreenshot",
-    );
-    const bigSize =
-      bookmark.content.size && bookmark.content.size > BIG_FILE_SIZE;
-    if (bigSize && screenshot) {
-      return "screenshot";
-    }
     return "pdf";
   }, [bookmark]);
   const [section, setSection] = useState(initialSection);
@@ -70,8 +59,8 @@ function PDFContentSection({ bookmark }: { bookmark: ZBookmark }) {
     );
 
   return (
-    <div className="flex h-full flex-col items-center gap-2">
-      <div className="flex w-full items-center justify-center gap-2">
+    <div className="flex h-full min-h-0 w-full flex-col items-center gap-2">
+      <div className="flex w-full shrink-0 items-center justify-center gap-2">
         <Select onValueChange={setSection} value={section}>
           <SelectTrigger className="w-fit">
             <SelectValue />
@@ -85,9 +74,9 @@ function PDFContentSection({ bookmark }: { bookmark: ZBookmark }) {
             </SelectGroup>
           </SelectContent>
         </Select>
-        <ContentDownloadButton bookmark={bookmark} />
+        <ContentDownloadButton bookmark={bookmark} size="default" />
       </div>
-      {content}
+      <div className="min-h-0 w-full flex-1">{content}</div>
     </div>
   );
 }

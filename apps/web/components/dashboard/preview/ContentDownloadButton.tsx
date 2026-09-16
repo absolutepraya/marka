@@ -52,10 +52,12 @@ export default function ContentDownloadButton({
   bookmark,
   className,
   fileName: fileNameOverride,
+  size = "sm",
 }: {
   bookmark: ZBookmark;
   className?: string;
   fileName?: string;
+  size?: "default" | "sm";
 }) {
   const { t } = useTranslation();
   const target = getDownloadTarget(bookmark, fileNameOverride);
@@ -68,10 +70,7 @@ export default function ContentDownloadButton({
     <Link
       href={getAssetUrl(target.assetId)}
       download={fileName}
-      className={cn(
-        buttonVariants({ variant: "outline", size: "sm" }),
-        className,
-      )}
+      className={cn(buttonVariants({ variant: "outline", size }), className)}
       aria-label={t("actions.download_file", { fileName })}
     >
       <Download className="mr-2 size-4" aria-hidden="true" />

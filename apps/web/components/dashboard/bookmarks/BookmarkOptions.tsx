@@ -47,6 +47,7 @@ import type {
 import {
   useAttachBookmarkAsset,
   useDeleteUnattachedAsset,
+  useRefreshBookmarkAssetPreview,
   useReplaceBookmarkAsset,
 } from "@karakeep/shared-react/hooks/assets";
 import { useBookmarkGridContext } from "@karakeep/shared-react/hooks/bookmark-grid-context";
@@ -101,6 +102,9 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
   const requiresOnline = offlineStatus.kind !== "online";
 
   const isOwner = session?.user?.id === bookmark.userId;
+  const isPdfAsset =
+    bookmark.content.type === BookmarkTypes.ASSET &&
+    bookmark.content.assetType === "pdf";
 
   const [isClipboardAvailable, setIsClipboardAvailable] = useState(false);
 
@@ -156,14 +160,22 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
       },
     });
 
-  const { listId } = useBookmarkGridContext() ?? {};
-  const withinListContext = useBookmarkListContext();
-
   const onError = (error?: unknown) => {
     toast.error(
       error instanceof Error ? error.message : t("common.something_went_wrong"),
     );
   };
+
+  const { mutate: refreshAssetPreview, isPending: isRefreshingAssetPreview } =
+    useRefreshBookmarkAssetPreview({
+      onSuccess: () => {
+        toast.success(t("toasts.bookmarks.refetch"));
+      },
+      onError,
+    });
+
+  const { listId } = useBookmarkGridContext() ?? {};
+  const withinListContext = useBookmarkListContext();
 
   const updateBookmarkMutator = useOfflineSafeBookmarkUpdate();
   const updateBookmark = (input: {
@@ -434,13 +446,18 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
           id: "refresh",
           title: t("actions.refresh"),
           icon: <RotateCw className="mr-2 size-4" />,
-          visible: bookmark.content.type === BookmarkTypes.LINK,
-          disabled: demoMode || requiresOnline,
+          visible: bookmark.content.type === BookmarkTypes.LINK || isPdfAsset,
+          disabled: demoMode || requiresOnline || isRefreshingAssetPreview,
           disabledMessage: requiresOnline
             ? OFFLINE_ONLINE_REQUIRED_MESSAGE
             : undefined,
-          onClick: () =>
-            crawlBookmarkMutator.mutate({ bookmarkId: bookmark.id }),
+          onClick: () => {
+            if (bookmark.content.type === BookmarkTypes.LINK) {
+              crawlBookmarkMutator.mutate({ bookmarkId: bookmark.id });
+            } else if (isPdfAsset) {
+              refreshAssetPreview({ bookmarkId: bookmark.id });
+            }
+          },
         },
         {
           id: "download-asset",

@@ -205,6 +205,9 @@ export default function BookmarkPreview({
 
   const sourceUrl = getSourceUrl(bookmark);
   const title = getBookmarkTitle(bookmark);
+  const isPdfPreview =
+    bookmark.content.type === BookmarkTypes.ASSET &&
+    bookmark.content.assetType === "pdf";
 
   // Common content for both layouts
   const contentSection = isBookmarkStillCrawling(bookmark) ? (
@@ -259,11 +262,21 @@ export default function BookmarkPreview({
       {/* Render original layout for wide screens */}
       <div className="hidden h-full flex-col overflow-hidden bg-muted/10 lg:flex">
         <div className="flex min-h-0 flex-1">
-          <div className="relative h-full flex-1 overflow-auto px-6 py-5 xl:px-8 xl:py-6">
+          <div
+            className={cn(
+              "relative h-full min-w-0 flex-1",
+              isPdfPreview
+                ? "overflow-hidden pt-2"
+                : "overflow-auto px-6 py-5 xl:px-8 xl:py-6",
+            )}
+          >
             <button
               type="button"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="shadow-xs ease-(--ease-out) absolute right-5 top-5 z-10 rounded-full border border-border/70 bg-background/90 p-2 text-muted-foreground transition-[background-color,color,border-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100"
+              className={cn(
+                "ease-(--ease-out) hover:shadow-xs focus-visible:shadow-xs absolute right-5 top-5 z-10 inline-flex items-center justify-center rounded-full border border-transparent bg-transparent p-2 text-muted-foreground shadow-none transition-[background-color,color,border-color,box-shadow,transform] duration-150 hover:border-border/70 hover:bg-background/90 hover:text-foreground focus-visible:bg-background/90 active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100",
+                isPdfPreview && "top-2 size-10 p-0",
+              )}
               aria-label={t(
                 sidebarCollapsed
                   ? "actions.show_details"
@@ -293,7 +306,12 @@ export default function BookmarkPreview({
           onValueChange={setActiveTab}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="sticky top-0 z-10 bg-background/95 px-4 pb-2 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div
+            className={cn(
+              "sticky top-0 z-10 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+              isPdfPreview ? "pb-2 pt-2" : "pb-2 pt-3",
+            )}
+          >
             <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl border border-border/70 bg-card/80 p-1">
               <TabsTrigger value="content">
                 {t("preview.tabs.content")}
@@ -305,7 +323,12 @@ export default function BookmarkPreview({
           </div>
           <TabsContent
             value="content"
-            className="h-full flex-1 overflow-hidden overflow-y-auto bg-background px-4 py-3 data-[state=inactive]:hidden"
+            className={cn(
+              "h-full min-h-0 flex-1 bg-background data-[state=inactive]:hidden",
+              isPdfPreview
+                ? "mt-0 overflow-hidden px-0 pb-2 pt-0"
+                : "overflow-hidden overflow-y-auto px-4 py-3",
+            )}
           >
             {contentSection}
           </TabsContent>

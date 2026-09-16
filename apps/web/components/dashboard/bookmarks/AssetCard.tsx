@@ -43,7 +43,7 @@ function AssetImage({
         return (
           <div
             className={cn(className, "flex items-center justify-center")}
-            title="PDF screenshot not available. Run asset preprocessing job to generate one screenshot"
+            title="PDF first-page preview is not available. Run asset preprocessing to generate it"
           >
             <FileText size={80} />
           </div>
@@ -52,7 +52,7 @@ function AssetImage({
       return (
         <Link href={`/dashboard/preview/${bookmark.id}`}>
           <Image
-            alt="asset"
+            alt="PDF first-page preview"
             src={getAssetUrl(screenshotAssetId)}
             fill={true}
             sizes="(max-width: 768px) 100vw, 33vw"
