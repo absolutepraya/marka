@@ -58,6 +58,7 @@ export default function ReaderNavigation({
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const tableOfContentsButtonRef = useRef<HTMLButtonElement>(null);
+  const navigationRef = useRef<HTMLDivElement>(null);
   const inputId = useId();
   const tableOfContentsId = useId();
 
@@ -99,6 +100,13 @@ export default function ReaderNavigation({
   useEffect(() => {
     const handleEscape = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "Escape") return;
+
+      if (
+        !(event.target instanceof Node) ||
+        !navigationRef.current?.contains(event.target)
+      ) {
+        return;
+      }
 
       if (tableOfContentsOpen) {
         event.preventDefault();
@@ -155,7 +163,7 @@ export default function ReaderNavigation({
         });
 
   return (
-    <div className="mb-6 space-y-2 print:hidden">
+    <div ref={navigationRef} className="mb-6 space-y-2 print:hidden">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-muted/20 p-2">
         <div className="flex min-w-0 flex-1 basis-56 items-center gap-2">
           <Search

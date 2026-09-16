@@ -40,6 +40,21 @@ interface ScrollProgressTrackerProps {
   children: React.ReactNode;
 }
 
+export function hasSavedReadingPosition(
+  readingProgressOffset: number | null | undefined,
+  readingProgressAnchor: string | null | undefined,
+  readingProgressPercent: number | null | undefined,
+): boolean {
+  const hasOffset =
+    typeof readingProgressOffset === "number" && readingProgressOffset > 0;
+  const hasAnchor = Boolean(readingProgressAnchor);
+  const hasPercent =
+    typeof readingProgressPercent === "number" &&
+    Number.isFinite(readingProgressPercent);
+
+  return hasOffset || hasAnchor || hasPercent;
+}
+
 /**
  * Wraps content and tracks scroll progress, reporting position changes
  * lazily (idle after scrolling, visibility change, beforeunload, unmount).
@@ -86,16 +101,14 @@ const ScrollProgressTracker = forwardRef<
   }, [restorePosition]);
 
   useEffect(() => {
-    const hasOffset =
-      typeof readingProgressOffset === "number" && readingProgressOffset > 0;
-    const hasAnchor = Boolean(readingProgressAnchor);
-    const hasPercent =
-      typeof readingProgressPercent === "number" && readingProgressPercent > 0;
-
     if (
       !restorePosition ||
       hasRestoredRef.current ||
-      (!hasOffset && !hasAnchor && !hasPercent)
+      !hasSavedReadingPosition(
+        readingProgressOffset,
+        readingProgressAnchor,
+        readingProgressPercent,
+      )
     )
       return;
 

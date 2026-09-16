@@ -145,7 +145,17 @@ describe("ReaderNavigation", () => {
       name: /table of contents/i,
     });
     fireEvent.click(tocButton);
-    fireEvent.keyDown(document, { key: "Escape" });
+
+    const outsideInput = document.createElement("input");
+    document.body.appendChild(outsideInput);
+    outsideInput.focus();
+    fireEvent.keyDown(outsideInput, { key: "Escape" });
+
+    expect(
+      screen.getByRole("navigation", { name: /table of contents/i }),
+    ).not.toBeNull();
+
+    fireEvent.keyDown(tocButton, { key: "Escape" });
 
     expect(
       screen.queryByRole("navigation", { name: /table of contents/i }),

@@ -87,6 +87,23 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+interface SearchTextReference {
+  node: Text;
+  start: number;
+  end: number;
+}
+
+interface VisibleTextCharacter {
+  character: string;
+  references: SearchTextReference[];
+}
+
+interface SearchMatchRange {
+  matchIndex: number;
+  start: SearchTextReference;
+  end: SearchTextReference;
+}
+
 function isSearchExcluded(node: Text): boolean {
   const parent = node.parentElement;
   if (!parent) return true;
@@ -117,9 +134,72 @@ export function clearReaderSearchMarks(container: HTMLElement): void {
   container.normalize();
 }
 
+const SEARCH_BOUNDARY = "\u0000";
+
+function collectVisibleTextCharacters(
+  container: HTMLElement,
+): VisibleTextCharacter[] {
+  const walker = container.ownerDocument.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT,
+    null,
+  );
+  const characters: VisibleTextCharacter[] = [];
+  let pendingWhitespace: SearchTextReference[] = [];
+  let node: Node | null;
+
+  while ((node = walker.nextNode())) {
+    const textNode = node as Text;
+    if (isSearchExcluded(textNode)) {
+      if (textNode.data.length > 0 && characters.length > 0) {
+        characters.push({ character: SEARCH_BOUNDARY, references: [] });
+      }
+      pendingWhitespace = [];
+      continue;
+    }
+
+    for (let index = 0; index < textNode.data.length; index += 1) {
+      const character = textNode.data[index];
+      if (/\s/.test(character)) {
+        pendingWhitespace.push({
+          node: textNode,
+          start: index,
+          end: index + 1,
+        });
+        continue;
+      }
+
+      if (pendingWhitespace.length > 0) {
+        if (characters.length > 0) {
+          characters.push({
+            character: " ",
+            references: pendingWhitespace,
+          });
+        }
+        pendingWhitespace = [];
+      }
+
+      characters.push({
+        character,
+        references: [
+          {
+            node: textNode,
+            start: index,
+            end: index + 1,
+          },
+        ],
+      });
+    }
+  }
+
+  return characters;
+}
+
 /**
- * Applies literal, case-insensitive search marks to content and returns them
- * in document order. The caller owns the active-result state.
+ * Applies literal, case-insensitive search marks to rendered content and
+ * returns them in document order. Whitespace is matched using the browser's
+ * collapsed-text model, so a result can span multiple inline elements. The
+ * caller owns the active-result state.
  */
 export function applyReaderSearchMarks(
   container: HTMLElement,
@@ -127,53 +207,50 @@ export function applyReaderSearchMarks(
 ): HTMLElement[] {
   clearReaderSearchMarks(container);
 
-  const searchText = query.trim();
+  const searchText = query.trim().replace(/\s+/g, " ");
   if (!searchText) return [];
 
+  const characters = collectVisibleTextCharacters(container);
+  const visibleText = characters.map(({ character }) => character).join("");
   const matcher = new RegExp(escapeRegExp(searchText), "gi");
-  const walker = document.createTreeWalker(
-    container,
-    NodeFilter.SHOW_TEXT,
-    null,
-  );
-  const textNodes: Text[] = [];
-  let node: Node | null;
+  const matches = Array.from(visibleText.matchAll(matcher));
+  const matchRanges: SearchMatchRange[] = [];
 
-  while ((node = walker.nextNode())) {
-    const textNode = node as Text;
-    if (!isSearchExcluded(textNode)) {
-      textNodes.push(textNode);
-    }
+  matches.forEach((match, matchIndex) => {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (start === undefined || end <= start) return;
+
+    const startReferences = characters[start]?.references ?? [];
+    const endReferences = characters[end - 1]?.references ?? [];
+    const rangeStart = startReferences[0];
+    const rangeEnd = endReferences[endReferences.length - 1];
+    if (!rangeStart || !rangeEnd) return;
+
+    matchRanges.push({
+      matchIndex,
+      start: rangeStart,
+      end: rangeEnd,
+    });
+  });
+
+  const marks: (HTMLElement | undefined)[] = [];
+  for (const matchRange of matchRanges.sort(
+    (left, right) => right.matchIndex - left.matchIndex,
+  )) {
+    const range = container.ownerDocument.createRange();
+    range.setStart(matchRange.start.node, matchRange.start.start);
+    range.setEnd(matchRange.end.node, matchRange.end.end);
+
+    const mark = container.ownerDocument.createElement("mark");
+    mark.dataset.readerSearchMatch = "true";
+    mark.className = SEARCH_MARK_CLASS;
+    mark.append(range.extractContents());
+    range.insertNode(mark);
+    marks[matchRange.matchIndex] = mark;
   }
 
-  const marks: HTMLElement[] = [];
-  for (const textNode of textNodes) {
-    const text = textNode.data;
-    const matches = Array.from(text.matchAll(matcher));
-    if (matches.length === 0) continue;
-    const textNodeMarks: HTMLElement[] = [];
-
-    for (let index = matches.length - 1; index >= 0; index -= 1) {
-      const match = matches[index];
-      const start = match.index;
-      const matchedText = match[0];
-      if (start === undefined || matchedText.length === 0) continue;
-
-      const matchNode = textNode.splitText(start);
-      matchNode.splitText(matchedText.length);
-
-      const mark = container.ownerDocument.createElement("mark");
-      mark.dataset.readerSearchMatch = "true";
-      mark.className = SEARCH_MARK_CLASS;
-      matchNode.parentNode?.insertBefore(mark, matchNode);
-      mark.appendChild(matchNode);
-      textNodeMarks.unshift(mark);
-    }
-
-    marks.push(...textNodeMarks);
-  }
-
-  return marks;
+  return marks.filter((mark): mark is HTMLElement => Boolean(mark));
 }
 
 /** Marks one search result as current and clears the state from all others. */

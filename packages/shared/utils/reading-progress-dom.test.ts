@@ -103,29 +103,27 @@ describe("scrollToReadingStart", () => {
     container.remove();
   });
 
-  test("falls back to a saved percentage", () => {
+  test("falls back to a saved percentage using normalized text position", () => {
     const container = document.createElement("article");
-    const scrollTo = vi
-      .spyOn(window, "scrollTo")
-      .mockImplementation(() => undefined);
-    Object.defineProperty(document.body, "scrollHeight", {
-      configurable: true,
-      value: 1000,
-    });
-    Object.defineProperty(document.documentElement, "scrollHeight", {
-      configurable: true,
-      value: 1000,
-    });
-    Object.defineProperty(window, "innerHeight", {
-      configurable: true,
-      value: 100,
-    });
+    container.innerHTML =
+      "<p>Short.</p><p>Long content that should receive the fallback.</p>";
+    const firstParagraph = container.querySelector("p");
+    const secondParagraph = container.querySelectorAll("p")[1];
+    if (!firstParagraph || !secondParagraph)
+      throw new Error("Missing paragraphs");
+    const firstScroll = vi.fn();
+    const secondScroll = vi.fn();
+    firstParagraph.scrollIntoView = firstScroll;
+    secondParagraph.scrollIntoView = secondScroll;
     document.body.append(container);
 
     expect(scrollToReadingPercentage(container, 50, "auto")).toBe(true);
-    expect(scrollTo).toHaveBeenCalledWith({ top: 450, behavior: "auto" });
+    expect(secondScroll).toHaveBeenCalledWith({
+      behavior: "auto",
+      block: "start",
+    });
+    expect(firstScroll).not.toHaveBeenCalled();
 
-    scrollTo.mockRestore();
     container.remove();
   });
 });

@@ -70,6 +70,60 @@ export function normalizeTextLength(text: string): number {
   return normalizeText(text).length;
 }
 
+interface ReadingTextMetrics {
+  totalLength: number;
+  blockOffsets: Map<Element, number>;
+}
+
+function getReadingTextMetrics(
+  container: HTMLElement,
+  paragraphs: Element[],
+): ReadingTextMetrics {
+  const paragraphSet = new Set(paragraphs);
+  const blockOffsets = new Map<Element, number>();
+  const walker = container.ownerDocument.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT,
+    null,
+  );
+  let totalLength = 0;
+  let pendingWhitespace = false;
+  let hasText = false;
+  let node: Node | null;
+
+  while ((node = walker.nextNode())) {
+    const textNode = node as Text;
+    const closestParagraph = textNode.parentElement?.closest(
+      PARAGRAPH_SELECTOR_STRING,
+    );
+    const paragraph =
+      closestParagraph && paragraphSet.has(closestParagraph)
+        ? closestParagraph
+        : null;
+
+    for (const characterMatch of textNode.data.matchAll(/[\s\S]/g)) {
+      if (/\s/.test(characterMatch[0])) {
+        pendingWhitespace = hasText;
+        continue;
+      }
+
+      if (pendingWhitespace && hasText) {
+        totalLength += 1;
+      }
+      pendingWhitespace = false;
+
+      if (paragraph && !blockOffsets.has(paragraph)) {
+        blockOffsets.set(paragraph, totalLength);
+      }
+
+      totalLength += 1;
+      hasText = true;
+    }
+  }
+
+  return { totalLength, blockOffsets };
+}
+
 /**
  * Check if element is visible (not hidden by CSS display:none).
  * Uses bounding rect - hidden elements have 0 dimensions.
@@ -160,8 +214,8 @@ function getReadingPositionWithViewport(
   );
   if (paragraphs.length === 0) return null;
 
-  // Calculate total length for percentage calculation
-  const totalLength = normalizeTextLength(container.textContent ?? "");
+  const metrics = getReadingTextMetrics(container, paragraphs);
+  const { totalLength } = metrics;
 
   // Check if scrolled to bottom - return 100% immediately
   if (scrollInfo) {
@@ -210,26 +264,15 @@ function getReadingPositionWithViewport(
     ANCHOR_TEXT_MAX_LENGTH,
   );
 
-  // Calculate the text offset of this paragraph using TreeWalker
-  const walker = document.createTreeWalker(
-    container,
-    NodeFilter.SHOW_TEXT,
-    null,
-  );
-
-  let offset = 0;
-  let node: Node | null;
-  while ((node = walker.nextNode())) {
-    if (topParagraph.contains(node)) {
-      // Found the start of our target paragraph
-      // Calculate percentage (clamped to 0-100)
-      const percent =
-        totalLength > 0
-          ? Math.min(100, Math.max(0, Math.round((offset / totalLength) * 100)))
-          : 0;
-      return { offset, anchor, percent };
-    }
-    offset += normalizeTextLength(node.textContent ?? "");
+  const offset = metrics.blockOffsets.get(topParagraph);
+  if (offset !== undefined) {
+    // Calculate percentage (clamped to 0-100) from the same normalized text
+    // offset used by percentage fallback restoration.
+    const percent =
+      totalLength > 0
+        ? Math.min(100, Math.max(0, Math.round((offset / totalLength) * 100)))
+        : 0;
+    return { offset, anchor, percent };
   }
 
   // topParagraph has no text nodes (empty or contains only non-text elements)
@@ -284,52 +327,9 @@ export function scrollToReadingPosition(
     }
   }
 
-  // Strategy 2: Fall back to offset-based lookup
+  // Strategy 2: Fall back to normalized text-relative lookup
   if (offset > 0) {
-    const walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT,
-      null,
-    );
-
-    let currentOffset = 0;
-    let node: Node | null;
-    while ((node = walker.nextNode())) {
-      const textContent = node.textContent ?? "";
-      // Use normalized length for consistent offset calculation
-      const nodeLength = normalizeTextLength(textContent);
-
-      // Skip nodes with no meaningful content (whitespace-only nodes normalize to length 0)
-      if (nodeLength === 0) {
-        continue;
-      }
-
-      // Check if we've passed the target offset
-      if (currentOffset + nodeLength >= offset) {
-        // Found the text node containing our offset
-        // Find the enclosing paragraph element
-        let targetElement: HTMLElement | null = node.parentElement;
-        while (targetElement && targetElement !== container) {
-          if (targetElement.matches(PARAGRAPH_SELECTOR_STRING)) {
-            break;
-          }
-          targetElement = targetElement.parentElement;
-        }
-
-        // Use the text node's parent if no paragraph found
-        if (!targetElement || targetElement === container) {
-          targetElement = node.parentElement;
-        }
-
-        if (targetElement) {
-          targetElement.scrollIntoView({ behavior, block: "start" });
-          return true;
-        }
-        break;
-      }
-
-      currentOffset += nodeLength;
-    }
+    if (scrollToReadingTextOffset(container, offset, behavior)) return true;
   }
 
   return scrollToReadingPercentage(container, percent, behavior);
@@ -347,6 +347,25 @@ export function scrollToReadingPercentage(
   if (percent == null || !Number.isFinite(percent)) return false;
 
   const clampedPercent = Math.min(100, Math.max(0, percent));
+  const paragraphs = Array.from(
+    container.querySelectorAll(PARAGRAPH_SELECTOR_STRING),
+  );
+  const metrics = getReadingTextMetrics(container, paragraphs);
+
+  if (clampedPercent === 0) {
+    scrollToReadingStart(container, behavior);
+    return true;
+  }
+
+  if (metrics.totalLength > 0) {
+    const targetOffset = Math.round(
+      metrics.totalLength * (clampedPercent / 100),
+    );
+    if (scrollToReadingTextOffset(container, targetOffset, behavior)) {
+      return true;
+    }
+  }
+
   const scrollParent = findScrollableParent(container);
   const isWindowScroll = scrollParent === document.documentElement;
   const scrollHeight = isWindowScroll
@@ -372,6 +391,33 @@ export function scrollToReadingPercentage(
     scrollParent.scrollTop = top;
   }
 
+  return true;
+}
+
+function scrollToReadingTextOffset(
+  container: HTMLElement,
+  offset: number,
+  behavior: ScrollBehavior,
+): boolean {
+  const paragraphs = Array.from(
+    container.querySelectorAll(PARAGRAPH_SELECTOR_STRING),
+  );
+  const metrics = getReadingTextMetrics(container, paragraphs);
+  let firstParagraph: Element | null = null;
+  let targetParagraph: Element | null = null;
+
+  for (const paragraph of paragraphs) {
+    const paragraphOffset = metrics.blockOffsets.get(paragraph);
+    if (paragraphOffset === undefined) continue;
+    firstParagraph ??= paragraph;
+    if (paragraphOffset > offset) break;
+    targetParagraph = paragraph;
+  }
+
+  targetParagraph ??= firstParagraph;
+  if (!targetParagraph) return false;
+
+  targetParagraph.scrollIntoView({ behavior, block: "start" });
   return true;
 }
 

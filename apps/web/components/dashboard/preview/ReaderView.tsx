@@ -163,6 +163,7 @@ export default function ReaderView({
     onStartOver,
     onUndoStartOver,
     onDismiss,
+    progressActionPending,
     restorePosition,
     resetPosition,
     readingProgressOffset,
@@ -235,6 +236,7 @@ export default function ReaderView({
         <ReadingProgressBanner
           percent={bannerPercent}
           isRestarted={isRestarted}
+          actionPending={progressActionPending}
           onContinue={onContinue}
           onStartOver={onStartOver}
           onUndoStartOver={onUndoStartOver}

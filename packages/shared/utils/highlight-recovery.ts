@@ -193,7 +193,7 @@ export function recoverHighlight(
 
   if (offsetRanges) {
     if (
-      savedText === null ||
+      savedText !== null &&
       normalizeHighlightText(getHighlightText(offsetRanges)) ===
         normalizeHighlightText(savedText)
     ) {

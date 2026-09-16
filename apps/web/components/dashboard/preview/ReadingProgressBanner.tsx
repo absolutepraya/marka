@@ -6,6 +6,7 @@ import { BookOpen, X } from "lucide-react";
 export default function ReadingProgressBanner({
   percent,
   isRestarted = false,
+  actionPending = false,
   onContinue,
   onStartOver,
   onUndoStartOver,
@@ -13,6 +14,7 @@ export default function ReadingProgressBanner({
 }: {
   percent?: number | null;
   isRestarted?: boolean;
+  actionPending?: boolean;
   onContinue: () => void;
   onStartOver?: () => void;
   onUndoStartOver?: () => void;
@@ -35,6 +37,7 @@ export default function ReadingProgressBanner({
           <button
             type="button"
             onClick={onUndoStartOver}
+            disabled={actionPending}
             className="ease-(--ease-out) shrink-0 rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background transition-[transform,opacity] duration-150 hover:opacity-80 active:scale-[0.97] motion-reduce:transition-opacity motion-reduce:active:scale-100"
           >
             {t("preview.undo")}
@@ -44,6 +47,7 @@ export default function ReadingProgressBanner({
             <button
               type="button"
               onClick={onContinue}
+              disabled={actionPending}
               className="ease-(--ease-out) shrink-0 rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background transition-[transform,opacity] duration-150 hover:opacity-80 active:scale-[0.97] motion-reduce:transition-opacity motion-reduce:active:scale-100"
             >
               {t("preview.continue_button")}
@@ -52,6 +56,7 @@ export default function ReadingProgressBanner({
               <button
                 type="button"
                 onClick={onStartOver}
+                disabled={actionPending}
                 className="ease-(--ease-out) shrink-0 rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground transition-[transform,background-color] duration-150 hover:bg-muted active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100"
               >
                 {t("preview.start_over")}
@@ -62,6 +67,7 @@ export default function ReadingProgressBanner({
         <button
           type="button"
           onClick={onDismiss}
+          disabled={actionPending}
           className="ease-(--ease-out) shrink-0 rounded-full p-1 text-muted-foreground transition-[transform,color] duration-150 hover:text-foreground active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100"
           aria-label={t("preview.dismiss")}
         >

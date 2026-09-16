@@ -99,4 +99,17 @@ describe("recoverHighlight", () => {
 
     expect(result).toEqual({ status: "needs_review", reason: "missing" });
   });
+
+  test("requires review when the saved quote is unavailable", () => {
+    const container = document.createElement("article");
+    container.innerHTML = "<p>Current content at the old offset.</p>";
+
+    const result = recoverHighlight(container, {
+      startOffset: 0,
+      endOffset: 7,
+      text: null,
+    });
+
+    expect(result).toEqual({ status: "needs_review", reason: "missing" });
+  });
 });

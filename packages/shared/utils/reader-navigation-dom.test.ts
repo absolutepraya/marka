@@ -75,6 +75,21 @@ describe("Reader View search marks", () => {
     expect(setCurrentReaderSearchMark(marks, 9)).toBeNull();
   });
 
+  test("searches across inline elements and collapsed whitespace", () => {
+    const container = document.createElement("article");
+    container.innerHTML =
+      "<p>Reader<em>\n\tview</em> is useful. <strong>Reader view</strong></p>";
+
+    const marks = applyReaderSearchMarks(container, "reader view");
+
+    expect(marks).toHaveLength(2);
+    expect(marks[0]?.textContent).toBe("Reader\n\tview");
+    expect(marks[1]?.textContent).toBe("Reader view");
+    expect(
+      container.querySelectorAll("mark[data-reader-search-match]"),
+    ).toHaveLength(2);
+  });
+
   test("does not throw when scrolling the current result", () => {
     const container = document.createElement("article");
     container.innerHTML = "<p>one one</p>";

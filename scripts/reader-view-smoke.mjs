@@ -101,6 +101,11 @@ try {
   requireValue("MARKA_READER_BOOKMARK_ID", bookmarkId);
   await ensureAuthenticated(page);
 
+  // Ignore image requests from sign-in and redirects. The assertions below
+  // must describe only the final authenticated Reader View navigation.
+  imageRequests.length = 0;
+  await page.reload({ waitUntil: "networkidle" });
+
   await page.locator('input[type="search"]').waitFor({ timeout: 30_000 });
   await page.locator("[data-reader-heading]").first().waitFor({
     timeout: 30_000,

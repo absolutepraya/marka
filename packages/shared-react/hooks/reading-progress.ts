@@ -9,6 +9,13 @@ interface UseReadingProgressOptions {
   bookmarkId: string;
 }
 
+interface ReadingProgressUpdate {
+  bookmarkId: string;
+  readingProgressOffset: number;
+  readingProgressAnchor: string | null;
+  readingProgressPercent: number | null;
+}
+
 /**
  * Unified reading progress hook for web and mobile.
  *
@@ -57,6 +64,10 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
   const [undoAvailableBookmarkId, setUndoAvailableBookmarkId] = useState<
     string | null
   >(null);
+  const [progressActionPendingBookmarkId, setProgressActionPendingBookmarkId] =
+    useState<string | null>(null);
+  const progressActionPendingRef = useRef<string | null>(null);
+  const progressQueueRef = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => {
     lastSavedPosition.current = null;
@@ -64,6 +75,8 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
     setRestoreRequestedBookmarkId(null);
     setStartOverBookmarkId(null);
     setUndoAvailableBookmarkId(null);
+    progressActionPendingRef.current = null;
+    setProgressActionPendingBookmarkId(null);
   }, [bookmarkId]);
 
   useEffect(() => {
@@ -116,7 +129,7 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
   const showBanner = (canOfferResume || isRestarted) && !bannerDismissed;
 
   // Save mutation
-  const { mutate: updateProgress } = useMutation(
+  const { mutateAsync: updateProgress } = useMutation(
     api.bookmarks.updateReadingProgress.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(
@@ -124,6 +137,15 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
         );
       },
     }),
+  );
+
+  const enqueueProgressUpdate = useCallback(
+    (input: ReadingProgressUpdate) => {
+      const next = progressQueueRef.current.then(() => updateProgress(input));
+      progressQueueRef.current = next.catch(() => undefined);
+      return next;
+    },
+    [updateProgress],
   );
 
   // Lazy save — called by ScrollProgressTracker on idle/visibility/beforeunload/unmount
@@ -137,14 +159,14 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
         return;
       }
       lastSavedPosition.current = { bookmarkId, offset: position.offset };
-      updateProgress({
+      void enqueueProgressUpdate({
         bookmarkId,
         readingProgressOffset: position.offset,
         readingProgressAnchor: position.anchor,
         readingProgressPercent: position.percent,
       });
     },
-    [bookmarkId, isRestarted, showBanner, updateProgress],
+    [bookmarkId, enqueueProgressUpdate, isRestarted, showBanner],
   );
 
   const onScrollPositionChange = useCallback(
@@ -157,6 +179,8 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
   );
 
   const onContinue = useCallback(() => {
+    if (progressActionPendingRef.current === bookmarkId) return;
+
     setRestoreRequestedBookmarkId(bookmarkId);
     setBannerDismissedBookmarkId(bookmarkId);
     setStartOverBookmarkId(null);
@@ -164,41 +188,86 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
   }, [bookmarkId]);
 
   const onStartOver = useCallback(() => {
-    if (!initialOffset || initialOffset <= 0) return;
+    if (
+      !initialOffset ||
+      initialOffset <= 0 ||
+      progressActionPendingRef.current === bookmarkId
+    ) {
+      return;
+    }
 
-    lastSavedPosition.current = { bookmarkId, offset: 0 };
+    progressActionPendingRef.current = bookmarkId;
+    setProgressActionPendingBookmarkId(bookmarkId);
     setRestoreRequestedBookmarkId(null);
-    setStartOverBookmarkId(bookmarkId);
-    setUndoAvailableBookmarkId(bookmarkId);
-    setBannerDismissedBookmarkId(null);
-    updateProgress({
+    setUndoAvailableBookmarkId(null);
+    void enqueueProgressUpdate({
       bookmarkId,
       readingProgressOffset: 0,
       readingProgressAnchor: null,
       readingProgressPercent: 0,
-    });
-  }, [bookmarkId, initialOffset, updateProgress]);
+    }).then(
+      () => {
+        if (progressActionPendingRef.current !== bookmarkId) return;
+
+        progressActionPendingRef.current = null;
+        setProgressActionPendingBookmarkId(null);
+        lastSavedPosition.current = { bookmarkId, offset: 0 };
+        setStartOverBookmarkId(bookmarkId);
+        setUndoAvailableBookmarkId(bookmarkId);
+        setBannerDismissedBookmarkId(null);
+      },
+      () => {
+        if (progressActionPendingRef.current !== bookmarkId) return;
+
+        progressActionPendingRef.current = null;
+        setProgressActionPendingBookmarkId(null);
+      },
+    );
+  }, [bookmarkId, enqueueProgressUpdate, initialOffset]);
 
   const onUndoStartOver = useCallback(() => {
-    if (!initialOffset || initialOffset <= 0) return;
+    if (
+      !initialOffset ||
+      initialOffset <= 0 ||
+      undoAvailableBookmarkId !== bookmarkId ||
+      progressActionPendingRef.current === bookmarkId
+    ) {
+      return;
+    }
 
-    lastSavedPosition.current = { bookmarkId, offset: initialOffset };
-    setStartOverBookmarkId(null);
-    setUndoAvailableBookmarkId(null);
-    setRestoreRequestedBookmarkId(bookmarkId);
-    setBannerDismissedBookmarkId(bookmarkId);
-    updateProgress({
+    progressActionPendingRef.current = bookmarkId;
+    setProgressActionPendingBookmarkId(bookmarkId);
+    void enqueueProgressUpdate({
       bookmarkId,
       readingProgressOffset: initialOffset,
       readingProgressAnchor: initialAnchor,
       readingProgressPercent: initialPercent,
-    });
+    }).then(
+      () => {
+        if (progressActionPendingRef.current !== bookmarkId) return;
+
+        progressActionPendingRef.current = null;
+        setProgressActionPendingBookmarkId(null);
+        lastSavedPosition.current = { bookmarkId, offset: initialOffset };
+        setStartOverBookmarkId(null);
+        setUndoAvailableBookmarkId(null);
+        setRestoreRequestedBookmarkId(bookmarkId);
+        setBannerDismissedBookmarkId(bookmarkId);
+      },
+      () => {
+        if (progressActionPendingRef.current !== bookmarkId) return;
+
+        progressActionPendingRef.current = null;
+        setProgressActionPendingBookmarkId(null);
+      },
+    );
   }, [
     bookmarkId,
+    enqueueProgressUpdate,
     initialAnchor,
     initialOffset,
     initialPercent,
-    updateProgress,
+    undoAvailableBookmarkId,
   ]);
 
   const onDismiss = useCallback(() => {
@@ -212,6 +281,7 @@ export function useReadingProgress({ bookmarkId }: UseReadingProgressOptions) {
     bannerPercent: initialPercent,
     isRestarted,
     undoAvailable: undoAvailableBookmarkId === bookmarkId,
+    progressActionPending: progressActionPendingBookmarkId === bookmarkId,
     onContinue,
     onStartOver,
     onUndoStartOver,
