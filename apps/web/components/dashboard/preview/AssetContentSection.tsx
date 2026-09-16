@@ -87,25 +87,27 @@ function ImageContentSection({ bookmark }: { bookmark: ZBookmark }) {
   }
   const { t } = useTranslation();
   return (
-    <div className="relative h-full min-w-full">
-      <Link
-        href={getAssetUrl(bookmark.content.assetId)}
-        target="_blank"
-        aria-label={t("actions.open_original")}
-      >
-        <Image
-          alt="asset"
-          fill={true}
-          sizes="100vw"
-          unoptimized
-          className="object-contain"
-          src={getAssetUrl(bookmark.content.assetId)}
-        />
-      </Link>
-      <ContentDownloadButton
-        bookmark={bookmark}
-        className="absolute right-4 top-4 z-10"
-      />
+    <div className="flex h-full min-w-full flex-col items-center gap-2">
+      <div className="flex w-full shrink-0 justify-center lg:hidden">
+        <ContentDownloadButton bookmark={bookmark} size="default" />
+      </div>
+      <div className="relative min-h-0 w-full flex-1">
+        <Link
+          href={getAssetUrl(bookmark.content.assetId)}
+          target="_blank"
+          className="relative block h-full w-full"
+          aria-label={t("actions.open_original")}
+        >
+          <Image
+            alt="asset"
+            fill={true}
+            sizes="100vw"
+            unoptimized
+            className="object-contain"
+            src={getAssetUrl(bookmark.content.assetId)}
+          />
+        </Link>
+      </div>
     </div>
   );
 }
@@ -129,6 +131,13 @@ function VideoContentSection({ bookmark }: { bookmark: ZBookmark }) {
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
+      <div className="flex w-full shrink-0 justify-center lg:hidden">
+        <ContentDownloadButton
+          bookmark={bookmark}
+          fileName={fileName}
+          size="default"
+        />
+      </div>
       {playbackError ? (
         <div
           role="alert"
@@ -156,7 +165,6 @@ function VideoContentSection({ bookmark }: { bookmark: ZBookmark }) {
           </video>
         </div>
       )}
-      <ContentDownloadButton bookmark={bookmark} fileName={fileName} />
     </div>
   );
 }

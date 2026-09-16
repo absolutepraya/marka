@@ -42,6 +42,7 @@ import SummarizeBookmarkArea from "../bookmarks/SummarizeBookmarkArea";
 import ActionBar from "./ActionBar";
 import { AssetContentSection } from "./AssetContentSection";
 import AttachmentBox from "./AttachmentBox";
+import ContentDownloadButton from "./ContentDownloadButton";
 import HighlightsBox from "./HighlightsBox";
 import LinkContentSection from "./LinkContentSection";
 import { NoteEditor } from "./NoteEditor";
@@ -205,6 +206,15 @@ export default function BookmarkPreview({
     bookmark.content.assetType === "pdf";
   const isTextPreview = bookmark.content.type === BookmarkTypes.TEXT;
   const isLinkPreview = bookmark.content.type === BookmarkTypes.LINK;
+  const isImageOrVideoPreview =
+    bookmark.content.type === BookmarkTypes.ASSET &&
+    (bookmark.content.assetType === "image" ||
+      bookmark.content.assetType === "video");
+  const videoFileName =
+    bookmark.content.type === BookmarkTypes.ASSET &&
+    bookmark.content.assetType === "video"
+      ? (bookmark.content.fileName ?? t("common.video"))
+      : undefined;
 
   // Common content for both layouts
   const contentSection = isBookmarkStillCrawling(bookmark) ? (
@@ -292,6 +302,14 @@ export default function BookmarkPreview({
                   <BookOpen className="mr-2 size-4" aria-hidden="true" />
                   {t("preview.reader_view")}
                 </Link>
+              )}
+              {isImageOrVideoPreview && (
+                <ContentDownloadButton
+                  bookmark={bookmark}
+                  fileName={videoFileName}
+                  size="default"
+                  className="pointer-events-auto"
+                />
               )}
               <button
                 type="button"
