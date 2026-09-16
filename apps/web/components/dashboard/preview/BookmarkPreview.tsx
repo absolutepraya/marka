@@ -58,12 +58,12 @@ function ContentLoading() {
 
 function CreationTime({ createdAt }: { createdAt: Date }) {
   const { i18n } = useTranslation();
-  const { fromNow, localCreatedAt } = useRelativeTime(createdAt, i18n.language);
+  const { localCreatedAt } = useRelativeTime(createdAt, i18n.language);
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
-        <span className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
-          <CalendarDays size={16} /> {fromNow}
+        <span className="flex w-full items-center gap-2 text-sm text-muted-foreground">
+          <CalendarDays size={16} /> {localCreatedAt}
         </span>
       </TooltipTrigger>
       <TooltipPortal>
@@ -83,12 +83,7 @@ function DetailSection({
   className?: string;
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-xl border border-border/70 bg-background/80 px-3 py-3",
-        className,
-      )}
-    >
+    <section className={cn("w-full", className)}>
       <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
         {title}
       </p>
@@ -108,16 +103,16 @@ function BookmarkMetadata({ bookmark }: { bookmark: ZBookmark }) {
       : bookmark.content;
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex w-full flex-col gap-2.5">
       <CreationTime createdAt={bookmark.createdAt} />
       {author && (
-        <div className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex w-full items-center gap-2 text-sm text-muted-foreground">
           <User size={16} />
           <span>By {author}</span>
         </div>
       )}
       {publisher && (
-        <div className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex w-full items-center gap-2 text-sm text-muted-foreground">
           <Building size={16} />
           <span>{publisher}</span>
         </div>
@@ -129,16 +124,13 @@ function BookmarkMetadata({ bookmark }: { bookmark: ZBookmark }) {
 
 function PublishedDate({ datePublished }: { datePublished: Date }) {
   const { i18n } = useTranslation();
-  const { fromNow, localCreatedAt } = useRelativeTime(
-    datePublished,
-    i18n.language,
-  );
+  const { localCreatedAt } = useRelativeTime(datePublished, i18n.language);
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
-        <div className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex w-full items-center gap-2 text-sm text-muted-foreground">
           <CalendarDays size={16} />
-          <span>Published {fromNow}</span>
+          <span>Published {localCreatedAt}</span>
         </div>
       </TooltipTrigger>
       <TooltipPortal>
@@ -217,10 +209,10 @@ export default function BookmarkPreview({
   );
 
   const detailsSection = (
-    <div className="flex flex-col gap-3">
-      <div className="shadow-xs rounded-2xl border border-border/70 bg-background/90 p-4">
-        <div className="flex flex-col gap-1.5">
-          <p className="line-clamp-3 text-ellipsis break-words text-xl font-semibold leading-snug tracking-tight text-foreground">
+    <div className="flex w-full flex-col gap-3">
+      <div className="mb-0 w-full lg:mb-1 xl:mb-2">
+        <div className="flex w-full flex-col gap-1.5">
+          <p className="line-clamp-3 w-full text-ellipsis break-words text-xl font-semibold leading-snug tracking-tight text-foreground">
             {!title ? "Untitled" : title}
           </p>
           {sourceUrl && (
@@ -239,7 +231,14 @@ export default function BookmarkPreview({
         <BookmarkMetadata bookmark={bookmark} />
       </DetailSection>
       <DetailSection title="Summary">
-        <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
+        {bookmark.summary ? (
+          <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">(None)</p>
+            <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
+          </>
+        )}
       </DetailSection>
       <DetailSection title={t("common.tags")}>
         <BookmarkTagsEditor bookmark={bookmark} disabled={!isOwner} />

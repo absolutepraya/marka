@@ -43,59 +43,55 @@ function AISummary({
       },
     });
   return (
-    <div className="w-full p-1">
+    <div className="w-full">
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
-        className={`ease-(--ease-out) relative overflow-hidden rounded-lg border border-muted-foreground/20 p-[2px] transition-shadow duration-200 ${isExpanded ? "h-auto" : "cursor-pointer"}`}
+        className={`ease-(--ease-out) relative w-full transition-shadow duration-200 ${isExpanded ? "h-auto" : "cursor-pointer"}`}
         onClick={() => !isExpanded && setIsExpanded(true)}
       >
-        <div className="h-full rounded-lg bg-accent p-2">
-          <MarkdownReadonly
-            className={`text-sm ${!isExpanded && "line-clamp-3"}`}
-          >
-            {summary}
-          </MarkdownReadonly>
-          {isExpanded && (
-            <span className="flex justify-end gap-2 pt-2">
-              {!readOnly && (
-                <>
-                  <ActionButton
-                    variant="none"
-                    size="none"
-                    spinner={<LoadingSpinner className="size-4" />}
-                    className="rounded-full bg-muted p-1 text-muted-foreground"
-                    aria-label={isExpanded ? "Collapse" : "Expand"}
-                    loading={isResummarizing}
-                    onClick={() => resummarize({ bookmarkId })}
-                  >
-                    <RefreshCw size={16} />
-                  </ActionButton>
-                  <ActionButton
-                    size="none"
-                    variant="none"
-                    spinner={<LoadingSpinner className="size-4" />}
-                    className="rounded-full bg-muted p-1 text-muted-foreground"
-                    aria-label={isExpanded ? "Collapse" : "Expand"}
-                    loading={isUpdatingBookmark}
-                    onClick={() =>
-                      updateBookmark({ bookmarkId, summary: null })
-                    }
-                  >
-                    <Trash2 size={16} />
-                  </ActionButton>
-                </>
-              )}
-              <button
-                type="button"
-                className="rounded-full bg-muted p-1 text-muted-foreground"
-                aria-label="Collapse"
-                onClick={() => setIsExpanded(false)}
-              >
-                <ChevronUp size={16} />
-              </button>
-            </span>
-          )}
-        </div>
+        <MarkdownReadonly
+          className={`w-full text-sm ${!isExpanded && "line-clamp-3"}`}
+        >
+          {summary}
+        </MarkdownReadonly>
+        {isExpanded && (
+          <span className="flex justify-end gap-2 pt-2">
+            {!readOnly && (
+              <>
+                <ActionButton
+                  variant="none"
+                  size="none"
+                  spinner={<LoadingSpinner className="size-4" />}
+                  className="rounded-full bg-muted p-1 text-muted-foreground"
+                  aria-label={isExpanded ? "Collapse" : "Expand"}
+                  loading={isResummarizing}
+                  onClick={() => resummarize({ bookmarkId })}
+                >
+                  <RefreshCw size={16} />
+                </ActionButton>
+                <ActionButton
+                  size="none"
+                  variant="none"
+                  spinner={<LoadingSpinner className="size-4" />}
+                  className="rounded-full bg-muted p-1 text-muted-foreground"
+                  aria-label={isExpanded ? "Collapse" : "Expand"}
+                  loading={isUpdatingBookmark}
+                  onClick={() => updateBookmark({ bookmarkId, summary: null })}
+                >
+                  <Trash2 size={16} />
+                </ActionButton>
+              </>
+            )}
+            <button
+              type="button"
+              className="rounded-full bg-muted p-1 text-muted-foreground"
+              aria-label="Collapse"
+              onClick={() => setIsExpanded(false)}
+            >
+              <ChevronUp size={16} />
+            </button>
+          </span>
+        )}
       </div>
     </div>
   );

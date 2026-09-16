@@ -33,7 +33,7 @@ export default function HighlightsBox({
 
   return (
     <Collapsible defaultOpen={true}>
-      <div className="rounded-xl border border-border/70 bg-muted/15 px-3 py-3">
+      <div className="w-full">
         <CollapsibleTrigger className="flex w-full items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-foreground">
