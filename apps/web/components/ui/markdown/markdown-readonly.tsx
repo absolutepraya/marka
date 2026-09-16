@@ -6,11 +6,12 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { dracula } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
+import { normalizeEscapedCodeDelimiters } from "./markdown-utils";
 
 function PreWithCopyBtn({ className, ...props }: React.ComponentProps<"pre">) {
   const ref = React.useRef<HTMLPreElement>(null);
   return (
-    <span className="group relative">
+    <div className="group relative">
       <CopyBtn
         className="absolute right-1 top-1 m-1 hidden text-white group-hover:block"
         getStringToCopy={() => {
@@ -18,7 +19,7 @@ function PreWithCopyBtn({ className, ...props }: React.ComponentProps<"pre">) {
         }}
       />
       <pre ref={ref} className={cn(className, "")} {...props} />
-    </span>
+    </div>
   );
 }
 
@@ -94,6 +95,15 @@ export function MarkdownReadonly({
               language={match[1]}
               {...props}
               style={dracula}
+              customStyle={{
+                margin: 0,
+                padding: 0,
+                borderRadius: 0,
+                background: "transparent",
+                backgroundColor: "transparent",
+                fontSize: "inherit",
+                lineHeight: "inherit",
+              }}
             >
               {String(children).replace(/\n$/, "")}
             </SyntaxHighlighter>
@@ -105,7 +115,7 @@ export function MarkdownReadonly({
         },
       }}
     >
-      {markdown}
+      {normalizeEscapedCodeDelimiters(markdown)}
     </Markdown>
   );
 }

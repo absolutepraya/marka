@@ -482,12 +482,12 @@ textarea,
 }
 
 .bookmark-markdown-preview.prose :is(code, kbd, samp) {
-  font-size: 0.8em;
+  font-size: 0.875em;
   line-height: 1.4;
 }
 
 .bookmark-markdown-preview.prose pre {
-  font-size: 0.8em;
+  font-size: 0.875em;
   line-height: 1.4;
 }
 
@@ -502,6 +502,7 @@ textarea,
 
 .bookmark-markdown-preview.prose hr {
   margin-block: 1rem;
+  border: 0;
 }
 
 .bookmark-markdown-preview-plain {
@@ -547,12 +548,12 @@ textarea,
 }
 
 .reader-markdown-content.prose :is(code, kbd, samp) {
-  font-size: 0.85em;
+  font-size: 0.875em;
   line-height: 1.4;
 }
 
 .reader-markdown-content.prose pre {
-  font-size: 0.8em;
+  font-size: 0.875em;
   line-height: 1.4;
 }
 
@@ -567,6 +568,7 @@ textarea,
 
 .reader-markdown-content.prose hr {
   margin-block: 1.1em;
+  border: 0;
 }
 
 .reader-plain-content {

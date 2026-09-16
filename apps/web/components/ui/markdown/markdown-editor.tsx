@@ -30,6 +30,7 @@ import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { TabIndentationPlugin } from "@lexical/react/LexicalTabIndentationPlugin";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { $getRoot, EditorState, LexicalEditor } from "lexical";
+import { normalizeEscapedCodeDelimiters } from "./markdown-utils";
 
 function onError(error: Error) {
   console.error(error);
@@ -65,7 +66,10 @@ const MarkdownEditor = memo(
         nodes: EDITOR_NODES,
         editorState: (editor: LexicalEditor) => {
           registerCodeHighlighting(editor);
-          $convertFromMarkdownString(initialMarkdown, TRANSFORMERS);
+          $convertFromMarkdownString(
+            normalizeEscapedCodeDelimiters(initialMarkdown),
+            TRANSFORMERS,
+          );
         },
       }),
       [initialMarkdown],
