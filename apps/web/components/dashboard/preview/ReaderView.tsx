@@ -91,15 +91,9 @@ function ReaderTextContent({
   style?: React.CSSProperties;
 }) {
   return (
-    <div
-      className={cn(
-        "prose prose-neutral max-w-none break-words dark:prose-invert [&_code]:break-all [&_pre]:overflow-x-auto [&_table]:block [&_table]:overflow-x-auto",
-        className,
-      )}
-      style={style}
-    >
+    <div className={cn("max-w-none break-words", className)} style={style}>
       {(format ?? "markdown") === "plain" ? (
-        <div className="font-sans">
+        <div className="reader-plain-content">
           {text.split("\n").map((line, index, lines) => (
             <span
               key={index}
@@ -112,7 +106,12 @@ function ReaderTextContent({
           ))}
         </div>
       ) : (
-        <MarkdownReadonly allowTodoToggle={false}>{text}</MarkdownReadonly>
+        <MarkdownReadonly
+          className="reader-markdown-content"
+          allowTodoToggle={false}
+        >
+          {text}
+        </MarkdownReadonly>
       )}
     </div>
   );

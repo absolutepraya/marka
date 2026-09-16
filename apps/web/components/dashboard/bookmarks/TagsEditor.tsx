@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { badgeVariants } from "@/components/ui/badge";
 import {
   Command,
   CommandEmpty,
@@ -29,6 +30,7 @@ export function TagsEditor({
   disabled,
   allowCreation = true,
   placeholder,
+  className,
 }: {
   tags: ZBookmarkTags[];
   onAttach: (tag: { tagName: string; tagId?: string }) => void | Promise<void>;
@@ -36,6 +38,7 @@ export function TagsEditor({
   disabled?: boolean;
   allowCreation?: boolean;
   placeholder?: string;
+  className?: string;
 }) {
   const api = useTRPC();
   const { t } = useTranslation();
@@ -311,6 +314,7 @@ export function TagsEditor({
             <div
               className={cn(
                 "relative flex min-h-10 w-full flex-wrap items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                className,
                 isDisabled && "cursor-not-allowed opacity-50",
               )}
             >
@@ -319,7 +323,10 @@ export function TagsEditor({
                   {optimisticTags.map((tag) => (
                     <div
                       key={tag.id}
-                      className="flex min-h-6 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-xs text-foreground"
+                      className={cn(
+                        badgeVariants({ variant: "secondary" }),
+                        "gap-1.5 text-nowrap",
+                      )}
                     >
                       {tag.attachedBy === "ai" && (
                         <Sparkles className="size-3 shrink-0 text-muted-foreground" />

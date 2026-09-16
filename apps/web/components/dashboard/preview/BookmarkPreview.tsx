@@ -17,6 +17,7 @@ import useRelativeTime from "@/lib/hooks/relative-time";
 import { useTranslation } from "@/lib/i18n/client";
 import { useQuery } from "@tanstack/react-query";
 import {
+  BookOpen,
   Building,
   CalendarDays,
   ExternalLink,
@@ -25,6 +26,8 @@ import {
   PanelRightOpen,
   User,
 } from "lucide-react";
+
+import { buttonVariants } from "@/components/ui/button";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
 import { BookmarkTypes, ZBookmark } from "@karakeep/shared/types/bookmarks";
@@ -200,6 +203,8 @@ export default function BookmarkPreview({
   const isPdfPreview =
     bookmark.content.type === BookmarkTypes.ASSET &&
     bookmark.content.assetType === "pdf";
+  const isTextPreview = bookmark.content.type === BookmarkTypes.TEXT;
+  const isLinkPreview = bookmark.content.type === BookmarkTypes.LINK;
 
   // Common content for both layouts
   const contentSection = isBookmarkStillCrawling(bookmark) ? (
@@ -263,33 +268,67 @@ export default function BookmarkPreview({
         <div className="flex min-h-0 flex-1">
           <div
             className={cn(
-              "relative h-full min-w-0 flex-1",
-              isPdfPreview
-                ? "overflow-hidden pt-2"
-                : "overflow-auto px-6 py-5 xl:px-8 xl:py-6",
+              "relative h-full min-w-0 flex-1 overflow-hidden",
+              isPdfPreview ? "" : "px-6 pb-5 xl:px-8 xl:pb-6",
             )}
           >
-            <button
-              type="button"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            <div
               className={cn(
-                "ease-(--ease-out) hover:shadow-xs focus-visible:shadow-xs absolute right-5 top-5 z-10 inline-flex items-center justify-center rounded-full border border-transparent bg-transparent p-2 text-muted-foreground shadow-none transition-[background-color,color,border-color,box-shadow,transform] duration-150 hover:border-border/70 hover:bg-background/90 hover:text-foreground focus-visible:bg-background/90 active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100",
-                isPdfPreview && "top-2 size-10 p-0",
+                "pointer-events-none absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-center px-5",
+                !isPdfPreview &&
+                  !isLinkPreview &&
+                  "bg-background/45 backdrop-blur-xl supports-[backdrop-filter]:bg-background/35",
               )}
-              aria-label={t(
-                sidebarCollapsed
-                  ? "actions.show_details"
-                  : "actions.hide_details",
-              )}
-              aria-expanded={!sidebarCollapsed}
             >
-              {sidebarCollapsed ? (
-                <PanelRightOpen size={20} aria-hidden="true" />
-              ) : (
-                <PanelRightClose size={20} aria-hidden="true" />
+              {isTextPreview && (
+                <Link
+                  href={`/reader/${bookmark.id}`}
+                  className={cn(
+                    "pointer-events-auto",
+                    buttonVariants({ variant: "outline", size: "default" }),
+                  )}
+                  aria-label={t("preview.reader_view")}
+                >
+                  <BookOpen className="mr-2 size-4" aria-hidden="true" />
+                  {t("preview.reader_view")}
+                </Link>
               )}
-            </button>
-            {contentSection}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="ease-(--ease-out) hover:shadow-xs focus-visible:shadow-xs pointer-events-auto absolute right-5 top-2 inline-flex size-10 items-center justify-center rounded-full border border-transparent bg-transparent p-0 text-muted-foreground shadow-none transition-[background-color,color,border-color,box-shadow,transform] duration-150 hover:border-border/70 hover:bg-background/90 hover:text-foreground focus-visible:bg-background/90 active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100"
+                aria-label={t(
+                  sidebarCollapsed
+                    ? "actions.show_details"
+                    : "actions.hide_details",
+                )}
+                aria-expanded={!sidebarCollapsed}
+              >
+                {sidebarCollapsed ? (
+                  <PanelRightOpen size={20} aria-hidden="true" />
+                ) : (
+                  <PanelRightClose size={20} aria-hidden="true" />
+                )}
+              </button>
+            </div>
+            <div
+              className={cn(
+                "h-full min-h-0 w-full min-w-0",
+                isPdfPreview ? "overflow-hidden pt-2" : "overflow-hidden",
+              )}
+            >
+              <div
+                className={cn(
+                  "h-full min-h-0",
+                  !isPdfPreview &&
+                    !isLinkPreview &&
+                    bookmark.content.type !== BookmarkTypes.TEXT &&
+                    "pt-14",
+                )}
+              >
+                {contentSection}
+              </div>
+            </div>
           </div>
           {!sidebarCollapsed && (
             <div className="flex w-[24rem] shrink-0 flex-col gap-3 overflow-auto border-l border-border/70 bg-card/55 p-4 xl:w-[26rem] xl:p-5">

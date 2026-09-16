@@ -362,7 +362,7 @@ function GridView({
             </div>
           )}
           {content && (
-            <div className="shrink-1 max-h-32 overflow-hidden text-sm leading-6 text-foreground/90 sm:max-h-40 sm:text-base">
+            <div className="shrink-1 max-h-32 overflow-hidden text-xs leading-4 text-foreground/90 sm:max-h-40 sm:text-sm sm:leading-5">
               {content}
             </div>
           )}
