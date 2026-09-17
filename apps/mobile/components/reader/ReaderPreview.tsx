@@ -1,24 +1,25 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { View } from "react-native";
 import WebView from "react-native-webview";
-import { getWebViewFontFamily } from "@/lib/readerSettings";
+import {
+  getWebViewFontFamily,
+  MobileReaderFontFamily,
+} from "@/lib/readerSettings";
 import { useColorScheme } from "@/lib/useColorScheme";
-
-import { ZReaderFontFamily } from "@karakeep/shared/types/users";
 
 const PREVIEW_TEXT =
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump!";
 
 export interface ReaderPreviewRef {
   updateStyles: (
-    fontFamily: ZReaderFontFamily,
+    fontFamily: MobileReaderFontFamily,
     fontSize: number,
     lineHeight: number,
   ) => void;
 }
 
 interface ReaderPreviewProps {
-  initialFontFamily: ZReaderFontFamily;
+  initialFontFamily: MobileReaderFontFamily;
   initialFontSize: number;
   initialLineHeight: number;
 }
@@ -34,7 +35,7 @@ export const ReaderPreview = forwardRef<ReaderPreviewRef, ReaderPreviewProps>(
 
     useImperativeHandle(ref, () => ({
       updateStyles: (
-        newFontFamily: ZReaderFontFamily,
+        newFontFamily: MobileReaderFontFamily,
         newFontSize: number,
         newLineHeight: number,
       ) => {
