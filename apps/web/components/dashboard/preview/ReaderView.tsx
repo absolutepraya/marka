@@ -41,7 +41,7 @@ function ReaderState({
 }) {
   return (
     <div
-      className="flex min-h-64 w-full items-center justify-center p-4"
+      className="flex h-full min-h-64 w-full items-center justify-center p-4"
       role={onRetry ? "alert" : "status"}
     >
       <div className="max-w-md space-y-4 text-center">

@@ -39,6 +39,7 @@ import {
 } from "@karakeep/shared/utils/bookmarkUtils";
 
 import SummarizeBookmarkArea from "../bookmarks/SummarizeBookmarkArea";
+import Favicon from "../bookmarks/Favicon";
 import ActionBar from "./ActionBar";
 import { AssetContentSection } from "./AssetContentSection";
 import AttachmentBox from "./AttachmentBox";
@@ -47,6 +48,17 @@ import HighlightsBox from "./HighlightsBox";
 import LinkContentSection from "./LinkContentSection";
 import { NoteEditor } from "./NoteEditor";
 import { TextContentSection } from "./TextContentSection";
+
+function getDisplayUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    const hasRoute =
+      parsedUrl.pathname !== "/" || parsedUrl.search || parsedUrl.hash;
+    return `${parsedUrl.protocol}//${parsedUrl.host}${hasRoute ? "/..." : ""}`;
+  } catch {
+    return url;
+  }
+}
 
 function ContentLoading() {
   const { t } = useTranslation();
@@ -200,6 +212,11 @@ export default function BookmarkPreview({
   }
 
   const sourceUrl = getSourceUrl(bookmark);
+  const displaySourceUrl = sourceUrl ? getDisplayUrl(sourceUrl) : null;
+  const storedFavicon =
+    bookmark.content.type === BookmarkTypes.LINK
+      ? bookmark.content.favicon
+      : null;
   const title = getBookmarkTitle(bookmark);
   const isPdfPreview =
     bookmark.content.type === BookmarkTypes.ASSET &&
@@ -230,14 +247,23 @@ export default function BookmarkPreview({
           <p className="line-clamp-3 w-full text-ellipsis break-words text-xl font-semibold leading-snug tracking-tight text-foreground">
             {!title ? "Untitled" : title}
           </p>
-          {sourceUrl && (
+          {sourceUrl && displaySourceUrl && (
             <Link
               href={sourceUrl}
               target="_blank"
-              className="ease-(--ease-out) inline-flex w-fit items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-[background-color,color,border-color] duration-150 hover:bg-accent hover:text-foreground"
+              rel="noreferrer"
+              title={sourceUrl}
+              className="ease-(--ease-out) inline-flex min-w-0 max-w-full items-center gap-1.5 text-sm text-foreground transition-colors duration-150 hover:text-foreground/80"
             >
-              <ExternalLink className="size-3" />
-              <span>{t("preview.view_original")}</span>
+              <Favicon
+                url={sourceUrl}
+                storedFavicon={storedFavicon}
+                className="size-4 shrink-0"
+              />
+              <span className="min-w-0 truncate underline underline-offset-4">
+                {displaySourceUrl}
+              </span>
+              <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
             </Link>
           )}
         </div>

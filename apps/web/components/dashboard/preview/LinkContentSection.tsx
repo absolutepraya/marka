@@ -174,7 +174,7 @@ export default function LinkContentSection({
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col items-center overflow-hidden">
-      <div className="flex w-full flex-wrap items-center justify-center gap-2 border-b px-3 py-1.5">
+      <div className="flex w-full flex-wrap items-center justify-center gap-2 px-3 py-1.5">
         <Select onValueChange={setSection} value={section}>
           <SelectTrigger
             className="w-fit"
