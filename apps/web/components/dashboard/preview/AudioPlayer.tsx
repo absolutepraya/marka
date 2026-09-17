@@ -81,7 +81,7 @@ export function AudioPlayer({
     <div
       className={cn(
         "flex w-full flex-col gap-3",
-        compact ? "p-3" : "max-w-2xl p-6",
+        compact ? "p-3 lg:max-w-2xl lg:p-6" : "max-w-2xl p-6",
       )}
     >
       {/* eslint-disable-next-line jsx-a11y/media-has-caption -- captions are not part of the uploaded-audio model */}

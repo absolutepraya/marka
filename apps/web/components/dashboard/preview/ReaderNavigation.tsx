@@ -184,8 +184,8 @@ export default function ReaderNavigation({
         });
 
   return (
-    <div ref={navigationRef} className="mb-3 space-y-1.5 print:hidden">
-      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/70 bg-background p-1">
+    <div ref={navigationRef} className="mb-2 space-y-1 print:hidden sm:mb-3 sm:space-y-1.5">
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/70 bg-background p-1 sm:gap-1.5">
         <div className="flex min-w-0 flex-1 basis-56 items-center gap-1">
           <Search
             className="ml-1 size-3.5 shrink-0 text-muted-foreground"
@@ -203,10 +203,10 @@ export default function ReaderNavigation({
             onKeyDown={handleSearchKeyDown}
             placeholder={t("preview.reader_search_placeholder")}
             aria-label={t("preview.reader_search_label")}
-            className="h-8 border-0 bg-transparent px-1.5 shadow-none focus-visible:ring-0"
+            className="h-8 min-w-0 flex-1 border-0 bg-transparent px-1.5 shadow-none focus-visible:ring-0"
           />
           <span
-            className="min-w-16 shrink-0 text-right text-[0.6875rem] text-muted-foreground"
+            className="max-w-20 min-w-0 shrink truncate text-right text-[0.6875rem] text-muted-foreground"
             role="status"
             aria-live="polite"
             aria-atomic="true"

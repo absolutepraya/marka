@@ -516,6 +516,12 @@ textarea,
   line-height: 1.5;
 }
 
+.reader-text-scroll-area [data-radix-scroll-area-viewport] > div {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
 .reader-markdown-content.prose :is(h1, h2, h3, h4, h5, h6),
 .reader-html-content.prose :is(h1, h2, h3, h4, h5, h6) {
   line-height: 1.2;
@@ -590,6 +596,33 @@ textarea,
 }
 
 @media (max-width: 639px) {
+  .reader-markdown-content.prose,
+  .reader-html-content.prose {
+    line-height: 1.5;
+  }
+
+  .reader-markdown-content.prose h1,
+  .reader-html-content.prose h1 {
+    margin-block: 0.75em 0.5em;
+  }
+
+  .reader-markdown-content.prose h2,
+  .reader-html-content.prose h2 {
+    margin-block: 0.8em 0.45em;
+  }
+
+  .reader-markdown-content.prose h3,
+  .reader-html-content.prose h3,
+  .reader-markdown-content.prose :is(h4, h5, h6),
+  .reader-html-content.prose :is(h4, h5, h6) {
+    margin-block: 0.7em 0.4em;
+  }
+
+  .reader-markdown-content.prose :is(p, ul, ol, blockquote, pre, table),
+  .reader-html-content.prose :is(p, ul, ol, blockquote, pre, table) {
+    margin-block: 0.5em;
+  }
+
   .reader-fullscreen-header {
     margin-bottom: 1rem;
   }

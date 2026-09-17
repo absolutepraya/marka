@@ -21,8 +21,8 @@ export function TextContentSection({ bookmark }: { bookmark: ZBookmark }) {
   const { t } = useTranslation();
 
   return (
-    <ScrollArea className="h-full">
-      <div className="lg:pt-14">
+    <ScrollArea className="reader-text-scroll-area h-full min-w-0 overflow-x-hidden">
+      <div className="w-full min-w-0 max-w-full lg:pt-14">
         {banner && (
           <div className="relative h-52 min-w-full">
             <Image
@@ -36,8 +36,8 @@ export function TextContentSection({ bookmark }: { bookmark: ZBookmark }) {
             />
           </div>
         )}
-        <div className="mx-auto max-w-3xl px-4 py-4">
-          <div className="mb-4 flex justify-end lg:hidden">
+        <div className="mx-auto w-full min-w-0 max-w-3xl px-3 py-3 sm:px-4 sm:py-4">
+          <div className="mb-3 flex justify-end lg:hidden">
             <Link
               href={`/reader/${bookmark.id}`}
               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}

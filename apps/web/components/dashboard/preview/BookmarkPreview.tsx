@@ -388,13 +388,8 @@ export default function BookmarkPreview({
           onValueChange={setActiveTab}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div
-            className={cn(
-              "sticky top-0 z-10 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80",
-              isPdfPreview ? "pb-2 pt-2" : "pb-2 pt-3",
-            )}
-          >
-            <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl border border-border/70 bg-card/80 p-1">
+          <div className="sticky top-0 z-10 bg-background/95 px-2 pb-1.5 pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg border border-border/70 bg-card/80 p-1">
               <TabsTrigger value="content">
                 {t("preview.tabs.content")}
               </TabsTrigger>
@@ -409,14 +404,14 @@ export default function BookmarkPreview({
               "h-full min-h-0 flex-1 bg-background data-[state=inactive]:hidden",
               isPdfPreview
                 ? "mt-0 overflow-hidden px-0 pb-2 pt-0"
-                : "overflow-hidden overflow-y-auto px-4 py-3",
+                : "overflow-hidden overflow-y-auto px-2 py-2",
             )}
           >
             {contentSection}
           </TabsContent>
           <TabsContent
             value="details"
-            className="h-full overflow-y-auto bg-muted/10 px-4 py-3 data-[state=inactive]:hidden"
+            className="h-full overflow-y-auto bg-muted/10 px-3 py-2 data-[state=inactive]:hidden"
           >
             {detailsSection}
           </TabsContent>

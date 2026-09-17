@@ -94,7 +94,7 @@ export default function ReaderViewPage() {
               <X className="h-4 w-4" aria-hidden="true" />
             </Button>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">
+              <p className="truncate whitespace-nowrap text-sm font-medium text-foreground">
                 {t("preview.reader_view")}
               </p>
               <p className="truncate text-xs text-muted-foreground">
@@ -175,7 +175,7 @@ export default function ReaderViewPage() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-x-hidden">
-          <article className="reader-fullscreen-article mx-auto max-w-[46rem] overflow-x-hidden px-4 py-6 sm:px-6 sm:py-10">
+          <article className="reader-fullscreen-article mx-auto max-w-[46rem] overflow-x-hidden px-4 py-4 sm:px-6 sm:py-10">
             {bookmark ? (
               <>
                 {/* Article Header */}
