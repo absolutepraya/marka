@@ -7,16 +7,18 @@ import ReaderSettingsPopover from "@/components/dashboard/preview/ReaderSettings
 import ReaderView from "@/components/dashboard/preview/ReaderView";
 import { Button } from "@/components/ui/button";
 import { FullPageSpinner } from "@/components/ui/full-page-spinner";
-import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/lib/auth/client";
 import { useTranslation } from "@/lib/i18n/client";
 import { useReaderSettings } from "@/lib/readerSettings";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
+  BookOpenCheck,
   ExternalLink,
+  Globe,
   HighlighterIcon as Highlight,
   Printer,
+  UserRound,
   X,
 } from "lucide-react";
 
@@ -43,13 +45,32 @@ export default function ReaderViewPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const { t } = useTranslation();
-  const { settings } = useReaderSettings();
+  const { settings, serverSettings, localOverrides, sessionOverrides } =
+    useReaderSettings();
+  const hasConfiguredFontSize =
+    sessionOverrides.fontSize !== undefined ||
+    localOverrides.fontSize !== undefined ||
+    serverSettings.fontSize !== undefined;
+  const hasConfiguredLineHeight =
+    sessionOverrides.lineHeight !== undefined ||
+    localOverrides.lineHeight !== undefined ||
+    serverSettings.lineHeight !== undefined;
   const [showHighlights, setShowHighlights] = useState(false);
+  const [needsReviewState, setNeedsReviewState] = useState<{
+    contentKey: string;
+    ids: Set<string>;
+  }>({ contentKey: "", ids: new Set() });
   const isOwner = session?.user?.id === bookmark?.userId;
   const canUseReader =
     bookmark?.content.type === BookmarkTypes.TEXT ||
     bookmark?.content.type === BookmarkTypes.LINK;
   const canHighlight = bookmark?.content.type === BookmarkTypes.LINK;
+  const readerContentKey =
+    bookmark?.content.type === BookmarkTypes.LINK ? `${bookmarkId}:html` : "";
+  const needsReviewHighlightIds =
+    needsReviewState.contentKey === readerContentKey
+      ? needsReviewState.ids
+      : new Set<string>();
 
   const onClose = () => {
     if (window.history.length > 1) {
@@ -65,6 +86,7 @@ export default function ReaderViewPage() {
 
   const sourceUrl =
     bookmark?.content.type === BookmarkTypes.LINK ? bookmark.content.url : null;
+  const readerTitle = bookmark ? getBookmarkTitle(bookmark) : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,30 +97,36 @@ export default function ReaderViewPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full"
+              className="shrink-0 rounded-full"
               onClick={onClose}
               aria-label={t("actions.close_reader")}
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </Button>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">
+              <p className="truncate whitespace-nowrap text-sm font-medium text-foreground">
                 {t("preview.reader_view")}
               </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {bookmark
-                  ? getBookmarkTitle(bookmark)
-                  : t("preview.loading_article")}
-              </p>
+              {bookmark ? (
+                readerTitle && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {readerTitle}
+                  </p>
+                )
+              ) : (
+                <p className="truncate text-xs text-muted-foreground">
+                  {t("preview.loading_article")}
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="shadow-xs flex items-center gap-1 rounded-full border border-border/70 bg-card/80 p-1">
+          <div className="shadow-xs flex items-center gap-0 rounded-lg border border-border/70 bg-card/80 p-0">
             {sourceUrl && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full"
+                className="rounded-md"
                 asChild
               >
                 <a
@@ -115,7 +143,7 @@ export default function ReaderViewPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full"
+                className="rounded-md"
                 onClick={handlePrint}
                 aria-label={t("actions.print")}
               >
@@ -129,7 +157,7 @@ export default function ReaderViewPage() {
               <Button
                 variant={showHighlights ? "default" : "ghost"}
                 size="icon"
-                className="rounded-full"
+                className="rounded-md"
                 onClick={() => setShowHighlights(!showHighlights)}
                 aria-label={t(
                   showHighlights
@@ -163,47 +191,61 @@ export default function ReaderViewPage() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-x-hidden">
-          <article className="mx-auto max-w-[46rem] overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10">
+          <article className="reader-fullscreen-article mx-auto max-w-[46rem] overflow-x-hidden px-4 py-4 sm:px-6 sm:py-10">
             {bookmark ? (
               <>
                 {/* Article Header */}
-                <header className="shadow-xs mb-10 space-y-4 rounded-2xl border border-border/70 bg-card/50 p-5 sm:p-6">
-                  <h1
-                    className="font-bold leading-tight"
-                    style={{
-                      fontFamily: READER_FONT_FAMILIES[settings.fontFamily],
-                      fontSize: `${settings.fontSize * 1.8}px`,
-                      lineHeight: settings.lineHeight * 0.9,
-                    }}
-                  >
-                    {getBookmarkTitle(bookmark)}
-                  </h1>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                <header
+                  className={cn(
+                    "reader-fullscreen-header shadow-xs mb-4 rounded-xl border border-border/70 bg-card/50 sm:mb-6 sm:rounded-2xl",
+                    readerTitle
+                      ? "space-y-2 p-3 sm:space-y-3 sm:p-5"
+                      : "px-3 py-2 sm:px-5 sm:py-3",
+                  )}
+                >
+                  {readerTitle && (
+                    <h1
+                      className="reader-fullscreen-title font-bold leading-tight"
+                      style={{
+                        fontFamily: READER_FONT_FAMILIES[settings.fontFamily],
+                        fontSize: `${settings.fontSize * 1.8}px`,
+                        lineHeight: settings.lineHeight * 0.9,
+                      }}
+                    >
+                      {readerTitle}
+                    </h1>
+                  )}
+                  <div className="reader-fullscreen-metadata flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground sm:gap-x-4 sm:gap-y-2">
                     {bookmark.content.type == BookmarkTypes.LINK &&
                       bookmark.content.author && (
-                        <span>
-                          {t("preview.by_author", {
-                            author: bookmark.content.author,
-                          })}
+                        <span className="inline-flex items-center gap-1.5">
+                          <UserRound
+                            className="size-3.5 shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span className="text-xs font-medium">By</span>
+                          <span className="text-sm text-foreground/80">
+                            {bookmark.content.author}
+                          </span>
                         </span>
                       )}
                     {bookmark.content.type == BookmarkTypes.LINK &&
                       bookmark.content.publisher && (
-                        <>
-                          <Separator
-                            orientation="vertical"
-                            className="hidden h-4 sm:block"
+                        <span className="inline-flex items-center gap-1.5">
+                          <Globe
+                            className="size-3.5 shrink-0"
+                            aria-hidden="true"
                           />
                           <span>{bookmark.content.publisher}</span>
-                        </>
+                        </span>
                       )}
-                    <>
-                      <Separator
-                        orientation="vertical"
-                        className="hidden h-4 sm:block"
+                    <span className="inline-flex items-center gap-1.5">
+                      <BookOpenCheck
+                        className="size-3.5 shrink-0"
+                        aria-hidden="true"
                       />
                       <span>{t("preview.saved_for_focused_reading")}</span>
-                    </>
+                    </span>
                   </div>
                 </header>
 
@@ -211,15 +253,35 @@ export default function ReaderViewPage() {
                 <Suspense fallback={<FullPageSpinner />}>
                   <div className="overflow-x-hidden">
                     <ReaderView
+                      className="reader-fullscreen-content"
                       style={{
                         fontFamily: READER_FONT_FAMILIES[settings.fontFamily],
-                        fontSize: `${settings.fontSize}px`,
-                        lineHeight: settings.lineHeight,
+                        ...(hasConfiguredFontSize && {
+                          fontSize: `${settings.fontSize}px`,
+                        }),
+                        ...(hasConfiguredLineHeight && {
+                          lineHeight: settings.lineHeight,
+                        }),
                       }}
                       bookmarkId={bookmarkId}
                       readOnly={!isOwner}
                       fallbackHref={`/dashboard/preview/${bookmarkId}`}
                       progressBarStyle={{ position: "fixed", top: "3.5rem" }}
+                      onHighlightNeedsReview={(highlightId, contentKey) =>
+                        setNeedsReviewState((current) => {
+                          if (current.contentKey !== contentKey) {
+                            return {
+                              contentKey,
+                              ids: new Set([highlightId]),
+                            };
+                          }
+                          if (current.ids.has(highlightId)) return current;
+                          return {
+                            contentKey,
+                            ids: new Set(current.ids).add(highlightId),
+                          };
+                        })
+                      }
                     />
                   </div>
                 </Suspense>
@@ -274,8 +336,9 @@ export default function ReaderViewPage() {
                       <HighlightCard
                         key={highlight.id}
                         highlight={highlight}
-                        clickable={true}
+                        clickable={!needsReviewHighlightIds.has(highlight.id)}
                         readOnly={!isOwner}
+                        needsReview={needsReviewHighlightIds.has(highlight.id)}
                       />
                     ))}
                   </div>

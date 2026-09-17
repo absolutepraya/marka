@@ -18,9 +18,6 @@ import { getAssetUrl } from "@karakeep/shared/utils/assetUtils";
 import { AudioPlayer } from "./AudioPlayer";
 import ContentDownloadButton from "./ContentDownloadButton";
 
-// 20 MB
-const BIG_FILE_SIZE = 20 * 1024 * 1024;
-
 function PDFContentSection({ bookmark }: { bookmark: ZBookmark }) {
   if (bookmark.content.type != BookmarkTypes.ASSET) {
     throw new Error("Invalid content type");
@@ -32,14 +29,6 @@ function PDFContentSection({ bookmark }: { bookmark: ZBookmark }) {
       throw new Error("Invalid content type");
     }
 
-    const screenshot = bookmark.assets.find(
-      (item) => item.assetType === "assetScreenshot",
-    );
-    const bigSize =
-      bookmark.content.size && bookmark.content.size > BIG_FILE_SIZE;
-    if (bigSize && screenshot) {
-      return "screenshot";
-    }
     return "pdf";
   }, [bookmark]);
   const [section, setSection] = useState(initialSection);
@@ -70,8 +59,8 @@ function PDFContentSection({ bookmark }: { bookmark: ZBookmark }) {
     );
 
   return (
-    <div className="flex h-full flex-col items-center gap-2">
-      <div className="flex w-full items-center justify-center gap-2">
+    <div className="flex h-full min-h-0 w-full flex-col items-center gap-1.5 sm:gap-2">
+      <div className="flex w-full shrink-0 items-center justify-center gap-1.5 sm:gap-2">
         <Select onValueChange={setSection} value={section}>
           <SelectTrigger className="w-fit">
             <SelectValue />
@@ -85,9 +74,9 @@ function PDFContentSection({ bookmark }: { bookmark: ZBookmark }) {
             </SelectGroup>
           </SelectContent>
         </Select>
-        <ContentDownloadButton bookmark={bookmark} />
+        <ContentDownloadButton bookmark={bookmark} size="default" />
       </div>
-      {content}
+      <div className="min-h-0 w-full flex-1">{content}</div>
     </div>
   );
 }
@@ -98,25 +87,38 @@ function ImageContentSection({ bookmark }: { bookmark: ZBookmark }) {
   }
   const { t } = useTranslation();
   return (
-    <div className="relative h-full min-w-full">
-      <Link
-        href={getAssetUrl(bookmark.content.assetId)}
-        target="_blank"
-        aria-label={t("actions.open_original")}
-      >
-        <Image
-          alt="asset"
-          fill={true}
-          sizes="100vw"
-          unoptimized
-          className="object-contain"
-          src={getAssetUrl(bookmark.content.assetId)}
-        />
-      </Link>
-      <ContentDownloadButton
-        bookmark={bookmark}
-        className="absolute right-4 top-4 z-10"
-      />
+    <div className="flex h-full min-w-full flex-col items-center gap-2 overflow-y-auto lg:overflow-hidden">
+      <div className="flex w-full shrink-0 justify-center lg:hidden">
+        <ContentDownloadButton bookmark={bookmark} size="default" />
+      </div>
+      <div className="relative w-full shrink-0 lg:min-h-0 lg:flex-1">
+        <Link
+          href={getAssetUrl(bookmark.content.assetId)}
+          target="_blank"
+          className="block w-full lg:relative lg:h-full"
+          aria-label={t("actions.open_original")}
+        >
+          <div className="relative w-full lg:hidden">
+            <Image
+              alt=""
+              src={getAssetUrl(bookmark.content.assetId)}
+              width={0}
+              height={0}
+              unoptimized
+              sizes="100vw"
+              style={{ width: "100%", height: "auto" }}
+            />
+          </div>
+          <Image
+            alt="asset"
+            fill={true}
+            sizes="100vw"
+            unoptimized
+            className="hidden object-contain lg:block"
+            src={getAssetUrl(bookmark.content.assetId)}
+          />
+        </Link>
+      </div>
     </div>
   );
 }
@@ -139,7 +141,14 @@ function VideoContentSection({ bookmark }: { bookmark: ZBookmark }) {
   }, [assetUrl, bookmark.content.contentType, isMatroska]);
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
+    <div className="flex h-full w-full flex-col items-center justify-start gap-3 overflow-y-auto p-2 lg:justify-center lg:gap-4 lg:overflow-hidden lg:p-4">
+      <div className="flex w-full shrink-0 justify-center lg:hidden">
+        <ContentDownloadButton
+          bookmark={bookmark}
+          fileName={fileName}
+          size="default"
+        />
+      </div>
       {playbackError ? (
         <div
           role="alert"
@@ -167,7 +176,6 @@ function VideoContentSection({ bookmark }: { bookmark: ZBookmark }) {
           </video>
         </div>
       )}
-      <ContentDownloadButton bookmark={bookmark} fileName={fileName} />
     </div>
   );
 }
@@ -193,6 +201,7 @@ export function AssetContentSection({ bookmark }: { bookmark: ZBookmark }) {
             fileName={bookmark.content.fileName}
             contentType={bookmark.content.contentType}
             title={bookmark.title}
+            compact
           />
         </div>
       );

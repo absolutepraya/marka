@@ -436,3 +436,237 @@ textarea,
     bottom: calc(env(safe-area-inset-bottom) + 6.5rem) !important;
   }
 }
+
+/* Compact bookmark text surfaces keep previews and reader content from
+   inheriting article-scale typography from the default prose preset. */
+.bookmark-markdown-preview.prose {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.bookmark-markdown-preview.prose :is(h1, h2, h3, h4, h5, h6) {
+  line-height: 1.2;
+}
+
+.bookmark-markdown-preview.prose h1 {
+  margin-block: 1rem 0.5rem;
+  font-size: 1.75rem;
+}
+
+.bookmark-markdown-preview.prose h2 {
+  margin-block: 0.75rem 0.4rem;
+  font-size: 1.5rem;
+}
+
+.bookmark-markdown-preview.prose h3 {
+  margin-block: 0.65rem 0.35rem;
+  font-size: 1.25rem;
+}
+
+.bookmark-markdown-preview.prose h4 {
+  margin-block: 0.6rem 0.3rem;
+  font-size: 1.125rem;
+}
+
+.bookmark-markdown-preview.prose :is(h5, h6) {
+  margin-block: 0.55rem 0.25rem;
+  font-size: 1rem;
+}
+
+.bookmark-markdown-preview.prose :is(p, ul, ol, blockquote, pre, table) {
+  margin-block: 0.6rem;
+}
+
+.bookmark-markdown-preview.prose li {
+  margin-block: 0.15rem;
+}
+
+.bookmark-markdown-preview.prose :is(code, kbd, samp) {
+  font-size: 0.875em;
+  line-height: 1.4;
+}
+
+.bookmark-markdown-preview.prose pre {
+  font-size: 0.875em;
+  line-height: 1.4;
+}
+
+.bookmark-markdown-preview.prose pre > div {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.bookmark-markdown-preview.prose :is(th, td) {
+  padding: 0.3rem 0.6rem;
+}
+
+.bookmark-markdown-preview.prose hr {
+  margin-block: 1rem;
+  border: 0;
+}
+
+.bookmark-markdown-preview-plain {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.reader-markdown-content.prose,
+.reader-html-content.prose {
+  font-size: 0.9375em;
+  line-height: 1.5;
+}
+
+.reader-text-scroll-area [data-radix-scroll-area-viewport] > div {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.reader-markdown-content.prose :is(h1, h2, h3, h4, h5, h6),
+.reader-html-content.prose :is(h1, h2, h3, h4, h5, h6) {
+  line-height: 1.2;
+}
+
+.reader-markdown-content.prose h1,
+.reader-html-content.prose h1 {
+  margin-block: 1.1em 0.6em;
+  font-size: 1.75em;
+}
+
+.reader-markdown-content.prose h2,
+.reader-html-content.prose h2 {
+  margin-block: 1em 0.55em;
+  font-size: 1.45em;
+}
+
+.reader-markdown-content.prose h3,
+.reader-html-content.prose h3 {
+  margin-block: 0.9em 0.5em;
+  font-size: 1.3em;
+}
+
+.reader-markdown-content.prose :is(h4, h5, h6),
+.reader-html-content.prose :is(h4, h5, h6) {
+  margin-block: 0.8em 0.45em;
+  font-size: 1.15em;
+}
+
+.reader-markdown-content.prose :is(p, ul, ol, blockquote, pre, table),
+.reader-html-content.prose :is(p, ul, ol, blockquote, pre, table) {
+  margin-block: 0.8em;
+}
+
+.reader-markdown-content.prose li,
+.reader-html-content.prose li {
+  margin-block: 0.25em;
+}
+
+.reader-markdown-content.prose :is(code, kbd, samp),
+.reader-html-content.prose :is(code, kbd, samp) {
+  font-size: 0.875em;
+  line-height: 1.4;
+}
+
+.reader-markdown-content.prose pre,
+.reader-html-content.prose pre {
+  font-size: 0.875em;
+  line-height: 1.4;
+}
+
+.reader-markdown-content.prose pre > div,
+.reader-html-content.prose pre > div {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.reader-markdown-content.prose :is(th, td),
+.reader-html-content.prose :is(th, td) {
+  padding: 0.45em 0.7em;
+}
+
+.reader-markdown-content.prose hr,
+.reader-html-content.prose hr {
+  margin-block: 1.1em;
+  border: 0;
+}
+
+.reader-plain-content {
+  font-size: 0.9375em;
+  line-height: 1.5;
+}
+
+.reader-fullscreen-content {
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 639px) {
+  .reader-markdown-content.prose,
+  .reader-html-content.prose {
+    line-height: 1.5;
+  }
+
+  .reader-markdown-content.prose h1,
+  .reader-html-content.prose h1 {
+    margin-block: 0.75em 0.5em;
+  }
+
+  .reader-markdown-content.prose h2,
+  .reader-html-content.prose h2 {
+    margin-block: 0.8em 0.45em;
+  }
+
+  .reader-markdown-content.prose h3,
+  .reader-html-content.prose h3,
+  .reader-markdown-content.prose :is(h4, h5, h6),
+  .reader-html-content.prose :is(h4, h5, h6) {
+    margin-block: 0.7em 0.4em;
+  }
+
+  .reader-markdown-content.prose :is(p, ul, ol, blockquote, pre, table),
+  .reader-html-content.prose :is(p, ul, ol, blockquote, pre, table) {
+    margin-block: 0.5em;
+  }
+
+  .reader-fullscreen-header {
+    margin-bottom: 1rem;
+  }
+
+  .reader-fullscreen-title {
+    font-size: clamp(1.5rem, 7vw, 2rem) !important;
+    line-height: 1.1 !important;
+  }
+
+  .reader-fullscreen-metadata {
+    font-size: 0.8125rem;
+  }
+
+  .reader-fullscreen-metadata > span {
+    gap: 0.375rem;
+  }
+
+  .reader-fullscreen-metadata svg {
+    width: 0.8125rem;
+    height: 0.8125rem;
+  }
+
+  .reader-fullscreen-metadata .text-xs {
+    font-size: 0.6875rem;
+  }
+
+  .reader-fullscreen-metadata .text-sm {
+    font-size: 0.8125rem;
+  }
+
+  .reader-fullscreen-content {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .reader-fullscreen-content .reader-markdown-content.prose,
+  .reader-fullscreen-content .reader-html-content.prose,
+  .reader-fullscreen-content .reader-plain-content {
+    font-size: 1em;
+    line-height: inherit;
+  }
+}

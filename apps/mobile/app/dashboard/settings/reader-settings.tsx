@@ -7,7 +7,13 @@ import {
 } from "@/components/reader/ReaderPreview";
 import { Divider } from "@/components/ui/Divider";
 import { Text } from "@/components/ui/Text";
-import { MOBILE_FONT_FAMILIES, useReaderSettings } from "@/lib/readerSettings";
+import {
+  getMobileReaderFontFamily,
+  MOBILE_FONT_FAMILIES,
+  MOBILE_READER_FONT_FAMILIES,
+  MobileReaderFontFamily,
+  useReaderSettings,
+} from "@/lib/readerSettings";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { Check, RotateCcw } from "lucide-react-native";
 
@@ -17,8 +23,6 @@ import {
   formatLineHeight,
   READER_SETTING_CONSTRAINTS,
 } from "@karakeep/shared/types/readers";
-import { ZReaderFontFamily } from "@karakeep/shared/types/users";
-
 export default function ReaderSettingsPage() {
   const { isDarkColorScheme: isDark } = useColorScheme();
 
@@ -36,8 +40,10 @@ export default function ReaderSettingsPage() {
   const {
     fontSize: effectiveFontSize,
     lineHeight: effectiveLineHeight,
-    fontFamily: effectiveFontFamily,
+    fontFamily: selectedFontFamily,
   } = settings;
+
+  const effectiveFontFamily = getMobileReaderFontFamily(selectedFontFamily);
 
   // Display values for showing rounded values while dragging
   const [displayFontSize, setDisplayFontSize] = useState(effectiveFontSize);
@@ -87,7 +93,7 @@ export default function ReaderSettingsPage() {
     setDisplayLineHeight(effectiveLineHeight);
   }, [effectiveLineHeight]);
 
-  const handleFontFamilyChange = (fontFamily: ZReaderFontFamily) => {
+  const handleFontFamilyChange = (fontFamily: MobileReaderFontFamily) => {
     updateLocal({ fontFamily });
     // Update preview immediately with new font family
     previewRef.current?.updateStyles(
@@ -118,7 +124,7 @@ export default function ReaderSettingsPage() {
     clearAllDefaults();
   };
 
-  const fontFamilyOptions: ZReaderFontFamily[] = ["serif", "sans", "mono"];
+  const fontFamilyOptions = MOBILE_READER_FONT_FAMILIES;
 
   return (
     <ScrollView

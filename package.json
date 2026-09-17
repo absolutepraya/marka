@@ -13,6 +13,7 @@
     "dev:infra:down": "bash scripts/dev-infra.sh down",
     "assets:marka": "node scripts/generate-marka-assets.mjs",
     "test:marka-assets": "node --test scripts/generate-marka-assets.test.mjs",
+    "reader:smoke": "node scripts/reader-view-smoke.mjs",
     "roadmap:check": "node scripts/render-roadmap.mjs --check",
     "roadmap:render": "node scripts/render-roadmap.mjs --render",
     "clean": "git clean -xdf node_modules",
@@ -48,6 +49,7 @@
   "devDependencies": {
     "@excalidraw/excalidraw": "0.18.1",
     "@types/node": "^24",
+    "axe-core": "^4.11.0",
     "esbuild": "0.25.6",
     "execa": "9.3.1",
     "knip": "^6.15.0",

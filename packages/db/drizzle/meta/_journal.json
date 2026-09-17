@@ -652,6 +652,13 @@
       "when": 1787827120457,
       "tag": "0092_add_text_bookmark_format",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "6",
+      "when": 1789543248226,
+      "tag": "0093_reader_highlight_context",
+      "breakpoints": true
     }
   ]
 }

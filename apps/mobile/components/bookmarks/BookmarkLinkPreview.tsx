@@ -9,7 +9,11 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import { Text } from "@/components/ui/Text";
 import { useAssetUrl } from "@/lib/hooks";
-import { useReaderSettings, WEBVIEW_FONT_FAMILIES } from "@/lib/readerSettings";
+import {
+  getMobileReaderFontFamily,
+  getWebViewFontFamily,
+  useReaderSettings,
+} from "@/lib/readerSettings";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, X } from "lucide-react-native";
@@ -168,7 +172,9 @@ export function BookmarkLinkReaderPreview({
   }
 
   const contentStyle: React.CSSProperties = {
-    fontFamily: WEBVIEW_FONT_FAMILIES[readerSettings.fontFamily],
+    fontFamily: getWebViewFontFamily(
+      getMobileReaderFontFamily(readerSettings.fontFamily),
+    ),
     fontSize: `${readerSettings.fontSize}px`,
     lineHeight: String(readerSettings.lineHeight),
     color: isDark ? "#e5e7eb" : "#374151",
@@ -224,6 +230,8 @@ export function BookmarkLinkReaderPreview({
             color: h.color,
             bookmarkId: bookmark.id,
             text: h.text,
+            contextBefore: h.contextBefore ?? null,
+            contextAfter: h.contextAfter ?? null,
             note: h.note ?? null,
           })
         }

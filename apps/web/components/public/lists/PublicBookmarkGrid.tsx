@@ -80,6 +80,7 @@ function PublicVideoPreview({ bookmark }: { bookmark: ZPublicBookmark }) {
             controls
             preload="metadata"
             playsInline
+            poster={bookmark.bannerImageUrl ?? undefined}
             aria-label={bookmark.title || fileName}
             onError={() => setPlaybackError(true)}
           >

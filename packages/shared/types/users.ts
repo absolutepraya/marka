@@ -193,7 +193,33 @@ export const zWrappedStatsResponseSchema = z.object({
   peakDayOfWeek: z.number(),
 });
 
-export const zReaderFontFamilySchema = z.enum(["serif", "sans", "mono"]);
+export const zReaderFontFamilySchema = z.enum([
+  "serif",
+  "sans",
+  "mono",
+  "literata",
+  "source-serif-4",
+  "newsreader",
+  "merriweather",
+  "ibm-plex-serif",
+  "pt-serif",
+  "charis-sil",
+  "nunito",
+  "lato",
+  "inter",
+  "manrope",
+  "geist",
+  "mona-sans",
+  "fira-sans",
+  "pt-sans",
+  "cantarell",
+  "commissioner",
+  "stack-sans",
+  "cal-sans",
+  "atkinson-hyperlegible",
+  "source-sans-3",
+  "ibm-plex-sans",
+]);
 export type ZReaderFontFamily = z.infer<typeof zReaderFontFamilySchema>;
 
 export const zUserSettingsSchema = z.object({

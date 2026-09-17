@@ -35,6 +35,8 @@ export class HighlightsRepo {
         transcriptRevision: input.transcriptRevision,
         color: input.color,
         text: input.text,
+        contextBefore: input.contextBefore,
+        contextAfter: input.contextAfter,
         note: input.note,
         userId,
       })

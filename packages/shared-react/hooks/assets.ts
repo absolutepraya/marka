@@ -50,6 +50,30 @@ export function useReplaceBookmarkAsset(
   );
 }
 
+export function useRefreshBookmarkAssetPreview(
+  opts?: Parameters<
+    TRPCApi["assets"]["refreshAssetPreview"]["mutationOptions"]
+  >[0],
+) {
+  const api = useTRPC();
+  const queryClient = useQueryClient();
+  return useMutation(
+    api.assets.refreshAssetPreview.mutationOptions({
+      ...opts,
+      onSuccess: (res, req, meta, context) => {
+        queryClient.invalidateQueries(api.bookmarks.getBookmarks.pathFilter());
+        queryClient.invalidateQueries(
+          api.bookmarks.searchBookmarks.pathFilter(),
+        );
+        queryClient.invalidateQueries(
+          api.bookmarks.getBookmark.queryFilter({ bookmarkId: req.bookmarkId }),
+        );
+        return opts?.onSuccess?.(res, req, meta, context);
+      },
+    }),
+  );
+}
+
 export function useDetachBookmarkAsset(
   opts?: Parameters<TRPCApi["assets"]["detachAsset"]["mutationOptions"]>[0],
 ) {

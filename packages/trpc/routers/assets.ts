@@ -1,5 +1,12 @@
+import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { bookmarkAssets } from "@karakeep/db/schema";
+import {
+  AssetPreprocessingQueue,
+  QueuePriority,
+} from "@karakeep/shared-server";
 import {
   zAssetSchema,
   zAssetTypesSchema,
@@ -74,6 +81,34 @@ export const assetsAppRouter = router({
     .use(ensureBookmarkOwnership)
     .mutation(async ({ input, ctx }) => {
       await Asset.replaceAsset(ctx, input);
+    }),
+  refreshAssetPreview: assetsProcedure
+    .input(z.object({ bookmarkId: z.string() }))
+    .output(z.void())
+    .use(ensureBookmarkOwnership)
+    .mutation(async ({ input, ctx }) => {
+      const bookmarkAsset = await ctx.db.query.bookmarkAssets.findFirst({
+        where: eq(bookmarkAssets.id, input.bookmarkId),
+        columns: { assetType: true },
+      });
+
+      if (bookmarkAsset?.assetType !== "pdf") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only PDF bookmark assets can refresh their preview",
+        });
+      }
+
+      await AssetPreprocessingQueue.enqueue(
+        {
+          bookmarkId: input.bookmarkId,
+          fixMode: true,
+        },
+        {
+          priority: QueuePriority.Low,
+          groupId: ctx.user.id,
+        },
+      );
     }),
   detachAsset: assetsProcedure
     .input(

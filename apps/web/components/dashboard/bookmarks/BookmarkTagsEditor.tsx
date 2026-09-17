@@ -13,9 +13,11 @@ import { TagsEditor } from "./TagsEditor";
 export function BookmarkTagsEditor({
   bookmark,
   disabled,
+  className,
 }: {
   bookmark: ZBookmark;
   disabled?: boolean;
+  className?: string;
 }) {
   const updateTags = useOfflineSafeBookmarkTags();
 
@@ -42,6 +44,7 @@ export function BookmarkTagsEditor({
     <div>
       <TagsEditor
         tags={bookmark.tags}
+        className={className}
         disabled={disabled}
         allowCreation
         onAttach={async ({ tagName, tagId }) => {

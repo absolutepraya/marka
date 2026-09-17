@@ -845,8 +845,15 @@ export class Bookmark extends BareBookmark {
               }
               return getPublicSignedAssetUrl(screenshotAssetId);
             }
-            case "video":
-              return null;
+            case "video": {
+              const screenshotAssetId = this.bookmark.assets.find(
+                (r) => r.assetType === "assetScreenshot",
+              )?.id;
+              if (!screenshotAssetId) {
+                return null;
+              }
+              return getPublicSignedAssetUrl(screenshotAssetId);
+            }
             case "audio":
               return null;
             default: {

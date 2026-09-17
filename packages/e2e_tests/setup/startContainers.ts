@@ -93,7 +93,7 @@ export default async function ({ provide }: GlobalSetupContext) {
         "meilisearch",
         "chrome",
         "nginx",
-        "minio",
+        "garage",
         "aimock",
       ];
       for (const service of services) {

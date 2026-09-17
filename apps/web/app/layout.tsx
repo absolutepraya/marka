@@ -1,5 +1,29 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import {
+  Atkinson_Hyperlegible,
+  Cal_Sans,
+  Cantarell,
+  Charis_SIL,
+  Commissioner,
+  Fira_Sans,
+  Geist,
+  IBM_Plex_Sans,
+  IBM_Plex_Serif,
+  Inter,
+  Lato,
+  Literata,
+  Manrope,
+  Merriweather,
+  Mona_Sans,
+  Newsreader,
+  Nunito,
+  PT_Sans,
+  PT_Serif,
+  Source_Sans_3,
+  Source_Serif_4,
+  Stack_Sans_Text,
+  JetBrains_Mono,
+} from "next/font/google";
 import Script from "next/script";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -42,6 +66,190 @@ const jetbrainsMono = JetBrains_Mono({
     "monospace",
   ],
 });
+
+const readerNunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-reader-nunito",
+  display: "swap",
+  preload: false,
+});
+
+const readerLato = Lato({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-reader-lato",
+  display: "swap",
+  preload: false,
+});
+
+const readerCalSans = Cal_Sans({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-reader-cal-sans",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+});
+
+const readerMonaSans = Mona_Sans({
+  subsets: ["latin"],
+  variable: "--font-reader-mona-sans",
+  display: "swap",
+  preload: false,
+});
+
+const readerGeist = Geist({
+  subsets: ["latin"],
+  variable: "--font-reader-geist",
+  display: "swap",
+  preload: false,
+});
+
+const readerManrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-reader-manrope",
+  display: "swap",
+  preload: false,
+});
+
+const readerStackSans = Stack_Sans_Text({
+  subsets: ["latin"],
+  variable: "--font-reader-stack-sans",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+});
+
+const readerIbmPlexSerif = IBM_Plex_Serif({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-reader-ibm-plex-serif",
+  display: "swap",
+  preload: false,
+});
+
+const readerFiraSans = Fira_Sans({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-reader-fira-sans",
+  display: "swap",
+  preload: false,
+});
+
+const readerPtSerif = PT_Serif({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-reader-pt-serif",
+  display: "swap",
+  preload: false,
+});
+
+const readerCharisSil = Charis_SIL({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-reader-charis-sil",
+  display: "swap",
+  preload: false,
+});
+
+const readerCommissioner = Commissioner({
+  subsets: ["latin"],
+  variable: "--font-reader-commissioner",
+  display: "swap",
+  preload: false,
+});
+
+const readerCantarell = Cantarell({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-reader-cantarell",
+  display: "swap",
+  preload: false,
+});
+
+const readerPtSans = PT_Sans({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-reader-pt-sans",
+  display: "swap",
+  preload: false,
+});
+
+const readerLiterata = Literata({
+  subsets: ["latin"],
+  variable: "--font-reader-literata",
+  display: "swap",
+  preload: false,
+});
+
+const readerSourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  variable: "--font-reader-source-serif-4",
+  display: "swap",
+  preload: false,
+});
+
+const readerNewsreader = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-reader-newsreader",
+  display: "swap",
+  preload: false,
+});
+
+const readerMerriweather = Merriweather({
+  subsets: ["latin"],
+  variable: "--font-reader-merriweather",
+  display: "swap",
+  preload: false,
+});
+
+const readerAtkinsonHyperlegible = Atkinson_Hyperlegible({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-reader-atkinson-hyperlegible",
+  display: "swap",
+  preload: false,
+});
+
+const readerSourceSans = Source_Sans_3({
+  subsets: ["latin"],
+  variable: "--font-reader-source-sans-3",
+  display: "swap",
+  preload: false,
+});
+
+const readerIbmPlexSans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  variable: "--font-reader-ibm-plex-sans",
+  display: "swap",
+  preload: false,
+});
+
+const readerFontVariables = [
+  readerNunito,
+  readerLato,
+  readerCalSans,
+  readerMonaSans,
+  readerGeist,
+  readerManrope,
+  readerStackSans,
+  readerIbmPlexSerif,
+  readerFiraSans,
+  readerPtSerif,
+  readerCharisSil,
+  readerCommissioner,
+  readerCantarell,
+  readerPtSans,
+  readerLiterata,
+  readerSourceSerif,
+  readerNewsreader,
+  readerMerriweather,
+  readerAtkinsonHyperlegible,
+  readerSourceSans,
+  readerIbmPlexSans,
+]
+  .map((font) => font.variable)
+  .join(" ");
 
 export const metadata: Metadata = {
   title: MARKA.name,
@@ -103,7 +311,7 @@ export default async function RootLayout({
     <html
       lang={userSettings.lang}
       dir={isRTL ? "rtl" : "ltr"}
-      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable} ${readerFontVariables}`}
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">

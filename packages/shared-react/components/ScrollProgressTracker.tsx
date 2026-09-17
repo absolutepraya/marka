@@ -11,6 +11,7 @@ import {
   findScrollableParent,
   getReadingPosition,
   SCROLL_THROTTLE_MS,
+  scrollToReadingStart,
   scrollToReadingPosition,
 } from "@karakeep/shared/utils/reading-progress-dom";
 
@@ -27,13 +28,31 @@ interface ScrollProgressTrackerProps {
   onScrollPositionChange?: (position: ReadingPosition) => void;
   /** When set to true, scrolls to the saved reading position */
   restorePosition?: boolean;
+  /** When set to true, scrolls to the beginning and clears the local tracker */
+  resetPosition?: boolean;
   readingProgressOffset?: number | null;
   readingProgressAnchor?: string | null;
+  readingProgressPercent?: number | null;
   /** Show a Medium-style reading progress bar at the top */
   showProgressBar?: boolean;
   /** Custom styles for the progress bar container (e.g. positioning overrides) */
   progressBarStyle?: React.CSSProperties;
   children: React.ReactNode;
+}
+
+export function hasSavedReadingPosition(
+  readingProgressOffset: number | null | undefined,
+  readingProgressAnchor: string | null | undefined,
+  readingProgressPercent: number | null | undefined,
+): boolean {
+  const hasOffset =
+    typeof readingProgressOffset === "number" && readingProgressOffset > 0;
+  const hasAnchor = Boolean(readingProgressAnchor);
+  const hasPercent =
+    typeof readingProgressPercent === "number" &&
+    Number.isFinite(readingProgressPercent);
+
+  return hasOffset || hasAnchor || hasPercent;
 }
 
 /**
@@ -49,8 +68,10 @@ const ScrollProgressTracker = forwardRef<
     onSavePosition,
     onScrollPositionChange,
     restorePosition,
+    resetPosition,
     readingProgressOffset,
     readingProgressAnchor,
+    readingProgressPercent,
     showProgressBar,
     progressBarStyle,
     children,
@@ -72,12 +93,22 @@ const ScrollProgressTracker = forwardRef<
 
   // Restore reading position when triggered
   const hasRestoredRef = useRef(false);
+  const hasResetRef = useRef(false);
+  useEffect(() => {
+    if (!restorePosition) {
+      hasRestoredRef.current = false;
+    }
+  }, [restorePosition]);
+
   useEffect(() => {
     if (
       !restorePosition ||
       hasRestoredRef.current ||
-      !readingProgressOffset ||
-      readingProgressOffset <= 0
+      !hasSavedReadingPosition(
+        readingProgressOffset,
+        readingProgressAnchor,
+        readingProgressPercent,
+      )
     )
       return;
 
@@ -88,14 +119,40 @@ const ScrollProgressTracker = forwardRef<
 
       scrollToReadingPosition(
         container,
-        readingProgressOffset,
+        readingProgressOffset ?? 0,
         "smooth",
         readingProgressAnchor,
+        readingProgressPercent,
       );
     });
 
     return () => cancelAnimationFrame(rafId);
-  }, [restorePosition, readingProgressOffset, readingProgressAnchor]);
+  }, [
+    restorePosition,
+    readingProgressOffset,
+    readingProgressAnchor,
+    readingProgressPercent,
+  ]);
+
+  useEffect(() => {
+    if (!resetPosition) {
+      hasResetRef.current = false;
+      return;
+    }
+    if (hasResetRef.current) return;
+
+    hasResetRef.current = true;
+    latestPositionRef.current = null;
+    setScrollPercent(0);
+    const rafId = requestAnimationFrame(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      scrollToReadingStart(container, "smooth");
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [resetPosition]);
 
   // Scroll tracking — updates the progress bar on every scroll,
   // but only reports position lazily via an idle timer.
@@ -215,7 +272,7 @@ const ScrollProgressTracker = forwardRef<
             style={{
               height: "100%",
               width: `${scrollPercent}%`,
-              backgroundColor: "rgb(249, 115, 22)",
+              backgroundColor: "#51A2FF",
               transition: "width 150ms ease-out",
             }}
           />

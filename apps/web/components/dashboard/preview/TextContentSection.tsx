@@ -21,33 +21,35 @@ export function TextContentSection({ bookmark }: { bookmark: ZBookmark }) {
   const { t } = useTranslation();
 
   return (
-    <ScrollArea className="h-full">
-      {banner && (
-        <div className="relative h-52 min-w-full">
-          <Image
-            alt="banner"
-            src={getAssetUrl(banner.id)}
-            width={0}
-            height={0}
-            unoptimized
-            layout="fill"
-            objectFit="cover"
-          />
+    <ScrollArea className="reader-text-scroll-area h-full min-w-0 overflow-x-hidden">
+      <div className="w-full min-w-0 max-w-full lg:pt-14">
+        {banner && (
+          <div className="relative h-52 min-w-full">
+            <Image
+              alt="banner"
+              src={getAssetUrl(banner.id)}
+              width={0}
+              height={0}
+              unoptimized
+              layout="fill"
+              objectFit="cover"
+            />
+          </div>
+        )}
+        <div className="mx-auto w-full min-w-0 max-w-3xl px-3 py-3 sm:px-4 sm:py-4">
+          <div className="mb-3 flex justify-center lg:hidden">
+            <Link
+              href={`/reader/${bookmark.id}`}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              <BookOpen className="mr-2 size-4" aria-hidden="true" />
+              {t("preview.reader_view")}
+            </Link>
+          </div>
+          <BookmarkMarkdownComponent>
+            {bookmark as ZBookmarkTypeText}
+          </BookmarkMarkdownComponent>
         </div>
-      )}
-      <div className="mx-auto max-w-3xl px-4 py-4">
-        <div className="mb-4 flex justify-end">
-          <Link
-            href={`/reader/${bookmark.id}`}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
-            <BookOpen className="mr-2 size-4" aria-hidden="true" />
-            {t("preview.reader_view")}
-          </Link>
-        </div>
-        <BookmarkMarkdownComponent>
-          {bookmark as ZBookmarkTypeText}
-        </BookmarkMarkdownComponent>
       </div>
     </ScrollArea>
   );

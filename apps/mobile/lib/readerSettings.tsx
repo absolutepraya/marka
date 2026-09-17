@@ -10,12 +10,18 @@ import { ZReaderFontFamily } from "@karakeep/shared/types/users";
 
 import { useSettings } from "./settings";
 
-// Mobile-specific font families for native Text components
-// On Android, use generic font family names: "serif", "sans-serif", "monospace"
-// On iOS, use specific font names like "Georgia" and "Courier"
-// Note: undefined means use the system default font
+// Mobile supports these three semantic families. Named web fonts are
+// intentionally not exposed here because they are not bundled in the app.
+export const MOBILE_READER_FONT_FAMILIES = ["serif", "sans", "mono"] as const;
+
+export type MobileReaderFontFamily =
+  (typeof MOBILE_READER_FONT_FAMILIES)[number];
+
+// On Android, use generic font family names: "serif", "sans-serif", "monospace".
+// On iOS, use specific font names like "Georgia" and "Courier".
+// Note: undefined means use the system default font.
 export const MOBILE_FONT_FAMILIES: Record<
-  ZReaderFontFamily,
+  MobileReaderFontFamily,
   string | undefined
 > = Platform.select({
   android: {
@@ -30,12 +36,38 @@ export const MOBILE_FONT_FAMILIES: Record<
   },
 })!;
 
-// Font families for WebView HTML content (CSS font stacks)
-export const WEBVIEW_FONT_FAMILIES: Record<ZReaderFontFamily, string> = {
+const WEBVIEW_FONT_FAMILIES: Record<MobileReaderFontFamily, string> = {
   serif: "Georgia, 'Times New Roman', serif",
   sans: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
   mono: "ui-monospace, Menlo, Monaco, 'Courier New', monospace",
-} as const;
+};
+
+const MOBILE_SERIF_FAMILIES: ReadonlySet<ZReaderFontFamily> = new Set([
+  "serif",
+  "literata",
+  "source-serif-4",
+  "newsreader",
+  "merriweather",
+  "ibm-plex-serif",
+  "pt-serif",
+  "charis-sil",
+]);
+
+export function getMobileReaderFontFamily(
+  fontFamily: ZReaderFontFamily,
+): MobileReaderFontFamily {
+  if (fontFamily === "mono") return "mono";
+  if (MOBILE_SERIF_FAMILIES.has(fontFamily)) {
+    return "serif";
+  }
+  return "sans";
+}
+
+export function getWebViewFontFamily(
+  fontFamily: MobileReaderFontFamily,
+): string {
+  return WEBVIEW_FONT_FAMILIES[fontFamily];
+}
 
 /**
  * Mobile-specific provider for reader settings.

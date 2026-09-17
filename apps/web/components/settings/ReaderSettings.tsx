@@ -8,12 +8,15 @@ import { useReaderSettings } from "@/lib/readerSettings";
 import { AlertTriangle, ChevronDown, Laptop, RotateCcw } from "lucide-react";
 
 import {
+  formatFontFamily,
   formatFontSize,
   formatLineHeight,
   READER_DEFAULTS,
   READER_FONT_FAMILIES,
+  READER_FONT_OPTIONS,
   READER_SETTING_CONSTRAINTS,
 } from "@karakeep/shared/types/readers";
+import { ZReaderFontFamily } from "@karakeep/shared/types/users";
 
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
@@ -87,14 +90,7 @@ export default function ReaderSettings() {
     if (key === "fontSize") return formatFontSize(value as number);
     if (key === "lineHeight") return formatLineHeight(value as number);
     if (key === "fontFamily") {
-      switch (value) {
-        case "serif":
-          return t("settings.info.reader_settings.serif");
-        case "sans":
-          return t("settings.info.reader_settings.sans");
-        case "mono":
-          return t("settings.info.reader_settings.mono");
-      }
+      return formatFontFamily(value as ZReaderFontFamily);
     }
     return String(value);
   };
@@ -176,7 +172,7 @@ export default function ReaderSettings() {
                 onValueChange={(value) => {
                   if (value !== "not-set") {
                     updateServerSetting({
-                      fontFamily: value as "serif" | "sans" | "mono",
+                      fontFamily: value as ZReaderFontFamily,
                     });
                   }
                 }}
@@ -189,23 +185,26 @@ export default function ReaderSettings() {
                 <SelectContent>
                   <SelectItem value="not-set" disabled>
                     {t("settings.info.reader_settings.not_set")} (
-                    {t("common.default")}: {READER_DEFAULTS.fontFamily})
+                    {t("common.default")}:{" "}
+                    {formatFontFamily(READER_DEFAULTS.fontFamily)})
                   </SelectItem>
-                  <SelectItem value="serif">
-                    {t("settings.info.reader_settings.serif")}
-                  </SelectItem>
-                  <SelectItem value="sans">
-                    {t("settings.info.reader_settings.sans")}
-                  </SelectItem>
-                  <SelectItem value="mono">
-                    {t("settings.info.reader_settings.mono")}
-                  </SelectItem>
+                  {READER_FONT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <span
+                        style={{
+                          fontFamily: READER_FONT_FAMILIES[option.value],
+                        }}
+                      >
+                        {option.label}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {serverSettings.fontFamily === null && (
                 <p className="text-xs text-muted-foreground">
                   {t("settings.info.reader_settings.using_default")}:{" "}
-                  {READER_DEFAULTS.fontFamily}
+                  {formatFontFamily(READER_DEFAULTS.fontFamily)}
                 </p>
               )}
             </div>

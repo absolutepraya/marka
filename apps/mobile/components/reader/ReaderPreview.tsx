@@ -1,24 +1,25 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { View } from "react-native";
 import WebView from "react-native-webview";
-import { WEBVIEW_FONT_FAMILIES } from "@/lib/readerSettings";
+import {
+  getWebViewFontFamily,
+  MobileReaderFontFamily,
+} from "@/lib/readerSettings";
 import { useColorScheme } from "@/lib/useColorScheme";
-
-import { ZReaderFontFamily } from "@karakeep/shared/types/users";
 
 const PREVIEW_TEXT =
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump!";
 
 export interface ReaderPreviewRef {
   updateStyles: (
-    fontFamily: ZReaderFontFamily,
+    fontFamily: MobileReaderFontFamily,
     fontSize: number,
     lineHeight: number,
   ) => void;
 }
 
 interface ReaderPreviewProps {
-  initialFontFamily: ZReaderFontFamily;
+  initialFontFamily: MobileReaderFontFamily;
   initialFontSize: number;
   initialLineHeight: number;
 }
@@ -28,17 +29,17 @@ export const ReaderPreview = forwardRef<ReaderPreviewRef, ReaderPreviewProps>(
     const webViewRef = useRef<WebView>(null);
     const { isDarkColorScheme: isDark } = useColorScheme();
 
-    const fontFamily = WEBVIEW_FONT_FAMILIES[initialFontFamily];
+    const fontFamily = getWebViewFontFamily(initialFontFamily);
     const textColor = isDark ? "#e5e7eb" : "#374151";
     const bgColor = isDark ? "#000000" : "#ffffff";
 
     useImperativeHandle(ref, () => ({
       updateStyles: (
-        newFontFamily: ZReaderFontFamily,
+        newFontFamily: MobileReaderFontFamily,
         newFontSize: number,
         newLineHeight: number,
       ) => {
-        const cssFontFamily = WEBVIEW_FONT_FAMILIES[newFontFamily];
+        const cssFontFamily = getWebViewFontFamily(newFontFamily);
         webViewRef.current?.injectJavaScript(`
           window.updateStyles("${cssFontFamily}", ${newFontSize}, ${newLineHeight});
           true;

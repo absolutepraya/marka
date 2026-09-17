@@ -17,6 +17,7 @@ import useRelativeTime from "@/lib/hooks/relative-time";
 import { useTranslation } from "@/lib/i18n/client";
 import { useQuery } from "@tanstack/react-query";
 import {
+  BookOpen,
   Building,
   CalendarDays,
   ExternalLink,
@@ -25,6 +26,8 @@ import {
   PanelRightOpen,
   User,
 } from "lucide-react";
+
+import { buttonVariants } from "@/components/ui/button";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
 import { BookmarkTypes, ZBookmark } from "@karakeep/shared/types/bookmarks";
@@ -36,13 +39,26 @@ import {
 } from "@karakeep/shared/utils/bookmarkUtils";
 
 import SummarizeBookmarkArea from "../bookmarks/SummarizeBookmarkArea";
+import Favicon from "../bookmarks/Favicon";
 import ActionBar from "./ActionBar";
 import { AssetContentSection } from "./AssetContentSection";
 import AttachmentBox from "./AttachmentBox";
+import ContentDownloadButton from "./ContentDownloadButton";
 import HighlightsBox from "./HighlightsBox";
 import LinkContentSection from "./LinkContentSection";
 import { NoteEditor } from "./NoteEditor";
 import { TextContentSection } from "./TextContentSection";
+
+function getDisplayUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    const hasRoute =
+      parsedUrl.pathname !== "/" || parsedUrl.search || parsedUrl.hash;
+    return `${parsedUrl.protocol}//${parsedUrl.host}${hasRoute ? "/..." : ""}`;
+  } catch {
+    return url;
+  }
+}
 
 function ContentLoading() {
   const { t } = useTranslation();
@@ -58,12 +74,12 @@ function ContentLoading() {
 
 function CreationTime({ createdAt }: { createdAt: Date }) {
   const { i18n } = useTranslation();
-  const { fromNow, localCreatedAt } = useRelativeTime(createdAt, i18n.language);
+  const { localCreatedAt } = useRelativeTime(createdAt, i18n.language);
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
-        <span className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
-          <CalendarDays size={16} /> {fromNow}
+        <span className="flex w-full items-center gap-2 text-sm text-muted-foreground">
+          <CalendarDays size={16} /> {localCreatedAt}
         </span>
       </TooltipTrigger>
       <TooltipPortal>
@@ -83,12 +99,7 @@ function DetailSection({
   className?: string;
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-xl border border-border/70 bg-background/80 px-3 py-3",
-        className,
-      )}
-    >
+    <section className={cn("w-full", className)}>
       <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
         {title}
       </p>
@@ -98,6 +109,7 @@ function DetailSection({
 }
 
 function BookmarkMetadata({ bookmark }: { bookmark: ZBookmark }) {
+  const { t } = useTranslation();
   let { author, publisher, datePublished } =
     bookmark.content.type !== BookmarkTypes.LINK
       ? {
@@ -108,16 +120,16 @@ function BookmarkMetadata({ bookmark }: { bookmark: ZBookmark }) {
       : bookmark.content;
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex w-full flex-col gap-2.5">
       <CreationTime createdAt={bookmark.createdAt} />
       {author && (
-        <div className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex w-full items-center gap-2 text-sm text-muted-foreground">
           <User size={16} />
-          <span>By {author}</span>
+          <span>{t("preview.by_author", { author })}</span>
         </div>
       )}
       {publisher && (
-        <div className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex w-full items-center gap-2 text-sm text-muted-foreground">
           <Building size={16} />
           <span>{publisher}</span>
         </div>
@@ -128,17 +140,14 @@ function BookmarkMetadata({ bookmark }: { bookmark: ZBookmark }) {
 }
 
 function PublishedDate({ datePublished }: { datePublished: Date }) {
-  const { i18n } = useTranslation();
-  const { fromNow, localCreatedAt } = useRelativeTime(
-    datePublished,
-    i18n.language,
-  );
+  const { i18n, t } = useTranslation();
+  const { localCreatedAt } = useRelativeTime(datePublished, i18n.language);
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
-        <div className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex w-full items-center gap-2 text-sm text-muted-foreground">
           <CalendarDays size={16} />
-          <span>Published {fromNow}</span>
+          <span>{t("preview.published", { date: localCreatedAt })}</span>
         </div>
       </TooltipTrigger>
       <TooltipPortal>
@@ -204,7 +213,26 @@ export default function BookmarkPreview({
   }
 
   const sourceUrl = getSourceUrl(bookmark);
+  const displaySourceUrl = sourceUrl ? getDisplayUrl(sourceUrl) : null;
+  const storedFavicon =
+    bookmark.content.type === BookmarkTypes.LINK
+      ? bookmark.content.favicon
+      : null;
   const title = getBookmarkTitle(bookmark);
+  const isPdfPreview =
+    bookmark.content.type === BookmarkTypes.ASSET &&
+    bookmark.content.assetType === "pdf";
+  const isTextPreview = bookmark.content.type === BookmarkTypes.TEXT;
+  const isLinkPreview = bookmark.content.type === BookmarkTypes.LINK;
+  const isImageOrVideoPreview =
+    bookmark.content.type === BookmarkTypes.ASSET &&
+    (bookmark.content.assetType === "image" ||
+      bookmark.content.assetType === "video");
+  const videoFileName =
+    bookmark.content.type === BookmarkTypes.ASSET &&
+    bookmark.content.assetType === "video"
+      ? (bookmark.content.fileName ?? t("common.video"))
+      : undefined;
 
   // Common content for both layouts
   const contentSection = isBookmarkStillCrawling(bookmark) ? (
@@ -214,29 +242,46 @@ export default function BookmarkPreview({
   );
 
   const detailsSection = (
-    <div className="flex flex-col gap-3">
-      <div className="shadow-xs rounded-2xl border border-border/70 bg-background/90 p-4">
-        <div className="flex flex-col gap-1.5">
-          <p className="line-clamp-3 text-ellipsis break-words text-xl font-semibold leading-snug tracking-tight text-foreground">
-            {!title ? "Untitled" : title}
+    <div className="flex w-full flex-col gap-3">
+      <div className="mb-0 w-full lg:mb-1 xl:mb-2">
+        <div className="flex w-full flex-col gap-1.5">
+          <p className="line-clamp-3 w-full text-ellipsis break-words text-xl font-semibold leading-snug tracking-tight text-foreground">
+            {!title ? t("preview.untitled") : title}
           </p>
-          {sourceUrl && (
+          {sourceUrl && displaySourceUrl && (
             <Link
               href={sourceUrl}
               target="_blank"
-              className="ease-(--ease-out) inline-flex w-fit items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-[background-color,color,border-color] duration-150 hover:bg-accent hover:text-foreground"
+              rel="noreferrer"
+              title={sourceUrl}
+              className="ease-(--ease-out) inline-flex min-w-0 max-w-full items-center gap-1.5 text-sm text-foreground transition-colors duration-150 hover:text-foreground/80"
             >
-              <ExternalLink className="size-3" />
-              <span>{t("preview.view_original")}</span>
+              <Favicon
+                url={sourceUrl}
+                storedFavicon={storedFavicon}
+                allowRemoteFallback={false}
+                className="size-4 shrink-0"
+              />
+              <span className="min-w-0 truncate underline underline-offset-4">
+                {displaySourceUrl}
+              </span>
+              <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
             </Link>
           )}
         </div>
       </div>
-      <DetailSection title="Metadata">
+      <DetailSection title={t("preview.metadata")}>
         <BookmarkMetadata bookmark={bookmark} />
       </DetailSection>
-      <DetailSection title="Summary">
-        <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
+      <DetailSection title={t("common.summary")}>
+        {bookmark.summary ? (
+          <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">{t("preview.none")}</p>
+            <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
+          </>
+        )}
       </DetailSection>
       <DetailSection title={t("common.tags")}>
         <BookmarkTagsEditor bookmark={bookmark} disabled={!isOwner} />
@@ -247,7 +292,7 @@ export default function BookmarkPreview({
       <AttachmentBox bookmark={bookmark} readOnly={!isOwner} />
       <HighlightsBox bookmarkId={bookmark.id} readOnly={!isOwner} />
       {isOwner && (
-        <DetailSection title="Actions">
+        <DetailSection title={t("common.actions")}>
           <ActionBar bookmark={bookmark} />
         </DetailSection>
       )}
@@ -259,25 +304,77 @@ export default function BookmarkPreview({
       {/* Render original layout for wide screens */}
       <div className="hidden h-full flex-col overflow-hidden bg-muted/10 lg:flex">
         <div className="flex min-h-0 flex-1">
-          <div className="relative h-full flex-1 overflow-auto px-6 py-5 xl:px-8 xl:py-6">
-            <button
-              type="button"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="shadow-xs ease-(--ease-out) absolute right-5 top-5 z-10 rounded-full border border-border/70 bg-background/90 p-2 text-muted-foreground transition-[background-color,color,border-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100"
-              aria-label={t(
-                sidebarCollapsed
-                  ? "actions.show_details"
-                  : "actions.hide_details",
+          <div
+            className={cn(
+              "relative h-full min-w-0 flex-1 overflow-hidden",
+              isPdfPreview ? "" : "px-6 xl:px-8",
+            )}
+          >
+            <div
+              className={cn(
+                "pointer-events-none absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-center px-5",
+                !isPdfPreview &&
+                  !isLinkPreview &&
+                  "bg-background/45 backdrop-blur-xl supports-[backdrop-filter]:bg-background/35",
               )}
-              aria-expanded={!sidebarCollapsed}
             >
-              {sidebarCollapsed ? (
-                <PanelRightOpen size={20} aria-hidden="true" />
-              ) : (
-                <PanelRightClose size={20} aria-hidden="true" />
+              {isTextPreview && (
+                <Link
+                  href={`/reader/${bookmark.id}`}
+                  className={cn(
+                    "pointer-events-auto",
+                    buttonVariants({ variant: "outline", size: "default" }),
+                  )}
+                  aria-label={t("preview.reader_view")}
+                >
+                  <BookOpen className="mr-2 size-4" aria-hidden="true" />
+                  {t("preview.reader_view")}
+                </Link>
               )}
-            </button>
-            {contentSection}
+              {isImageOrVideoPreview && (
+                <ContentDownloadButton
+                  bookmark={bookmark}
+                  fileName={videoFileName}
+                  size="default"
+                  className="pointer-events-auto"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="ease-(--ease-out) hover:shadow-xs focus-visible:shadow-xs pointer-events-auto absolute right-5 top-2 inline-flex size-10 items-center justify-center rounded-full border border-transparent bg-transparent p-0 text-muted-foreground shadow-none transition-[background-color,color,border-color,box-shadow,transform] duration-150 hover:border-border/70 hover:bg-background/90 hover:text-foreground focus-visible:bg-background/90 active:scale-[0.97] motion-reduce:transition-colors motion-reduce:active:scale-100"
+                aria-label={t(
+                  sidebarCollapsed
+                    ? "actions.show_details"
+                    : "actions.hide_details",
+                )}
+                aria-expanded={!sidebarCollapsed}
+              >
+                {sidebarCollapsed ? (
+                  <PanelRightOpen size={20} aria-hidden="true" />
+                ) : (
+                  <PanelRightClose size={20} aria-hidden="true" />
+                )}
+              </button>
+            </div>
+            <div
+              className={cn(
+                "h-full min-h-0 w-full min-w-0",
+                isPdfPreview ? "overflow-hidden pt-2" : "overflow-hidden",
+              )}
+            >
+              <div
+                className={cn(
+                  "h-full min-h-0",
+                  !isPdfPreview &&
+                    !isLinkPreview &&
+                    bookmark.content.type !== BookmarkTypes.TEXT &&
+                    "pt-14",
+                )}
+              >
+                {contentSection}
+              </div>
+            </div>
           </div>
           {!sidebarCollapsed && (
             <div className="flex w-[24rem] shrink-0 flex-col gap-3 overflow-auto border-l border-border/70 bg-card/55 p-4 xl:w-[26rem] xl:p-5">
@@ -293,8 +390,8 @@ export default function BookmarkPreview({
           onValueChange={setActiveTab}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="sticky top-0 z-10 bg-background/95 px-4 pb-2 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-            <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl border border-border/70 bg-card/80 p-1">
+          <div className="sticky top-0 z-10 bg-background/95 px-2 pb-1.5 pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg border border-border/70 bg-card/80 p-1">
               <TabsTrigger value="content">
                 {t("preview.tabs.content")}
               </TabsTrigger>
@@ -305,13 +402,18 @@ export default function BookmarkPreview({
           </div>
           <TabsContent
             value="content"
-            className="h-full flex-1 overflow-hidden overflow-y-auto bg-background px-4 py-3 data-[state=inactive]:hidden"
+            className={cn(
+              "h-full min-h-0 flex-1 bg-background data-[state=inactive]:hidden",
+              isPdfPreview
+                ? "mt-0 overflow-hidden px-0 pb-2 pt-0"
+                : "overflow-hidden overflow-y-auto px-2 py-0",
+            )}
           >
             {contentSection}
           </TabsContent>
           <TabsContent
             value="details"
-            className="h-full overflow-y-auto bg-muted/10 px-4 py-3 data-[state=inactive]:hidden"
+            className="h-full overflow-y-auto bg-muted/10 px-3 py-2 data-[state=inactive]:hidden"
           >
             {detailsSection}
           </TabsContent>

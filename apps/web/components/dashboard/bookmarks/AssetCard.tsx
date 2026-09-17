@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/client";
 import { AudioLines, FileText, Video } from "lucide-react";
 
 import type { ZBookmarkTypeAsset } from "@karakeep/shared/types/bookmarks";
@@ -19,6 +20,7 @@ function AssetImage({
   bookmark: ZBookmarkTypeAsset;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const bookmarkedAsset = bookmark.content;
   switch (bookmarkedAsset.assetType) {
     case "image": {
@@ -43,7 +45,7 @@ function AssetImage({
         return (
           <div
             className={cn(className, "flex items-center justify-center")}
-            title="PDF screenshot not available. Run asset preprocessing job to generate one screenshot"
+            title={t("preview.pdf_preview_unavailable")}
           >
             <FileText size={80} />
           </div>
@@ -52,7 +54,7 @@ function AssetImage({
       return (
         <Link href={`/dashboard/preview/${bookmark.id}`}>
           <Image
-            alt="asset"
+            alt={t("preview.pdf_first_page_preview")}
             src={getAssetUrl(screenshotAssetId)}
             fill={true}
             sizes="(max-width: 768px) 100vw, 33vw"
@@ -63,13 +65,31 @@ function AssetImage({
       );
     }
     case "video": {
+      const screenshotAssetId = bookmark.assets.find(
+        (r) => r.assetType === "assetScreenshot",
+      )?.id;
+      if (!screenshotAssetId) {
+        return (
+          <Link
+            href={`/dashboard/preview/${bookmark.id}`}
+            aria-label={t("preview.open_video_preview")}
+            className={cn(className, "flex items-center justify-center")}
+            title={t("preview.video_preview_unavailable")}
+          >
+            <Video size={80} aria-hidden="true" />
+          </Link>
+        );
+      }
       return (
-        <Link
-          href={`/dashboard/preview/${bookmark.id}`}
-          aria-label={`Preview ${bookmarkedAsset.fileName ?? "video"}`}
-          className={cn(className, "flex items-center justify-center")}
-        >
-          <Video size={80} aria-hidden="true" />
+        <Link href={`/dashboard/preview/${bookmark.id}`}>
+          <Image
+            alt={t("preview.video_first_frame_preview")}
+            src={getAssetUrl(screenshotAssetId)}
+            fill={true}
+            sizes="(max-width: 768px) 100vw, 33vw"
+            unoptimized
+            className={`${className ?? ""} ease-(--ease-out) transition-transform duration-300 group-hover:scale-[1.02]`}
+          />
         </Link>
       );
     }

@@ -1436,7 +1436,7 @@ describe("Bookmark Routes", () => {
       expect(progress2.readingProgressAnchor).toBe("User 2 anchor");
     });
 
-    test<CustomTestContext>("rejects reading progress on TEXT bookmark", async ({
+    test<CustomTestContext>("saves reading progress on TEXT bookmark", async ({
       apiCallers,
     }) => {
       const api = apiCallers[0].bookmarks;
@@ -1446,14 +1446,20 @@ describe("Bookmark Routes", () => {
         type: BookmarkTypes.TEXT,
       });
 
-      await expect(() =>
-        api.updateReadingProgress({
-          bookmarkId: bookmark.id,
-          readingProgressOffset: 100,
-        }),
-      ).rejects.toThrow(
-        /Reading progress can only be saved for link bookmarks/,
-      );
+      await api.updateReadingProgress({
+        bookmarkId: bookmark.id,
+        readingProgressOffset: 100,
+        readingProgressAnchor: "Some text content",
+        readingProgressPercent: 25,
+      });
+
+      await expect(
+        api.getReadingProgress({ bookmarkId: bookmark.id }),
+      ).resolves.toMatchObject({
+        readingProgressOffset: 100,
+        readingProgressAnchor: "Some text content",
+        readingProgressPercent: 25,
+      });
     });
 
     test<CustomTestContext>("reading progress is deleted when bookmark is deleted", async ({

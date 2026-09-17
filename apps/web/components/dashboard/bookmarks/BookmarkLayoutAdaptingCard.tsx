@@ -75,6 +75,7 @@ function BottomRow({
           <Favicon
             url={sourceUrl}
             storedFavicon={storedFavicon}
+            allowRemoteFallback={true}
             className="size-4 shrink-0"
           />
         )}
@@ -323,11 +324,11 @@ function GridView({
     contain: "object-contain",
   });
   const note = showNotes ? bookmark.note?.trim() : undefined;
-  // Shorter image + tighter spacing on mobile (masonry renders two narrow
-  // columns there); the `sm:` sizes restore the roomier desktop card.
+  // Use a landscape preview and tighter spacing on mobile; the `sm:` sizes
+  // restore the roomier desktop card.
   const img = image(
     "grid",
-    cn("h-40 min-h-40 w-full rounded-t-2xl sm:h-56 sm:min-h-56", imgFitClass),
+    cn("size-full rounded-t-xl sm:rounded-t-2xl", imgFitClass),
   );
   const sourceUrl = getSourceUrl(bookmark);
   const storedFavicon =
@@ -338,11 +339,11 @@ function GridView({
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl",
+        "group relative flex flex-col overflow-hidden rounded-xl sm:rounded-2xl",
         className,
-        // Grid stays a uniform fixed height; masonry grows to fit its content
-        // so tags and the footer are never clipped.
-        layout === "grid" ? "h-96" : "h-auto",
+        // Desktop grid cards stay a uniform height. Mobile cards grow with
+        // their square preview so the title, content, and actions are not clipped.
+        layout === "grid" ? "h-auto sm:h-96" : "h-auto",
       )}
       data-bookmark-index={bookmarkIndex}
     >
@@ -350,19 +351,19 @@ function GridView({
       <OwnerIndicator bookmark={bookmark} />
       <DragHandle bookmark={bookmark} className="left-2 top-2" />
       {img && (
-        <div className="h-40 w-full shrink-0 overflow-hidden border-b border-border/60 bg-muted/20 sm:h-56">
+        <div className="aspect-square w-full shrink-0 overflow-hidden border-b border-border/60 bg-muted/20 sm:aspect-auto sm:h-56 sm:min-h-56">
           {img}
         </div>
       )}
-      <div className="flex h-full flex-col justify-between gap-2 overflow-hidden p-3 sm:gap-2.5 sm:p-3.5">
-        <div className="grow-1 flex flex-col gap-2 overflow-hidden">
+      <div className="flex h-full flex-col justify-between gap-1 overflow-hidden p-2 pb-1 sm:gap-2.5 sm:p-3.5">
+        <div className="grow-1 flex flex-col gap-1.5 overflow-hidden sm:gap-2">
           {showTitle && title && (
-            <div className="line-clamp-2 flex-none shrink-0 overflow-hidden text-ellipsis break-words text-base font-semibold leading-snug tracking-tight sm:text-lg">
+            <div className="line-clamp-2 flex-none shrink-0 overflow-hidden text-ellipsis break-words text-sm font-semibold leading-snug tracking-tight sm:text-lg">
               {title}
             </div>
           )}
           {content && (
-            <div className="shrink-1 max-h-32 overflow-hidden text-sm leading-6 text-foreground/90 sm:max-h-40 sm:text-base">
+            <div className="shrink-1 max-h-32 overflow-hidden text-xs leading-4 text-foreground/90 sm:max-h-40 sm:text-sm sm:leading-5">
               {content}
             </div>
           )}
@@ -382,14 +383,20 @@ function GridView({
             row (date left, actions right). Desktop: url + date inline on the
             left, actions on the right. The date is rendered in both spots and
             toggled per breakpoint since it regroups between the two. */}
-        <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-border/60 pt-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:pt-2.5 sm:text-sm">
-          <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+        <div className="flex w-full shrink-0 flex-col gap-0.5 border-t border-border/60 pt-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:pt-2.5 sm:text-sm">
+          <div
+            className={cn(
+              "flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2",
+              !(sourceUrl || footer) && "hidden sm:flex",
+            )}
+          >
             {(sourceUrl || footer) && (
               <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-nowrap">
                 {sourceUrl && (
                   <Favicon
                     url={sourceUrl}
                     storedFavicon={storedFavicon}
+                    allowRemoteFallback={true}
                     className="size-3.5 shrink-0 sm:size-4"
                   />
                 )}
@@ -404,7 +411,7 @@ function GridView({
               <BookmarkFormattedCreatedAt createdAt={bookmark.createdAt} />
             </Link>
           </div>
-          <div className="flex items-center justify-between gap-2 sm:justify-end">
+          <div className="flex items-center justify-between gap-0.5 sm:justify-end sm:gap-2">
             <Link
               href={`/dashboard/preview/${bookmark.id}`}
               suppressHydrationWarning
@@ -447,6 +454,7 @@ function CompactView({
             <Favicon
               url={bookmark.content.url}
               storedFavicon={bookmark.content.favicon}
+              allowRemoteFallback={true}
               className="size-5"
             />
           )}

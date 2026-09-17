@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useRef } from "react";
 import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,8 @@ import { useTRPC } from "@karakeep/shared-react/trpc";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 
 import ReadingProgressBanner from "./ReadingProgressBanner";
+import ReaderNavigation from "./ReaderNavigation";
+import { sanitizeReaderHtml } from "@/lib/reader-html";
 
 function ReaderState({
   title,
@@ -38,7 +41,7 @@ function ReaderState({
 }) {
   return (
     <div
-      className="flex min-h-64 w-full items-center justify-center p-4"
+      className="flex h-full min-h-64 w-full items-center justify-center p-4"
       role={onRetry ? "alert" : "status"}
     >
       <div className="max-w-md space-y-4 text-center">
@@ -88,15 +91,9 @@ function ReaderTextContent({
   style?: React.CSSProperties;
 }) {
   return (
-    <div
-      className={cn(
-        "prose prose-neutral max-w-none break-words dark:prose-invert [&_code]:break-all [&_pre]:overflow-x-auto [&_table]:block [&_table]:overflow-x-auto",
-        className,
-      )}
-      style={style}
-    >
+    <div className={cn("max-w-none break-words", className)} style={style}>
       {(format ?? "markdown") === "plain" ? (
-        <div className="font-sans">
+        <div className="reader-plain-content">
           {text.split("\n").map((line, index, lines) => (
             <span
               key={index}
@@ -109,7 +106,12 @@ function ReaderTextContent({
           ))}
         </div>
       ) : (
-        <MarkdownReadonly allowTodoToggle={false}>{text}</MarkdownReadonly>
+        <MarkdownReadonly
+          className="reader-markdown-content"
+          allowTodoToggle={false}
+        >
+          {text}
+        </MarkdownReadonly>
       )}
     </div>
   );
@@ -122,6 +124,7 @@ export default function ReaderView({
   readOnly,
   progressBarStyle,
   fallbackHref,
+  onHighlightNeedsReview,
 }: {
   bookmarkId: string;
   className?: string;
@@ -129,8 +132,10 @@ export default function ReaderView({
   readOnly: boolean;
   progressBarStyle?: React.CSSProperties;
   fallbackHref?: string;
+  onHighlightNeedsReview?: (highlightId: string, contentKey: string) => void;
 }) {
   const { t } = useTranslation();
+  const readerContentRef = useRef<HTMLDivElement>(null);
   const api = useTRPC();
   const { data: highlights } = useQuery(
     api.highlights.getForBookmark.queryOptions({
@@ -152,11 +157,17 @@ export default function ReaderView({
   const {
     showBanner,
     bannerPercent,
+    isRestarted,
     onContinue,
+    onStartOver,
+    onUndoStartOver,
     onDismiss,
+    progressActionPending,
     restorePosition,
+    resetPosition,
     readingProgressOffset,
     readingProgressAnchor,
+    readingProgressPercent,
     onSavePosition,
     onScrollPositionChange,
   } = useReadingProgress({
@@ -205,59 +216,81 @@ export default function ReaderView({
     },
   });
 
-  const renderTrackedReader = (readerContent: React.ReactNode) => (
+  const renderTrackedReader = (
+    readerContent: React.ReactNode,
+    contentKey: string,
+  ) => (
     <ScrollProgressTracker
       onSavePosition={onSavePosition}
       onScrollPositionChange={onScrollPositionChange}
       restorePosition={restorePosition}
+      resetPosition={resetPosition}
       readingProgressOffset={readingProgressOffset}
       readingProgressAnchor={readingProgressAnchor}
+      readingProgressPercent={readingProgressPercent}
       showProgressBar
       progressBarStyle={progressBarStyle}
     >
       {showBanner && (
         <ReadingProgressBanner
           percent={bannerPercent}
+          isRestarted={isRestarted}
+          actionPending={progressActionPending}
           onContinue={onContinue}
+          onStartOver={onStartOver}
+          onUndoStartOver={onUndoStartOver}
           onDismiss={onDismiss}
         />
       )}
-      {readerContent}
+      <ReaderNavigation contentRef={readerContentRef} contentKey={contentKey} />
+      <div ref={readerContentRef}>{readerContent}</div>
     </ScrollProgressTracker>
   );
 
-  const renderHighlightedReader = (htmlContent: string) =>
-    renderTrackedReader(
-      <BookmarkHTMLHighlighter
-        className={className}
-        style={style}
-        htmlContent={htmlContent}
-        highlights={highlights?.highlights ?? []}
-        readOnly={readOnly}
-        onDeleteHighlight={(h) =>
-          deleteHighlight({
-            highlightId: h.id,
-          })
-        }
-        onUpdateHighlight={(h) =>
-          updateHighlight({
-            highlightId: h.id,
-            color: h.color,
-            note: h.note,
-          })
-        }
-        onHighlight={(h) =>
-          createHighlight({
-            startOffset: h.startOffset,
-            endOffset: h.endOffset,
-            color: h.color,
-            bookmarkId,
-            text: h.text,
-            note: h.note ?? null,
-          })
-        }
-      />,
+  const renderHighlightedReader = (htmlContent: string, sourceUrl: string) => {
+    const safeHtmlContent = sanitizeReaderHtml(htmlContent, sourceUrl);
+    const contentKey = `${bookmarkId}:html:${safeHtmlContent}`;
+    const reviewContentKey = `${bookmarkId}:html`;
+
+    return renderTrackedReader(
+      <div className={cn("max-w-none break-words", className)} style={style}>
+        <BookmarkHTMLHighlighter
+          className="reader-html-content"
+          htmlContent={safeHtmlContent}
+          highlights={highlights?.highlights ?? []}
+          readOnly={readOnly}
+          onDeleteHighlight={(h) =>
+            deleteHighlight({
+              highlightId: h.id,
+            })
+          }
+          onUpdateHighlight={(h) =>
+            updateHighlight({
+              highlightId: h.id,
+              color: h.color,
+              note: h.note,
+            })
+          }
+          onHighlight={(h) =>
+            createHighlight({
+              startOffset: h.startOffset,
+              endOffset: h.endOffset,
+              color: h.color,
+              bookmarkId,
+              text: h.text,
+              contextBefore: h.contextBefore ?? null,
+              contextAfter: h.contextAfter ?? null,
+              note: h.note ?? null,
+            })
+          }
+          onHighlightNeedsReview={(h) =>
+            onHighlightNeedsReview?.(h.id, reviewContentKey)
+          }
+        />
+      </div>,
+      contentKey,
     );
+  };
 
   let content: React.ReactNode;
   if (isBookmarkLoading) {
@@ -281,6 +314,7 @@ export default function ReaderView({
         className={className}
         style={style}
       />,
+      `${bookmarkId}:text:${bookmark.content.format ?? "markdown"}:${bookmark.content.text}`,
     );
   } else if (bookmark.content.type === BookmarkTypes.LINK) {
     if (bookmark.content.crawlStatus === "pending") {
@@ -314,7 +348,10 @@ export default function ReaderView({
         />
       );
     } else {
-      content = renderHighlightedReader(bookmark.content.htmlContent);
+      content = renderHighlightedReader(
+        bookmark.content.htmlContent,
+        bookmark.content.url,
+      );
     }
   } else {
     content = (

@@ -83,11 +83,14 @@ export function BookmarkMarkdownComponent({
     <div className="h-full">
       {readOnly ? (
         format === "plain" ? (
-          <pre className="whitespace-pre-wrap break-words font-sans">
+          <pre className="bookmark-markdown-preview-plain whitespace-pre-wrap break-words font-sans">
             {bookmark.content.text}
           </pre>
         ) : (
-          <MarkdownReadonly onSave={onSave}>
+          <MarkdownReadonly
+            className="bookmark-markdown-preview"
+            onSave={onSave}
+          >
             {bookmark.content.text}
           </MarkdownReadonly>
         )

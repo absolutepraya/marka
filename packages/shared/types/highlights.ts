@@ -15,6 +15,8 @@ const zHighlightBaseSchema = z.object({
   transcriptRevision: z.number().int().nonnegative().nullable().default(null),
   color: zHighlightColorSchema.default("yellow"),
   text: z.string().nullable(),
+  contextBefore: z.string().nullable().default(null),
+  contextAfter: z.string().nullable().default(null),
   note: z.string().nullable(),
 });
 
