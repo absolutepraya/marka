@@ -29,7 +29,7 @@ export default function ReadingProgressBanner({
       : t("preview.continue_reading");
 
   return (
-    <div className="sticky top-0 z-10 flex justify-center px-4 py-3">
+    <div className="sticky top-0 z-10 flex justify-center px-4 pb-3 pt-1.5">
       <div className="flex items-center gap-3 rounded-full border border-border/60 bg-background/80 px-4 py-2 text-sm shadow-sm backdrop-blur-md">
         <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="truncate text-muted-foreground">{message}</span>

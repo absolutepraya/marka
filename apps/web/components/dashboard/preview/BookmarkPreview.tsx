@@ -305,7 +305,7 @@ export default function BookmarkPreview({
           <div
             className={cn(
               "relative h-full min-w-0 flex-1 overflow-hidden",
-              isPdfPreview ? "" : "px-6 pb-5 xl:px-8 xl:pb-6",
+              isPdfPreview ? "" : "px-6 xl:px-8",
             )}
           >
             <div
