@@ -30,7 +30,7 @@ export default function ReadingProgressBanner({
 
   return (
     <div className="sticky top-0 z-10 flex justify-center px-2 py-1.5 sm:px-4 sm:pb-3 sm:pt-1.5">
-      <div className="flex w-fit max-w-full min-w-0 items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-sm shadow-sm backdrop-blur-md sm:gap-3 sm:px-4 sm:py-2">
+      <div className="flex w-fit min-w-0 max-w-full items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-sm shadow-sm backdrop-blur-md sm:gap-3 sm:px-4 sm:py-2">
         <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-muted-foreground">
           {message}
