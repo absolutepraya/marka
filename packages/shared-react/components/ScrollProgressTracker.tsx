@@ -272,7 +272,7 @@ const ScrollProgressTracker = forwardRef<
             style={{
               height: "100%",
               width: `${scrollPercent}%`,
-              backgroundColor: "rgb(249, 115, 22)",
+              backgroundColor: "#51A2FF",
               transition: "width 150ms ease-out",
             }}
           />

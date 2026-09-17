@@ -253,7 +253,10 @@ export default function LinkContentSection({
               <TooltipTrigger asChild>
                 <Link
                   href={`/reader/${bookmark.id}`}
-                  className={buttonVariants({ variant: "outline" })}
+                  className={buttonVariants({
+                    variant: "outline",
+                    size: "icon",
+                  })}
                   aria-label={t("preview.reader_view")}
                 >
                   <ExpandIcon className="h-4 w-4" />

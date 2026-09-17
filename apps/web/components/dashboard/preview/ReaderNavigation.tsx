@@ -28,6 +28,26 @@ function getReaderScrollBehavior(): ScrollBehavior {
   return "smooth";
 }
 
+function getHeadingNumbers(headings: ReaderHeading[]): string[] {
+  const counters = [0, 0, 0];
+
+  return headings.map(({ level }) => {
+    const levelIndex = level - 2;
+
+    for (let index = 0; index < levelIndex; index += 1) {
+      if (counters[index] === 0) counters[index] = 1;
+    }
+
+    counters[levelIndex] += 1;
+
+    for (let index = levelIndex + 1; index < counters.length; index += 1) {
+      counters[index] = 0;
+    }
+
+    return counters.slice(0, levelIndex + 1).join(".");
+  });
+}
+
 function focusHeading(heading: HTMLElement) {
   if (typeof heading.scrollIntoView === "function") {
     heading.scrollIntoView({
@@ -153,6 +173,7 @@ export default function ReaderNavigation({
   };
 
   const hasSearchQuery = searchQuery.trim().length > 0;
+  const headingNumbers = getHeadingNumbers(headings);
   const searchStatus = !hasSearchQuery
     ? null
     : searchMarks.length === 0
@@ -163,11 +184,11 @@ export default function ReaderNavigation({
         });
 
   return (
-    <div ref={navigationRef} className="mb-6 space-y-2 print:hidden">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-muted/20 p-2">
-        <div className="flex min-w-0 flex-1 basis-56 items-center gap-2">
+    <div ref={navigationRef} className="mb-3 space-y-1.5 print:hidden">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/70 bg-background p-1">
+        <div className="flex min-w-0 flex-1 basis-56 items-center gap-1">
           <Search
-            className="ml-1 size-4 shrink-0 text-muted-foreground"
+            className="ml-1 size-3.5 shrink-0 text-muted-foreground"
             aria-hidden="true"
           />
           <label htmlFor={inputId} className="sr-only">
@@ -182,10 +203,10 @@ export default function ReaderNavigation({
             onKeyDown={handleSearchKeyDown}
             placeholder={t("preview.reader_search_placeholder")}
             aria-label={t("preview.reader_search_label")}
-            className="h-9 border-0 bg-transparent px-2 shadow-none focus-visible:ring-0"
+            className="h-8 border-0 bg-transparent px-1.5 shadow-none focus-visible:ring-0"
           />
           <span
-            className="min-w-20 shrink-0 text-right text-xs text-muted-foreground"
+            className="min-w-16 shrink-0 text-right text-[0.6875rem] text-muted-foreground"
             role="status"
             aria-live="polite"
             aria-atomic="true"
@@ -195,8 +216,8 @@ export default function ReaderNavigation({
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="size-9 shrink-0"
+            size="icon-sm"
+            className="shrink-0"
             onClick={() => moveSearch(-1)}
             disabled={searchMarks.length === 0}
             aria-label={t("preview.reader_search_previous")}
@@ -206,8 +227,8 @@ export default function ReaderNavigation({
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="size-9 shrink-0"
+            size="icon-sm"
+            className="shrink-0"
             onClick={() => moveSearch(1)}
             disabled={searchMarks.length === 0}
             aria-label={t("preview.reader_search_next")}
@@ -221,7 +242,7 @@ export default function ReaderNavigation({
             ref={tableOfContentsButtonRef}
             type="button"
             variant="outline"
-            className="h-9 shrink-0 gap-2"
+            className="h-8 shrink-0 gap-1.5 px-2.5"
             onClick={() => setTableOfContentsOpen((open) => !open)}
             aria-expanded={tableOfContentsOpen}
             aria-controls={tableOfContentsId}
@@ -241,21 +262,27 @@ export default function ReaderNavigation({
         <nav
           id={tableOfContentsId}
           aria-label={t("preview.reader_table_of_contents")}
-          className="rounded-xl border border-border/70 bg-card p-3"
+          className="rounded-lg border border-border/70 bg-card p-2"
         >
-          <ol className="space-y-1">
-            {headings.map((heading) => (
+          <ol className="space-y-0.5">
+            {headings.map((heading, index) => (
               <li key={heading.id}>
                 <button
                   type="button"
                   className={cn(
-                    "w-full rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "flex w-full items-start gap-2 rounded-md px-2 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     heading.level === 3 && "pl-5",
                     heading.level === 4 && "pl-8",
                   )}
                   onClick={() => navigateToHeading(heading)}
                 >
-                  {heading.text}
+                  <span
+                    aria-hidden="true"
+                    className="mt-0.5 inline-flex min-w-7 shrink-0 justify-center whitespace-nowrap rounded-sm bg-muted/70 px-1 text-xs font-medium tabular-nums leading-5 text-muted-foreground"
+                  >
+                    {headingNumbers[index]}
+                  </span>
+                  <span className="min-w-0 flex-1">{heading.text}</span>
                 </button>
               </li>
             ))}

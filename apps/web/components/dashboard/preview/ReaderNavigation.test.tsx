@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ReaderNavigation from "./ReaderNavigation";
@@ -75,6 +81,11 @@ describe("ReaderNavigation", () => {
       name: /table of contents/i,
     });
     fireEvent.click(tocButton);
+    const navigation = await screen.findByRole("navigation", {
+      name: /table of contents/i,
+    });
+    expect(within(navigation).getByText("1", { exact: true })).not.toBeNull();
+    expect(within(navigation).getByText("1.1", { exact: true })).not.toBeNull();
     fireEvent.click(
       await screen.findByRole("button", { name: "Second section" }),
     );

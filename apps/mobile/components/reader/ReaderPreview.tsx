@@ -28,7 +28,10 @@ export const ReaderPreview = forwardRef<ReaderPreviewRef, ReaderPreviewProps>(
     const webViewRef = useRef<WebView>(null);
     const { isDarkColorScheme: isDark } = useColorScheme();
 
-    const fontFamily = WEBVIEW_FONT_FAMILIES[initialFontFamily];
+    const fontFamily =
+      WEBVIEW_FONT_FAMILIES[initialFontFamily] ??
+      WEBVIEW_FONT_FAMILIES.sans ??
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
     const textColor = isDark ? "#e5e7eb" : "#374151";
     const bgColor = isDark ? "#000000" : "#ffffff";
 
@@ -38,7 +41,10 @@ export const ReaderPreview = forwardRef<ReaderPreviewRef, ReaderPreviewProps>(
         newFontSize: number,
         newLineHeight: number,
       ) => {
-        const cssFontFamily = WEBVIEW_FONT_FAMILIES[newFontFamily];
+        const cssFontFamily =
+          WEBVIEW_FONT_FAMILIES[newFontFamily] ??
+          WEBVIEW_FONT_FAMILIES.sans ??
+          "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
         webViewRef.current?.injectJavaScript(`
           window.updateStyles("${cssFontFamily}", ${newFontSize}, ${newLineHeight});
           true;

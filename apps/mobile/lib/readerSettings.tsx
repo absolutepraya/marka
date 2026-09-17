@@ -14,9 +14,8 @@ import { useSettings } from "./settings";
 // On Android, use generic font family names: "serif", "sans-serif", "monospace"
 // On iOS, use specific font names like "Georgia" and "Courier"
 // Note: undefined means use the system default font
-export const MOBILE_FONT_FAMILIES: Record<
-  ZReaderFontFamily,
-  string | undefined
+export const MOBILE_FONT_FAMILIES: Partial<
+  Record<ZReaderFontFamily, string | undefined>
 > = Platform.select({
   android: {
     serif: "serif",
@@ -31,11 +30,12 @@ export const MOBILE_FONT_FAMILIES: Record<
 })!;
 
 // Font families for WebView HTML content (CSS font stacks)
-export const WEBVIEW_FONT_FAMILIES: Record<ZReaderFontFamily, string> = {
-  serif: "Georgia, 'Times New Roman', serif",
-  sans: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
-  mono: "ui-monospace, Menlo, Monaco, 'Courier New', monospace",
-} as const;
+export const WEBVIEW_FONT_FAMILIES: Partial<Record<ZReaderFontFamily, string>> =
+  {
+    serif: "Georgia, 'Times New Roman', serif",
+    sans: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+    mono: "ui-monospace, Menlo, Monaco, 'Courier New', monospace",
+  } as const;
 
 /**
  * Mobile-specific provider for reader settings.

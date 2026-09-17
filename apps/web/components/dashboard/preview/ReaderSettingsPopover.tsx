@@ -34,11 +34,15 @@ import {
 } from "lucide-react";
 
 import {
+  formatFontFamily,
   formatFontSize,
   formatLineHeight,
   READER_DEFAULTS,
+  READER_FONT_FAMILIES,
+  READER_FONT_OPTIONS,
   READER_SETTING_CONSTRAINTS,
 } from "@karakeep/shared/types/readers";
+import { ZReaderFontFamily } from "@karakeep/shared/types/users";
 
 interface ReaderSettingsPopoverProps {
   open?: boolean;
@@ -71,6 +75,10 @@ export default function ReaderSettingsPopover({
   const getServerValue = <K extends keyof typeof serverSettings>(key: K) => {
     return serverSettings[key] ?? READER_DEFAULTS[key];
   };
+
+  const selectedFontOption = READER_FONT_OPTIONS.find(
+    (option) => option.value === settings.fontFamily,
+  );
 
   // Helper to check if a setting has a local override
   const hasLocalOverride = (key: keyof typeof localOverrides) => {
@@ -126,8 +134,8 @@ export default function ReaderSettingsPopover({
           <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <div className="shadow-xs flex size-8 items-center justify-center rounded-lg bg-background text-muted-foreground">
-                  <Type className="h-4 w-4" />
+                <div className="shadow-xs flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground">
+                  <Type className="size-4" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="font-semibold">
@@ -181,8 +189,8 @@ export default function ReaderSettingsPopover({
                             {t(
                               "settings.info.reader_settings.clear_override_hint",
                               {
-                                value: t(
-                                  `settings.info.reader_settings.${getServerValue("fontFamily")}` as const,
+                                value: formatFontFamily(
+                                  getServerValue("fontFamily"),
                                 ),
                               },
                             )}
@@ -196,7 +204,7 @@ export default function ReaderSettingsPopover({
                 value={settings.fontFamily}
                 onValueChange={(value) =>
                   updateSession({
-                    fontFamily: value as "serif" | "sans" | "mono",
+                    fontFamily: value as ZReaderFontFamily,
                   })
                 }
               >
@@ -208,18 +216,31 @@ export default function ReaderSettingsPopover({
                       : ""
                   }
                 >
-                  <SelectValue />
+                  <SelectValue>
+                    {selectedFontOption && (
+                      <span
+                        style={{
+                          fontFamily:
+                            READER_FONT_FAMILIES[selectedFontOption.value],
+                        }}
+                      >
+                        {selectedFontOption.label}
+                      </span>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="serif">
-                    {t("settings.info.reader_settings.serif")}
-                  </SelectItem>
-                  <SelectItem value="sans">
-                    {t("settings.info.reader_settings.sans")}
-                  </SelectItem>
-                  <SelectItem value="mono">
-                    {t("settings.info.reader_settings.mono")}
-                  </SelectItem>
+                  {READER_FONT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <span
+                        style={{
+                          fontFamily: READER_FONT_FAMILIES[option.value],
+                        }}
+                      >
+                        {option.label}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
