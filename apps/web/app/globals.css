@@ -595,6 +595,11 @@ textarea,
   line-height: 1.5;
 }
 
+.reader-fullscreen-content {
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
 @media (max-width: 639px) {
   .reader-markdown-content.prose,
   .reader-html-content.prose {
@@ -654,8 +659,8 @@ textarea,
   }
 
   .reader-fullscreen-content {
-    font-size: 1rem !important;
-    line-height: 1.5 !important;
+    font-size: 1rem;
+    line-height: 1.5;
   }
 
   .reader-fullscreen-content .reader-markdown-content.prose,

@@ -45,7 +45,16 @@ export default function ReaderViewPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const { t } = useTranslation();
-  const { settings } = useReaderSettings();
+  const { settings, serverSettings, localOverrides, sessionOverrides } =
+    useReaderSettings();
+  const hasConfiguredFontSize =
+    sessionOverrides.fontSize !== undefined ||
+    localOverrides.fontSize !== undefined ||
+    serverSettings.fontSize !== undefined;
+  const hasConfiguredLineHeight =
+    sessionOverrides.lineHeight !== undefined ||
+    localOverrides.lineHeight !== undefined ||
+    serverSettings.lineHeight !== undefined;
   const [showHighlights, setShowHighlights] = useState(false);
   const [needsReviewState, setNeedsReviewState] = useState<{
     contentKey: string;
@@ -247,8 +256,12 @@ export default function ReaderViewPage() {
                       className="reader-fullscreen-content"
                       style={{
                         fontFamily: READER_FONT_FAMILIES[settings.fontFamily],
-                        fontSize: `${settings.fontSize}px`,
-                        lineHeight: settings.lineHeight,
+                        ...(hasConfiguredFontSize && {
+                          fontSize: `${settings.fontSize}px`,
+                        }),
+                        ...(hasConfiguredLineHeight && {
+                          lineHeight: settings.lineHeight,
+                        }),
                       }}
                       bookmarkId={bookmarkId}
                       readOnly={!isOwner}
