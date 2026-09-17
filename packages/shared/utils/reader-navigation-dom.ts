@@ -100,8 +100,30 @@ interface VisibleTextCharacter {
 
 interface SearchMatchRange {
   matchIndex: number;
-  start: SearchTextReference;
-  end: SearchTextReference;
+  references: SearchTextReference[];
+}
+
+interface SearchTextSegment {
+  node: Text;
+  start: number;
+  end: number;
+}
+
+function mergeSearchTextSegments(
+  references: SearchTextReference[],
+): SearchTextSegment[] {
+  const segments: SearchTextSegment[] = [];
+
+  for (const reference of references) {
+    const previous = segments[segments.length - 1];
+    if (previous?.node === reference.node && previous.end === reference.start) {
+      previous.end = reference.end;
+    } else {
+      segments.push({ ...reference });
+    }
+  }
+
+  return segments;
 }
 
 function isSearchExcluded(node: Text): boolean {
@@ -221,16 +243,14 @@ export function applyReaderSearchMarks(
     const end = start + match[0].length;
     if (start === undefined || end <= start) return;
 
-    const startReferences = characters[start]?.references ?? [];
-    const endReferences = characters[end - 1]?.references ?? [];
-    const rangeStart = startReferences[0];
-    const rangeEnd = endReferences[endReferences.length - 1];
-    if (!rangeStart || !rangeEnd) return;
+    const references = characters
+      .slice(start, end)
+      .flatMap(({ references: characterReferences }) => characterReferences);
+    if (references.length === 0) return;
 
     matchRanges.push({
       matchIndex,
-      start: rangeStart,
-      end: rangeEnd,
+      references,
     });
   });
 
@@ -238,16 +258,23 @@ export function applyReaderSearchMarks(
   for (const matchRange of matchRanges.sort(
     (left, right) => right.matchIndex - left.matchIndex,
   )) {
-    const range = container.ownerDocument.createRange();
-    range.setStart(matchRange.start.node, matchRange.start.start);
-    range.setEnd(matchRange.end.node, matchRange.end.end);
+    const segments = mergeSearchTextSegments(matchRange.references);
+    const segmentMarks: HTMLElement[] = [];
 
-    const mark = container.ownerDocument.createElement("mark");
-    mark.dataset.readerSearchMatch = "true";
-    mark.className = SEARCH_MARK_CLASS;
-    mark.append(range.extractContents());
-    range.insertNode(mark);
-    marks[matchRange.matchIndex] = mark;
+    for (const segment of segments.reverse()) {
+      const range = container.ownerDocument.createRange();
+      range.setStart(segment.node, segment.start);
+      range.setEnd(segment.node, segment.end);
+
+      const mark = container.ownerDocument.createElement("mark");
+      mark.dataset.readerSearchMatch = "true";
+      mark.dataset.readerSearchMatchIndex = String(matchRange.matchIndex);
+      mark.className = SEARCH_MARK_CLASS;
+      range.surroundContents(mark);
+      segmentMarks.unshift(mark);
+    }
+
+    marks[matchRange.matchIndex] = segmentMarks[0];
   }
 
   return marks.filter((mark): mark is HTMLElement => Boolean(mark));

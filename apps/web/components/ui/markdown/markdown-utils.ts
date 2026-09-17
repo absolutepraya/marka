@@ -68,19 +68,25 @@ function markRun(run: EscapedBacktickRun, indexes: Set<number>) {
 export function normalizeEscapedCodeDelimiters(markdown: string) {
   const runs = collectEscapedBacktickRuns(markdown);
   const indexesToUnescape = new Set<number>();
+  const pairedRuns = new Set<EscapedBacktickRun>();
 
   for (let index = 0; index < runs.length; index += 1) {
     const run = runs[index];
+    if (pairedRuns.has(run)) continue;
 
     if (run.length >= 3) {
       const closingRun = runs
         .slice(index + 1)
         .find(
           (candidate) =>
-            candidate.length >= 3 && runEndsLine(markdown, candidate),
+            !pairedRuns.has(candidate) &&
+            candidate.length >= 3 &&
+            runEndsLine(markdown, candidate),
         );
 
       if (closingRun) {
+        pairedRuns.add(run);
+        pairedRuns.add(closingRun);
         markRun(run, indexesToUnescape);
         markRun(closingRun, indexesToUnescape);
       }
@@ -90,9 +96,14 @@ export function normalizeEscapedCodeDelimiters(markdown: string) {
 
     const closingRun = runs
       .slice(index + 1)
-      .find((candidate) => candidate.length === run.length);
+      .find(
+        (candidate) =>
+          !pairedRuns.has(candidate) && candidate.length === run.length,
+      );
 
     if (closingRun) {
+      pairedRuns.add(run);
+      pairedRuns.add(closingRun);
       markRun(run, indexesToUnescape);
       markRun(closingRun, indexesToUnescape);
     }

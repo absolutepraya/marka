@@ -22,4 +22,10 @@ describe("normalizeEscapedCodeDelimiters", () => {
 
     expect(normalizeEscapedCodeDelimiters(markdown)).toBe(markdown);
   });
+
+  it("does not reuse a paired delimiter as the next opener", () => {
+    const markdown = "A: \\`one\\` B: \\`two";
+
+    expect(normalizeEscapedCodeDelimiters(markdown)).toBe("A: `one` B: \\`two");
+  });
 });

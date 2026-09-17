@@ -109,6 +109,7 @@ function DetailSection({
 }
 
 function BookmarkMetadata({ bookmark }: { bookmark: ZBookmark }) {
+  const { t } = useTranslation();
   let { author, publisher, datePublished } =
     bookmark.content.type !== BookmarkTypes.LINK
       ? {
@@ -124,7 +125,7 @@ function BookmarkMetadata({ bookmark }: { bookmark: ZBookmark }) {
       {author && (
         <div className="flex w-full items-center gap-2 text-sm text-muted-foreground">
           <User size={16} />
-          <span>By {author}</span>
+          <span>{t("preview.by_author", { author })}</span>
         </div>
       )}
       {publisher && (
@@ -139,14 +140,14 @@ function BookmarkMetadata({ bookmark }: { bookmark: ZBookmark }) {
 }
 
 function PublishedDate({ datePublished }: { datePublished: Date }) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const { localCreatedAt } = useRelativeTime(datePublished, i18n.language);
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
         <div className="flex w-full items-center gap-2 text-sm text-muted-foreground">
           <CalendarDays size={16} />
-          <span>Published {localCreatedAt}</span>
+          <span>{t("preview.published", { date: localCreatedAt })}</span>
         </div>
       </TooltipTrigger>
       <TooltipPortal>
@@ -245,7 +246,7 @@ export default function BookmarkPreview({
       <div className="mb-0 w-full lg:mb-1 xl:mb-2">
         <div className="flex w-full flex-col gap-1.5">
           <p className="line-clamp-3 w-full text-ellipsis break-words text-xl font-semibold leading-snug tracking-tight text-foreground">
-            {!title ? "Untitled" : title}
+            {!title ? t("preview.untitled") : title}
           </p>
           {sourceUrl && displaySourceUrl && (
             <Link
@@ -258,6 +259,7 @@ export default function BookmarkPreview({
               <Favicon
                 url={sourceUrl}
                 storedFavicon={storedFavicon}
+                allowRemoteFallback={false}
                 className="size-4 shrink-0"
               />
               <span className="min-w-0 truncate underline underline-offset-4">
@@ -268,15 +270,15 @@ export default function BookmarkPreview({
           )}
         </div>
       </div>
-      <DetailSection title="Metadata">
+      <DetailSection title={t("preview.metadata")}>
         <BookmarkMetadata bookmark={bookmark} />
       </DetailSection>
-      <DetailSection title="Summary">
+      <DetailSection title={t("common.summary")}>
         {bookmark.summary ? (
           <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
         ) : (
           <>
-            <p className="text-sm text-muted-foreground">(None)</p>
+            <p className="text-sm text-muted-foreground">{t("preview.none")}</p>
             <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
           </>
         )}
@@ -290,7 +292,7 @@ export default function BookmarkPreview({
       <AttachmentBox bookmark={bookmark} readOnly={!isOwner} />
       <HighlightsBox bookmarkId={bookmark.id} readOnly={!isOwner} />
       {isOwner && (
-        <DetailSection title="Actions">
+        <DetailSection title={t("common.actions")}>
           <ActionBar bookmark={bookmark} />
         </DetailSection>
       )}

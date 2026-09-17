@@ -283,6 +283,7 @@ async function extractAndSaveVideoScreenshot(
   asset: Buffer,
   bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
   isFixMode: boolean,
+  abortSignal: AbortSignal,
 ): Promise<boolean> {
   {
     const alreadyHasScreenshot =
@@ -310,23 +311,27 @@ async function extractAndSaveVideoScreenshot(
     const screenshotPath = path.join(tempDir, "screenshot.jpg");
 
     await fs.promises.writeFile(videoPath, asset);
-    await execa("ffmpeg", [
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-y",
-      "-i",
-      videoPath,
-      "-map",
-      "0:v:0",
-      "-frames:v",
-      "1",
-      "-q:v",
-      "2",
-      "-f",
-      "image2",
-      screenshotPath,
-    ]);
+    await execa(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        videoPath,
+        "-map",
+        "0:v:0",
+        "-frames:v",
+        "1",
+        "-q:v",
+        "2",
+        "-f",
+        "image2",
+        screenshotPath,
+      ],
+      { cancelSignal: abortSignal },
+    );
 
     const screenshot = await fs.promises.readFile(screenshotPath);
 
@@ -571,6 +576,7 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
         asset,
         bookmark,
         isFixMode,
+        req.abortSignal,
       );
       anythingChanged ||= extractedScreenshot;
       break;

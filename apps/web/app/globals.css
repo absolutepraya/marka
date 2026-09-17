@@ -654,14 +654,14 @@ textarea,
   }
 
   .reader-fullscreen-content {
-    font-size: 1rem !important;
-    line-height: 1.45 !important;
+    font-size: 1rem;
+    line-height: inherit;
   }
 
   .reader-fullscreen-content .reader-markdown-content.prose,
   .reader-fullscreen-content .reader-html-content.prose,
   .reader-fullscreen-content .reader-plain-content {
     font-size: 1em;
-    line-height: 1.45;
+    line-height: inherit;
   }
 }

@@ -83,11 +83,33 @@ describe("Reader View search marks", () => {
     const marks = applyReaderSearchMarks(container, "reader view");
 
     expect(marks).toHaveLength(2);
-    expect(marks[0]?.textContent).toBe("Reader\n\tview");
+    expect(marks[0]?.textContent).toBe("Reader");
     expect(marks[1]?.textContent).toBe("Reader view");
     expect(
       container.querySelectorAll("mark[data-reader-search-match]"),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
+    expect(
+      Array.from(
+        container.querySelectorAll('mark[data-reader-search-match-index="0"]'),
+      ).map((mark) => mark.textContent),
+    ).toEqual(["Reader", "\n\tview"]);
+  });
+
+  test("preserves block structure when a match crosses inline and block nodes", () => {
+    const container = document.createElement("article");
+    container.innerHTML =
+      '<p>Intro <a href="/reader">Reader</a> view</p><p>Reader view</p>';
+    const originalStructure = container.innerHTML;
+
+    const marks = applyReaderSearchMarks(container, "reader view");
+
+    expect(marks).toHaveLength(2);
+    expect(container.querySelectorAll("p")).toHaveLength(2);
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+    expect(container.querySelectorAll("mark p, p mark p")).toHaveLength(0);
+
+    clearReaderSearchMarks(container);
+    expect(container.innerHTML).toBe(originalStructure);
   });
 
   test("does not throw when scrolling the current result", () => {

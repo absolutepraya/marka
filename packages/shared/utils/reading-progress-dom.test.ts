@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from "vitest";
 import {
   normalizeText,
   normalizeTextLength,
+  getReadingPosition,
   scrollToReadingPercentage,
   scrollToReadingStart,
   scrollToReadingPosition,
@@ -60,6 +61,39 @@ describe("normalizeTextLength", () => {
 
   test("returns 0 for whitespace-only string", () => {
     expect(normalizeTextLength("   \n\t")).toBe(0);
+  });
+});
+
+describe("getReadingPosition", () => {
+  test("tracks offsets for an outer block containing a nested paragraph", () => {
+    const container = document.createElement("article");
+    container.innerHTML =
+      "<p>Intro paragraph.</p><blockquote><p>Nested target.</p></blockquote><p>After.</p>";
+    const paragraphs = container.querySelectorAll("p");
+    const blockquote = container.querySelector("blockquote");
+    if (!blockquote) throw new Error("Missing blockquote");
+
+    vi.spyOn(paragraphs[0], "getBoundingClientRect").mockReturnValue({
+      top: -120,
+      bottom: -60,
+      width: 100,
+      height: 60,
+    } as DOMRect);
+    vi.spyOn(blockquote, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      bottom: 80,
+      width: 100,
+      height: 80,
+    } as DOMRect);
+    vi.spyOn(document.body, "scrollHeight", "get").mockReturnValue(2000);
+    document.body.append(container);
+
+    const position = getReadingPosition(container);
+
+    expect(position?.anchor).toBe("Nested target.");
+    expect(position?.offset).toBeGreaterThan(0);
+
+    container.remove();
   });
 });
 

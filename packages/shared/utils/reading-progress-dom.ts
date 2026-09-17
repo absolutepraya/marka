@@ -93,13 +93,14 @@ function getReadingTextMetrics(
 
   while ((node = walker.nextNode())) {
     const textNode = node as Text;
-    const closestParagraph = textNode.parentElement?.closest(
-      PARAGRAPH_SELECTOR_STRING,
-    );
-    const paragraph =
-      closestParagraph && paragraphSet.has(closestParagraph)
-        ? closestParagraph
-        : null;
+    const matchingParagraphs: Element[] = [];
+    let ancestor = textNode.parentElement;
+    while (ancestor && ancestor !== container) {
+      if (paragraphSet.has(ancestor)) {
+        matchingParagraphs.push(ancestor);
+      }
+      ancestor = ancestor.parentElement;
+    }
 
     for (const characterMatch of textNode.data.matchAll(/[\s\S]/g)) {
       if (/\s/.test(characterMatch[0])) {
@@ -112,8 +113,10 @@ function getReadingTextMetrics(
       }
       pendingWhitespace = false;
 
-      if (paragraph && !blockOffsets.has(paragraph)) {
-        blockOffsets.set(paragraph, totalLength);
+      for (const paragraph of matchingParagraphs) {
+        if (!blockOffsets.has(paragraph)) {
+          blockOffsets.set(paragraph, totalLength);
+        }
       }
 
       totalLength += 1;

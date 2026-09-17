@@ -6,19 +6,19 @@ import { cn } from "@/lib/utils";
 import { Globe } from "lucide-react";
 
 /**
- * Site favicon with a render-time fallback chain:
- * stored favicon (from the crawl) -> DuckDuckGo -> Google s2 -> neutral globe.
- * The stored icon is loaded straight from the origin; the services are only
- * ever hit for bookmarks that don't have one yet (uncrawled / crawl failed).
+ * Site favicon with a render-time fallback chain. Remote hostname services
+ * are opt-in so authenticated surfaces can avoid disclosing private URLs.
  */
 export default function Favicon({
   url,
   storedFavicon,
   className,
+  allowRemoteFallback = true,
 }: {
   url: string;
   storedFavicon?: string | null;
   className?: string;
+  allowRemoteFallback?: boolean;
 }) {
   const candidates = useMemo(() => {
     const list: string[] = [];
@@ -31,12 +31,12 @@ export default function Favicon({
     } catch {
       hostname = null;
     }
-    if (hostname) {
+    if (allowRemoteFallback && hostname) {
       list.push(`https://icons.duckduckgo.com/ip3/${hostname}.ico`);
       list.push(`https://www.google.com/s2/favicons?domain=${hostname}&sz=64`);
     }
     return list;
-  }, [storedFavicon, url]);
+  }, [allowRemoteFallback, storedFavicon, url]);
 
   // Track failed sources so the chain survives candidate changes (e.g. a
   // stored favicon appearing after a crawl) and always shows the best option.

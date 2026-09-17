@@ -340,9 +340,9 @@ function GridView({
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-xl sm:rounded-2xl",
         className,
-        // Grid stays a uniform fixed height; masonry grows to fit its content
-        // so tags and the footer are never clipped.
-        layout === "grid" ? "h-96" : "h-auto",
+        // Desktop grid cards stay a uniform height. Mobile cards grow with
+        // their square preview so the title, content, and actions are not clipped.
+        layout === "grid" ? "h-auto sm:h-96" : "h-auto",
       )}
       data-bookmark-index={bookmarkIndex}
     >
