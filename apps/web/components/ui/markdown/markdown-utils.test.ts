@@ -28,4 +28,10 @@ describe("normalizeEscapedCodeDelimiters", () => {
 
     expect(normalizeEscapedCodeDelimiters(markdown)).toBe("A: `one` B: \\`two");
   });
+
+  it("keeps a shorter closing fence escaped", () => {
+    const markdown = "\\`\\`\\`\\`typescript\nconst answer = 42;\n\\`\\`\\`";
+
+    expect(normalizeEscapedCodeDelimiters(markdown)).toBe(markdown);
+  });
 });

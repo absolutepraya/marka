@@ -80,7 +80,7 @@ export function normalizeEscapedCodeDelimiters(markdown: string) {
         .find(
           (candidate) =>
             !pairedRuns.has(candidate) &&
-            candidate.length >= 3 &&
+            candidate.length >= run.length &&
             runEndsLine(markdown, candidate),
         );
 

@@ -13,7 +13,7 @@ export default function Favicon({
   url,
   storedFavicon,
   className,
-  allowRemoteFallback = true,
+  allowRemoteFallback = false,
 }: {
   url: string;
   storedFavicon?: string | null;

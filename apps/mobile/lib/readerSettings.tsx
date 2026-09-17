@@ -29,41 +29,33 @@ export const MOBILE_FONT_FAMILIES: Partial<
   },
 })!;
 
-// Font families for WebView HTML content (CSS font stacks). Keep this map
-// complete so a server-synced setting never results in an undefined CSS value.
-const WEBVIEW_SERIF_FALLBACK = "Georgia, 'Times New Roman', serif";
-const WEBVIEW_SANS_FALLBACK =
-  "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
-const WEBVIEW_MONO_FALLBACK =
-  "ui-monospace, Menlo, Monaco, 'Courier New', monospace";
-
-export const WEBVIEW_FONT_FAMILIES: Record<ZReaderFontFamily, string> = {
-  serif: WEBVIEW_SERIF_FALLBACK,
-  sans: WEBVIEW_SANS_FALLBACK,
-  mono: WEBVIEW_MONO_FALLBACK,
-  literata: `Literata, ${WEBVIEW_SERIF_FALLBACK}`,
-  "source-serif-4": `'Source Serif 4', ${WEBVIEW_SERIF_FALLBACK}`,
-  newsreader: `Newsreader, ${WEBVIEW_SERIF_FALLBACK}`,
-  merriweather: `Merriweather, ${WEBVIEW_SERIF_FALLBACK}`,
-  "ibm-plex-serif": `'IBM Plex Serif', ${WEBVIEW_SERIF_FALLBACK}`,
-  "pt-serif": `'PT Serif', ${WEBVIEW_SERIF_FALLBACK}`,
-  "charis-sil": `'Charis SIL', ${WEBVIEW_SERIF_FALLBACK}`,
-  nunito: `Nunito, ${WEBVIEW_SANS_FALLBACK}`,
-  lato: `Lato, ${WEBVIEW_SANS_FALLBACK}`,
-  inter: `Inter, ${WEBVIEW_SANS_FALLBACK}`,
-  manrope: `Manrope, ${WEBVIEW_SANS_FALLBACK}`,
-  geist: `Geist, ${WEBVIEW_SANS_FALLBACK}`,
-  "mona-sans": `'Mona Sans', ${WEBVIEW_SANS_FALLBACK}`,
-  "fira-sans": `'Fira Sans', ${WEBVIEW_SANS_FALLBACK}`,
-  "pt-sans": `'PT Sans', ${WEBVIEW_SANS_FALLBACK}`,
-  cantarell: `Cantarell, ${WEBVIEW_SANS_FALLBACK}`,
-  commissioner: `Commissioner, ${WEBVIEW_SANS_FALLBACK}`,
-  "stack-sans": `'Stack Sans Text', ${WEBVIEW_SANS_FALLBACK}`,
-  "cal-sans": `'Cal Sans', ${WEBVIEW_SANS_FALLBACK}`,
-  "atkinson-hyperlegible": `'Atkinson Hyperlegible', ${WEBVIEW_SANS_FALLBACK}`,
-  "source-sans-3": `'Source Sans 3', ${WEBVIEW_SANS_FALLBACK}`,
-  "ibm-plex-sans": `'IBM Plex Sans', ${WEBVIEW_SANS_FALLBACK}`,
+// Mobile WebViews intentionally render the three families supported by the
+// native settings UI. Server-synced web font choices are reduced to their
+// semantic family because those fonts are not bundled in the mobile app.
+const WEBVIEW_FONT_FAMILIES = {
+  serif: "Georgia, 'Times New Roman', serif",
+  sans: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+  mono: "ui-monospace, Menlo, Monaco, 'Courier New', monospace",
 } as const;
+
+const MOBILE_SERIF_FAMILIES: ReadonlySet<ZReaderFontFamily> = new Set([
+  "serif",
+  "literata",
+  "source-serif-4",
+  "newsreader",
+  "merriweather",
+  "ibm-plex-serif",
+  "pt-serif",
+  "charis-sil",
+]);
+
+export function getWebViewFontFamily(fontFamily: ZReaderFontFamily): string {
+  if (fontFamily === "mono") return WEBVIEW_FONT_FAMILIES.mono;
+  if (MOBILE_SERIF_FAMILIES.has(fontFamily)) {
+    return WEBVIEW_FONT_FAMILIES.serif;
+  }
+  return WEBVIEW_FONT_FAMILIES.sans;
+}
 
 /**
  * Mobile-specific provider for reader settings.

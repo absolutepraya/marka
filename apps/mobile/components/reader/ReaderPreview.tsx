@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { View } from "react-native";
 import WebView from "react-native-webview";
-import { WEBVIEW_FONT_FAMILIES } from "@/lib/readerSettings";
+import { getWebViewFontFamily } from "@/lib/readerSettings";
 import { useColorScheme } from "@/lib/useColorScheme";
 
 import { ZReaderFontFamily } from "@karakeep/shared/types/users";
@@ -28,10 +28,7 @@ export const ReaderPreview = forwardRef<ReaderPreviewRef, ReaderPreviewProps>(
     const webViewRef = useRef<WebView>(null);
     const { isDarkColorScheme: isDark } = useColorScheme();
 
-    const fontFamily =
-      WEBVIEW_FONT_FAMILIES[initialFontFamily] ??
-      WEBVIEW_FONT_FAMILIES.sans ??
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
+    const fontFamily = getWebViewFontFamily(initialFontFamily);
     const textColor = isDark ? "#e5e7eb" : "#374151";
     const bgColor = isDark ? "#000000" : "#ffffff";
 
@@ -41,10 +38,7 @@ export const ReaderPreview = forwardRef<ReaderPreviewRef, ReaderPreviewProps>(
         newFontSize: number,
         newLineHeight: number,
       ) => {
-        const cssFontFamily =
-          WEBVIEW_FONT_FAMILIES[newFontFamily] ??
-          WEBVIEW_FONT_FAMILIES.sans ??
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
+        const cssFontFamily = getWebViewFontFamily(newFontFamily);
         webViewRef.current?.injectJavaScript(`
           window.updateStyles("${cssFontFamily}", ${newFontSize}, ${newLineHeight});
           true;

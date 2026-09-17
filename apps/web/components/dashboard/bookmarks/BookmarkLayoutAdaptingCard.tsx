@@ -75,6 +75,7 @@ function BottomRow({
           <Favicon
             url={sourceUrl}
             storedFavicon={storedFavicon}
+            allowRemoteFallback={true}
             className="size-4 shrink-0"
           />
         )}
@@ -395,6 +396,7 @@ function GridView({
                   <Favicon
                     url={sourceUrl}
                     storedFavicon={storedFavicon}
+                    allowRemoteFallback={true}
                     className="size-3.5 shrink-0 sm:size-4"
                   />
                 )}
@@ -452,6 +454,7 @@ function CompactView({
             <Favicon
               url={bookmark.content.url}
               storedFavicon={bookmark.content.favicon}
+              allowRemoteFallback={true}
               className="size-5"
             />
           )}
