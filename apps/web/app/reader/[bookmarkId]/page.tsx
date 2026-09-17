@@ -77,6 +77,7 @@ export default function ReaderViewPage() {
 
   const sourceUrl =
     bookmark?.content.type === BookmarkTypes.LINK ? bookmark.content.url : null;
+  const readerTitle = bookmark ? getBookmarkTitle(bookmark) : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,11 +98,17 @@ export default function ReaderViewPage() {
               <p className="truncate whitespace-nowrap text-sm font-medium text-foreground">
                 {t("preview.reader_view")}
               </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {bookmark
-                  ? getBookmarkTitle(bookmark)
-                  : t("preview.loading_article")}
-              </p>
+              {bookmark ? (
+                readerTitle && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {readerTitle}
+                  </p>
+                )
+              ) : (
+                <p className="truncate text-xs text-muted-foreground">
+                  {t("preview.loading_article")}
+                </p>
+              )}
             </div>
           </div>
 
@@ -179,17 +186,26 @@ export default function ReaderViewPage() {
             {bookmark ? (
               <>
                 {/* Article Header */}
-                <header className="reader-fullscreen-header shadow-xs mb-4 space-y-2 rounded-xl border border-border/70 bg-card/50 p-3 sm:mb-6 sm:space-y-3 sm:rounded-2xl sm:p-5">
-                  <h1
-                    className="reader-fullscreen-title font-bold leading-tight"
-                    style={{
-                      fontFamily: READER_FONT_FAMILIES[settings.fontFamily],
-                      fontSize: `${settings.fontSize * 1.8}px`,
-                      lineHeight: settings.lineHeight * 0.9,
-                    }}
-                  >
-                    {getBookmarkTitle(bookmark)}
-                  </h1>
+                <header
+                  className={cn(
+                    "reader-fullscreen-header shadow-xs mb-4 rounded-xl border border-border/70 bg-card/50 sm:mb-6 sm:rounded-2xl",
+                    readerTitle
+                      ? "space-y-2 p-3 sm:space-y-3 sm:p-5"
+                      : "px-3 py-2 sm:px-5 sm:py-3",
+                  )}
+                >
+                  {readerTitle && (
+                    <h1
+                      className="reader-fullscreen-title font-bold leading-tight"
+                      style={{
+                        fontFamily: READER_FONT_FAMILIES[settings.fontFamily],
+                        fontSize: `${settings.fontSize * 1.8}px`,
+                        lineHeight: settings.lineHeight * 0.9,
+                      }}
+                    >
+                      {readerTitle}
+                    </h1>
+                  )}
                   <div className="reader-fullscreen-metadata flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground sm:gap-x-4 sm:gap-y-2">
                     {bookmark.content.type == BookmarkTypes.LINK &&
                       bookmark.content.author && (

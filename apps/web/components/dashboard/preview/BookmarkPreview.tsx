@@ -406,7 +406,7 @@ export default function BookmarkPreview({
               "h-full min-h-0 flex-1 bg-background data-[state=inactive]:hidden",
               isPdfPreview
                 ? "mt-0 overflow-hidden px-0 pb-2 pt-0"
-                : "overflow-hidden overflow-y-auto px-2 py-2",
+                : "overflow-hidden overflow-y-auto px-2 py-0",
             )}
           >
             {contentSection}

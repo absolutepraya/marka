@@ -654,8 +654,8 @@ textarea,
   }
 
   .reader-fullscreen-content {
-    font-size: 1rem;
-    line-height: inherit;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
   }
 
   .reader-fullscreen-content .reader-markdown-content.prose,

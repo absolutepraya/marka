@@ -37,7 +37,7 @@ export function TextContentSection({ bookmark }: { bookmark: ZBookmark }) {
           </div>
         )}
         <div className="mx-auto w-full min-w-0 max-w-3xl px-3 py-3 sm:px-4 sm:py-4">
-          <div className="mb-3 flex justify-end lg:hidden">
+          <div className="mb-3 flex justify-center lg:hidden">
             <Link
               href={`/reader/${bookmark.id}`}
               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}

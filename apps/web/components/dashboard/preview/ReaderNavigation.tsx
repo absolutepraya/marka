@@ -186,7 +186,7 @@ export default function ReaderNavigation({
   return (
     <div
       ref={navigationRef}
-      className="mb-2 space-y-1 sm:mb-3 sm:space-y-1.5 print:hidden"
+      className="mb-4 space-y-1 sm:mb-5 sm:space-y-1.5 print:hidden"
     >
       <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/70 bg-background p-1 sm:gap-1.5">
         <div className="flex min-w-0 flex-1 basis-56 items-center gap-1">
@@ -245,7 +245,7 @@ export default function ReaderNavigation({
             ref={tableOfContentsButtonRef}
             type="button"
             variant="outline"
-            className="h-8 shrink-0 gap-1.5 px-2.5"
+            className="h-8 w-full shrink-0 gap-1.5 px-2.5 sm:w-auto"
             onClick={() => setTableOfContentsOpen((open) => !open)}
             aria-expanded={tableOfContentsOpen}
             aria-controls={tableOfContentsId}

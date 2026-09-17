@@ -157,7 +157,7 @@ function VideoContentSection({ bookmark }: { bookmark: ZBookmark }) {
           <p>{t("common.video_playback_unavailable")}</p>
         </div>
       ) : (
-        <div className="flex aspect-video w-full flex-none items-center justify-center lg:min-h-0 lg:flex-1">
+        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
           {/* eslint-disable-next-line jsx-a11y/media-has-caption -- captions are not yet part of the uploaded-video model */}
           <video
             key={`${assetUrl}:${bookmark.content.contentType ?? ""}`}
