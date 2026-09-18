@@ -41,7 +41,7 @@ function StyledBookmarkCard({
   return (
     <Slot
       className={cn(
-        "shadow-xs ease-(--ease-out) mb-1 overflow-hidden rounded-xl border border-border/80 bg-card transition-[border-color,box-shadow,background-color] duration-200 hover:border-border hover:shadow-md sm:mb-4 sm:rounded-2xl",
+        "shadow-xs ease-(--ease-out) mb-1 overflow-hidden rounded-xl border border-border/80 bg-card transition-[border-color,box-shadow,background-color] duration-200 hover:border-border hover:shadow-md sm:mb-3 sm:rounded-2xl",
         className,
       )}
       {...props}
@@ -276,8 +276,8 @@ export default function BookmarksGrid({
       {bookmarkLayoutSwitch(layout, {
         masonry: (
           <Masonry
-            className="-ml-2 flex w-auto sm:-ml-4"
-            columnClassName="pl-2 sm:pl-4"
+            className="-ml-2 flex w-auto sm:-ml-3"
+            columnClassName="pl-2 sm:pl-3"
             breakpointCols={breakpointConfig}
           >
             {children}
@@ -285,8 +285,8 @@ export default function BookmarksGrid({
         ),
         grid: (
           <Masonry
-            className="-ml-2 flex w-auto sm:-ml-4"
-            columnClassName="pl-2 sm:pl-4"
+            className="-ml-2 flex w-auto sm:-ml-3"
+            columnClassName="pl-2 sm:pl-3"
             breakpointCols={breakpointConfig}
           >
             {children}
