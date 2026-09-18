@@ -42,17 +42,31 @@ export default function SidebarVersion({
       : "unknown";
   const containerClassName =
     placement === "profile"
-      ? "flex min-w-0 items-center justify-between gap-3 px-2 py-1 text-xs leading-tight"
+      ? "flex h-7 min-w-0 items-center justify-between gap-2 text-[11px] leading-4"
       : "flex min-w-0 items-center justify-between gap-3 text-xs leading-tight";
   const buildClassName =
     placement === "profile"
-      ? "flex min-w-0 items-center gap-1 font-mono text-xs text-muted-foreground opacity-50 transition-colors hover:text-foreground"
+      ? "flex min-w-0 flex-1 items-center gap-1.5 font-mono text-[11px] leading-4 text-muted-foreground opacity-50 transition-[color,opacity] duration-150 hover:text-foreground hover:opacity-100"
       : "flex min-w-0 items-center gap-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground";
   const buildColorClassName =
     placement === "profile"
       ? "text-muted-foreground opacity-50"
       : "text-muted-foreground";
   const buildIconClassName = placement === "profile" ? "size-3" : "size-3.5";
+  const buildTextClassName =
+    placement === "profile"
+      ? "min-w-0 truncate rounded-sm bg-muted/50 px-1.5 py-0.5"
+      : "truncate";
+  const updateSlotClassName =
+    placement === "profile"
+      ? "flex h-7 w-32 shrink-0 items-center justify-end gap-1 overflow-hidden font-mono text-[11px] leading-4 text-muted-foreground"
+      : "flex min-w-0 shrink-0 items-center justify-end gap-1 font-mono text-xs text-muted-foreground";
+  const updateButtonClassName =
+    placement === "profile"
+      ? "h-7 w-full min-w-0 gap-1.5 rounded-md px-2 py-1 font-mono text-[11px] leading-4 text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+      : "h-auto gap-1 px-1.5 py-1 font-mono text-xs text-muted-foreground";
+  const updateStatusClassName =
+    placement === "profile" ? "min-w-0 truncate" : undefined;
 
   const buildLabel = t("build", { build: visibleBuild });
 
@@ -66,32 +80,39 @@ export default function SidebarVersion({
           title={t("build_title", { build: appBuild })}
           className={buildClassName}
         >
-          <span className="truncate">{buildLabel}</span>
+          <span className={buildTextClassName}>{buildLabel}</span>
           <GitBranch className={`${buildIconClassName} shrink-0`} />
         </Link>
       ) : (
         <span className={buildClassName}>
-          <span className="truncate">{buildLabel}</span>
+          <span className={buildTextClassName}>{buildLabel}</span>
           <GitBranch className={`${buildIconClassName} shrink-0`} />
         </span>
       )}
-      <div className="flex shrink-0 items-center justify-end gap-1 font-mono text-xs text-muted-foreground">
+      <div className={updateSlotClassName}>
         {!validAppBuild || !deployedBuild || updateStatus === "unavailable" ? (
-          <span className={buildColorClassName}>{t("update_unavailable")}</span>
+          <span className={updateStatusClassName ?? buildColorClassName}>
+            {t("update_unavailable")}
+          </span>
         ) : updateStatus === "checking" ? (
-          <span>{t("checking")}</span>
+          <span className={updateStatusClassName} title={t("checking")}>
+            {t("checking")}
+          </span>
         ) : updateStatus === "installing" ? (
-          <span>{t("preparing_update")}</span>
+          <span className={updateStatusClassName} title={t("preparing_update")}>
+            {t("preparing_update")}
+          </span>
         ) : updateStatus === "error" ? (
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={checkForUpdate}
-            className="h-auto gap-1 px-1.5 py-1 font-mono text-xs text-muted-foreground"
+            title={t("check_failed")}
+            className={updateButtonClassName}
           >
-            {t("check_failed")}
-            <RefreshCw className="size-3" />
+            <RefreshCw aria-hidden="true" className="size-3 shrink-0" />
+            <span className="min-w-0 truncate">{t("check_failed")}</span>
           </Button>
         ) : updateStatus === "blocked" ? (
           <Button
@@ -99,35 +120,42 @@ export default function SidebarVersion({
             variant="ghost"
             size="sm"
             onClick={activateUpdate}
-            className="h-auto gap-1 px-1.5 py-1 font-mono text-xs text-muted-foreground"
+            title={t("close_other_tabs")}
+            className={updateButtonClassName}
           >
-            {t("close_other_tabs")}
-            <RefreshCw className="size-3" />
+            <RefreshCw aria-hidden="true" className="size-3 shrink-0" />
+            <span className="min-w-0 truncate">{t("close_other_tabs")}</span>
           </Button>
         ) : updateStatus === "updating" ? (
-          <span>{t("updating")}</span>
+          <span className={updateStatusClassName} title={t("updating")}>
+            {t("updating")}
+          </span>
         ) : updateAvailable && updateStatus === "ready" ? (
           <Button
             type="button"
             size="sm"
             onClick={activateUpdate}
-            className="h-auto gap-1 rounded-md bg-emerald-500/15 px-2 py-1 font-mono text-xs text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400"
+            title={t("update_now")}
+            className={`${updateButtonClassName} bg-emerald-500/15 text-emerald-700 ring-1 ring-inset ring-emerald-500/20 hover:bg-emerald-500/25 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300`}
           >
-            {t("update_now")}
-            <Download className="size-3" />
+            <Download aria-hidden="true" className="size-3 shrink-0" />
+            <span className="min-w-0 truncate">{t("update_now")}</span>
           </Button>
         ) : updateAvailable ? (
-          <span>{t("preparing_update")}</span>
+          <span className={updateStatusClassName} title={t("preparing_update")}>
+            {t("preparing_update")}
+          </span>
         ) : (
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={checkForUpdate}
-            className="h-auto gap-1 px-1.5 py-1 font-mono text-xs text-muted-foreground"
+            title={t("up_to_date")}
+            className={updateButtonClassName}
           >
-            {t("up_to_date")}
-            <RefreshCw className="size-3" />
+            <RefreshCw aria-hidden="true" className="size-3 shrink-0" />
+            <span className="min-w-0 truncate">{t("up_to_date")}</span>
           </Button>
         )}
       </div>
