@@ -5,6 +5,7 @@ import { SqliteError } from "@karakeep/db";
 import type { KarakeepDBTransaction } from "@karakeep/db";
 import {
   bookmarkLinks,
+  bookmarkContentEditors,
   bookmarks,
   bookmarksInLists,
   bookmarkTexts,
@@ -22,6 +23,7 @@ import {
   OpenAIQueue,
   QueuePriority,
   QuotaService,
+  logEvent,
   triggerSearchReindex,
 } from "@karakeep/shared-server";
 import serverConfig from "@karakeep/shared/config";
@@ -40,6 +42,10 @@ import type {
 
 import type { AuthedContext } from "../index";
 import { Bookmark } from "./bookmarks";
+import {
+  assertCanEditBookmarkContent,
+  getBookmarkContentPermission,
+} from "./bookmarkContentPermissions";
 import { RuleEngine } from "../lib/ruleEngine";
 import { List } from "./lists";
 
@@ -180,6 +186,46 @@ async function assertBookmarkOwner(
   }
 }
 
+async function assertBookmarkMutationAccess(
+  ctx: AuthedContext,
+  tx: KarakeepDBTransaction,
+  mutation: Extract<
+    ZOfflineSyncMutation,
+    { kind: "bookmark.update" | "bookmark.tags" }
+  >,
+): Promise<void> {
+  const [bookmark] = await tx
+    .select({ userId: bookmarks.userId })
+    .from(bookmarks)
+    .where(eq(bookmarks.id, mutation.bookmarkId));
+  if (!bookmark) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Bookmark not found" });
+  }
+  if (bookmark.userId === ctx.user.id) return;
+
+  const isContentOnlyUpdate =
+    mutation.kind === "bookmark.update" &&
+    Object.keys(mutation.fields).length === 1 &&
+    typeof mutation.fields.text === "string";
+  if (isContentOnlyUpdate) {
+    await assertCanEditBookmarkContent(
+      asTransactionContext(ctx, tx),
+      mutation.bookmarkId,
+    );
+    return;
+  }
+
+  logEvent({
+    "event.name": "bookmark.content_edit_denied",
+    "bookmark.id": mutation.bookmarkId,
+    "content.denial_reason": "unsupported_update",
+  });
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "User is not allowed to modify this bookmark",
+  });
+}
+
 async function assertBookmarkExists(
   tx: KarakeepDBTransaction,
   bookmarkId: string,
@@ -252,6 +298,7 @@ async function applyBookmarkDelete(
       deleteTx,
       ctx.user.id,
       await getOfflineSyncBookmarkRecipientIds(
+        ctx,
         deleteTx,
         ctx.user.id,
         mutation.bookmarkId,
@@ -676,10 +723,15 @@ export async function recordOfflineSyncEvent(
 }
 
 export async function getOfflineSyncBookmarkRecipientIds(
+  ctx: AuthedContext,
   tx: KarakeepDBTransaction,
   ownerId: string,
   bookmarkId: string,
 ): Promise<string[]> {
+  const [bookmark] = await tx
+    .select({ ownerId: bookmarks.userId })
+    .from(bookmarks)
+    .where(eq(bookmarks.id, bookmarkId));
   const collaborators = await tx
     .select({ userId: listCollaborators.userId })
     .from(bookmarksInLists)
@@ -689,7 +741,30 @@ export async function getOfflineSyncBookmarkRecipientIds(
     )
     .where(eq(bookmarksInLists.bookmarkId, bookmarkId));
 
-  return [...new Set([ownerId, ...collaborators.map(({ userId }) => userId)])];
+  const contentEditors = await tx
+    .select({ userId: bookmarkContentEditors.userId })
+    .from(bookmarkContentEditors)
+    .where(eq(bookmarkContentEditors.bookmarkId, bookmarkId));
+  const activeContentEditors = [] as string[];
+  const transactionContext = asTransactionContext(ctx, tx);
+  for (const { userId } of contentEditors) {
+    const permission = await getBookmarkContentPermission(
+      transactionContext,
+      bookmarkId,
+      userId,
+    );
+    if (permission.canEdit) {
+      activeContentEditors.push(userId);
+    }
+  }
+
+  return [
+    ...new Set([
+      bookmark?.ownerId ?? ownerId,
+      ...collaborators.map(({ userId }) => userId),
+      ...activeContentEditors,
+    ]),
+  ];
 }
 
 export async function recordOfflineSyncEvents(
@@ -1003,7 +1078,7 @@ export async function applyOfflineSyncMutations(
             return result;
           }
 
-          await assertBookmarkOwner(tx, ctx.user.id, mutation.bookmarkId);
+          await assertBookmarkMutationAccess(ctx, tx, mutation);
           const changedFields =
             mutation.kind === "bookmark.update"
               ? Object.keys(mutation.fields)
@@ -1072,6 +1147,7 @@ export async function applyOfflineSyncMutations(
             tx,
             ctx.user.id,
             await getOfflineSyncBookmarkRecipientIds(
+              ctx,
               tx,
               ctx.user.id,
               mutation.bookmarkId,

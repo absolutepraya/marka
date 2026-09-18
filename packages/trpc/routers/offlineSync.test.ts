@@ -215,6 +215,88 @@ describe("Offline sync routes", () => {
     });
   });
 
+  test<CustomTestContext>("allows a granted content editor to sync text but not metadata", async ({
+    apiCallers,
+  }) => {
+    const owner = apiCallers[0];
+    const collaborator = apiCallers[1];
+    const collaboratorUser = await collaborator.users.whoami();
+    const list = await owner.lists.create({
+      name: "Offline shared writing",
+      icon: "folder",
+      type: "manual",
+    });
+    const bookmark = await owner.bookmarks.createBookmark({
+      type: BookmarkTypes.TEXT,
+      text: "Before offline edit",
+    });
+    await owner.lists.addToList({
+      listId: list.id,
+      bookmarkId: bookmark.id,
+    });
+    const { invitationId } = await owner.lists.addCollaborator({
+      listId: list.id,
+      email: collaboratorUser.email!,
+      role: "viewer",
+    });
+    await collaborator.lists.acceptInvitation({ invitationId });
+    await owner.bookmarks.grantContentEditor({
+      bookmarkId: bookmark.id,
+      userId: collaboratorUser.id,
+    });
+
+    const permissions = await collaborator.bookmarks.getContentPermissions({
+      bookmarkId: bookmark.id,
+    });
+    const ownerBeforeEdit = await owner.offlineSync.snapshot();
+    const textMutation = {
+      idempotencyKey: "18faab3e-9ccf-41ea-bd70-0b9aa4c31d88",
+      kind: "bookmark.update" as const,
+      bookmarkId: bookmark.id,
+      fields: { text: "After offline edit" },
+      baseVersions: { text: permissions.textVersion },
+    };
+    const textResult = await collaborator.offlineSync.push({
+      mutations: [textMutation],
+    });
+    expect(textResult.acknowledged).toEqual([textMutation.idempotencyKey]);
+
+    const saved = await owner.bookmarks.getBookmark({
+      bookmarkId: bookmark.id,
+    });
+    expect(saved.content).toMatchObject({
+      type: BookmarkTypes.TEXT,
+      text: "After offline edit",
+    });
+    const ownerDelta = await owner.offlineSync.pull({
+      cursor: ownerBeforeEdit.cursor,
+    });
+    expect(ownerDelta.events).toContainEqual(
+      expect.objectContaining({
+        entityId: bookmark.id,
+        changedFields: ["text"],
+      }),
+    );
+
+    const metadataMutation = {
+      idempotencyKey: "9adbc0b3-54f7-4306-a1f8-a54af7f7b76a",
+      kind: "bookmark.update" as const,
+      bookmarkId: bookmark.id,
+      fields: { title: "Not allowed offline" },
+      baseVersions: { title: 0 },
+    };
+    const metadataResult = await collaborator.offlineSync.push({
+      mutations: [metadataMutation],
+    });
+    expect(metadataResult.rejections).toEqual([
+      expect.objectContaining({
+        idempotencyKey: metadataMutation.idempotencyKey,
+        bookmarkId: bookmark.id,
+        code: "FORBIDDEN",
+      }),
+    ]);
+  });
+
   test<CustomTestContext>("replays existing-list membership intent idempotently", async ({
     apiCallers,
   }) => {

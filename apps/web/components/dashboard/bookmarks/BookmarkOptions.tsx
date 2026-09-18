@@ -34,6 +34,7 @@ import {
   MoreHorizontal,
   Pencil,
   RotateCw,
+  ShieldCheck,
   SquarePen,
   Trash2,
 } from "lucide-react";
@@ -52,12 +53,16 @@ import {
 } from "@karakeep/shared-react/hooks/assets";
 import { useBookmarkGridContext } from "@karakeep/shared-react/hooks/bookmark-grid-context";
 import { useBookmarkListContext } from "@karakeep/shared-react/hooks/bookmark-list-context";
-import { useRecrawlBookmark } from "@karakeep/shared-react/hooks/bookmarks";
+import {
+  useBookmarkContentPermissions,
+  useRecrawlBookmark,
+} from "@karakeep/shared-react/hooks/bookmarks";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import { getFilePickerAccept } from "@karakeep/shared/content-support";
 import { getAssetUrl } from "@karakeep/shared/utils/assetUtils";
 
 import { BookmarkedTextEditor } from "./BookmarkedTextEditor";
+import { SharedContentPermissionsModal } from "./SharedContentPermissionsModal";
 import { canRemoveBookmarkFromList } from "./bookmarkListPermissions";
 import DeleteBookmarkConfirmationDialog from "./DeleteBookmarkConfirmationDialog";
 import { EditBookmarkDialog } from "./EditBookmarkDialog";
@@ -102,6 +107,13 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
   const requiresOnline = offlineStatus.kind !== "online";
 
   const isOwner = session?.user?.id === bookmark.userId;
+  const { data: contentPermissions } = useBookmarkContentPermissions(
+    bookmark.id,
+    bookmark.content.type === BookmarkTypes.TEXT,
+  );
+  const hasContentEditAccess =
+    bookmark.content.type === BookmarkTypes.TEXT &&
+    (isOwner || contentPermissions?.canEdit === true);
   const isPdfAsset =
     bookmark.content.type === BookmarkTypes.ASSET &&
     bookmark.content.assetType === "pdf";
@@ -122,6 +134,7 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
   const [deleteBookmarkDialogOpen, setDeleteBookmarkDialogOpen] =
     useState(false);
   const [isTextEditorOpen, setTextEditorOpen] = useState(false);
+  const [isSharedContentOpen, setSharedContentOpen] = useState(false);
   const [isEditBookmarkDialogOpen, setEditBookmarkDialogOpen] = useState(false);
 
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
@@ -287,12 +300,20 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
       id: "open-editor",
       title: t("actions.open_editor"),
       icon: <SquarePen className="mr-2 size-4" />,
-      visible: isOwner && bookmark.content.type === BookmarkTypes.TEXT,
+      visible: hasContentEditAccess,
       disabled: requiresOnline,
       disabledMessage: requiresOnline
         ? OFFLINE_ONLINE_REQUIRED_MESSAGE
         : undefined,
       onClick: () => setTextEditorOpen(true),
+    },
+    {
+      id: "shared-content",
+      title: "Shared content",
+      icon: <ShieldCheck className="mr-2 size-4" />,
+      visible: isOwner && bookmark.content.type === BookmarkTypes.TEXT,
+      disabled: false,
+      onClick: () => setSharedContentOpen(true),
     },
     {
       id: "favorite",
@@ -524,7 +545,16 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
         bookmark={bookmark}
         open={isTextEditorOpen}
         setOpen={setTextEditorOpen}
+        canEditContent={hasContentEditAccess}
+        textVersion={contentPermissions?.textVersion}
       />
+      {bookmark.content.type === BookmarkTypes.TEXT && isOwner && (
+        <SharedContentPermissionsModal
+          bookmark={bookmark}
+          open={isSharedContentOpen}
+          setOpen={setSharedContentOpen}
+        />
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

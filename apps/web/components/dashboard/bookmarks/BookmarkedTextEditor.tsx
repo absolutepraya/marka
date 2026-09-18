@@ -12,10 +12,14 @@ export function BookmarkedTextEditor({
   bookmark,
   open,
   setOpen,
+  canEditContent,
+  textVersion,
 }: {
   bookmark: ZBookmark;
   open: boolean;
   setOpen: (open: boolean) => void;
+  canEditContent: boolean;
+  textVersion?: number;
 }) {
   const isNewBookmark = bookmark === undefined;
 
@@ -28,7 +32,12 @@ export function BookmarkedTextEditor({
           </DialogTitle>
         </DialogHeader>
         <div className="h-[80vh]">
-          <BookmarkMarkdownComponent readOnly={false}>
+          <BookmarkMarkdownComponent
+            readOnly={false}
+            canEditContent={canEditContent}
+            textVersion={textVersion}
+            onUseServer={() => setOpen(false)}
+          >
             {bookmark as ZBookmarkTypeText}
           </BookmarkMarkdownComponent>
         </div>

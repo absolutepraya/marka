@@ -241,6 +241,8 @@ export type ZGetBookmarksResponse = z.infer<typeof zGetBookmarksResponseSchema>;
 // PATCH /v1/bookmarks/[bookmarkId]
 export const zUpdateBookmarksRequestSchema = z.object({
   bookmarkId: z.string(),
+  // Collaborative text saves must identify the canonical revision they edited.
+  textBaseVersion: z.number().int().nonnegative().optional(),
   archived: z.boolean().optional(),
   favourited: z.boolean().optional(),
   summary: z.string().nullish(),

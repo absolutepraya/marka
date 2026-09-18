@@ -502,6 +502,26 @@ export const bookmarkTexts = sqliteTable("bookmarkTexts", {
     .default("markdown"),
 });
 
+export const bookmarkContentEditors = sqliteTable(
+  "bookmarkContentEditors",
+  {
+    bookmarkId: text("bookmarkId")
+      .notNull()
+      .references(() => bookmarks.id, { onDelete: "cascade" }),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    grantedAt: createdAtField(),
+    viewMembershipIds: text("viewMembershipIds", { mode: "json" })
+      .$type<string[]>()
+      .notNull(),
+  },
+  (bce) => [
+    primaryKey({ columns: [bce.bookmarkId, bce.userId] }),
+    index("bookmarkContentEditors_userId_idx").on(bce.userId),
+  ],
+);
+
 export const bookmarkAssets = sqliteTable("bookmarkAssets", {
   id: text("id")
     .notNull()
@@ -1111,6 +1131,7 @@ export const userRelations = relations(users, ({ many, one }) => ({
   subscription: one(subscriptions),
   importSessions: many(importSessions),
   listCollaborations: many(listCollaborators),
+  bookmarkContentEditorGrants: many(bookmarkContentEditors),
   backups: many(backupsTable),
   listInvitations: many(listInvitations),
 }));
@@ -1128,6 +1149,7 @@ export const bookmarkRelations = relations(bookmarks, ({ many, one }) => ({
     fields: [bookmarks.id],
     references: [bookmarkTexts.id],
   }),
+  contentEditors: many(bookmarkContentEditors),
   transcript: one(bookmarkTranscripts, {
     fields: [bookmarks.id],
     references: [bookmarkTranscripts.bookmarkId],
@@ -1142,6 +1164,20 @@ export const bookmarkRelations = relations(bookmarks, ({ many, one }) => ({
   rssFeeds: many(rssFeedImportsTable),
   importSessionBookmarks: many(importSessionBookmarks),
 }));
+
+export const bookmarkContentEditorsRelations = relations(
+  bookmarkContentEditors,
+  ({ one }) => ({
+    bookmark: one(bookmarks, {
+      fields: [bookmarkContentEditors.bookmarkId],
+      references: [bookmarks.id],
+    }),
+    user: one(users, {
+      fields: [bookmarkContentEditors.userId],
+      references: [users.id],
+    }),
+  }),
+);
 
 export const assetRelations = relations(assets, ({ one }) => ({
   bookmark: one(bookmarks, {

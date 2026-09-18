@@ -26,6 +26,19 @@ export function useAutoRefreshingBookmarkQuery(
   );
 }
 
+export function useBookmarkContentPermissions(
+  bookmarkId: string,
+  enabled = true,
+) {
+  const api = useTRPC();
+  return useQuery(
+    api.bookmarks.getContentPermissions.queryOptions(
+      { bookmarkId },
+      { enabled },
+    ),
+  );
+}
+
 export function useCreateBookmark(
   opts?: Parameters<
     TRPCApi["bookmarks"]["createBookmark"]["mutationOptions"]

@@ -1,0 +1,1 @@
+ALTER TABLE `bookmarkContentEditors` ADD `viewMembershipIds` text NOT NULL;

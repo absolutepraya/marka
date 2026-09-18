@@ -166,6 +166,7 @@ function getOfflineUpdateFields(
   for (const [field, value] of Object.entries(input)) {
     if (
       field !== "bookmarkId" &&
+      field !== "textBaseVersion" &&
       value !== undefined &&
       !Object.hasOwn(OFFLINE_UPDATE_FIELD_SET, field)
     ) {

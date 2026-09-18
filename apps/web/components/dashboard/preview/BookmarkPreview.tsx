@@ -188,6 +188,12 @@ export default function BookmarkPreview({
       },
     ),
   );
+  const { data: contentPermissions } = useQuery(
+    api.bookmarks.getContentPermissions.queryOptions(
+      { bookmarkId },
+      { enabled: bookmark?.content.type === BookmarkTypes.TEXT },
+    ),
+  );
 
   if (!bookmark) {
     return <FullPageSpinner />;
@@ -203,7 +209,13 @@ export default function BookmarkPreview({
       break;
     }
     case BookmarkTypes.TEXT: {
-      content = <TextContentSection bookmark={bookmark} />;
+      content = (
+        <TextContentSection
+          bookmark={bookmark}
+          canEditContent={isOwner || contentPermissions?.canEdit === true}
+          textVersion={contentPermissions?.textVersion}
+        />
+      );
       break;
     }
     case BookmarkTypes.ASSET: {

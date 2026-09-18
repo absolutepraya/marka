@@ -1430,6 +1430,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "textBaseVersion": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
                   "archived": {
                     "type": "boolean"
                   },

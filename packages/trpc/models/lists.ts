@@ -37,6 +37,7 @@ import {
   getEffectiveCollaboratorsForList,
   setCollaborationScope,
 } from "./listCollaborationAccess";
+import { invalidateInactiveBookmarkContentEditorGrants } from "./bookmarkContentPermissions";
 import { ListInvitation } from "./listInvitations";
 
 interface ListCollaboratorEntry {
@@ -946,6 +947,7 @@ export class ManualList extends List {
         message: `Bookmark ${bookmarkId} is already not in list ${this.list.id}`,
       });
     }
+    await invalidateInactiveBookmarkContentEditorGrants(this.ctx, bookmarkId);
     const bookmark = await this.ctx.db.query.bookmarks.findFirst({
       where: eq(bookmarks.id, bookmarkId),
       columns: { userId: true },
