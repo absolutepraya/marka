@@ -1134,6 +1134,31 @@
       }
     }
   },
+  "shared_content": {
+    "title": "Shared content",
+    "description": "Give named people permission to edit this bookmark's Markdown or plain-text body. List roles and visibility stay separate.",
+    "add_editor": "Add a content editor",
+    "eligible_description": "Only people with current access through a shared manual list can be selected.",
+    "choose_person": "Choose a person",
+    "grant_access": "Grant access",
+    "grant_success": "Content editing access granted",
+    "revoke_success": "Content editing access revoked",
+    "no_eligible_users": "Share a manual list with someone first, then return here to grant content editing access.",
+    "current_editors": "Current content editors",
+    "loading": "Loading access…",
+    "revoke": "Revoke",
+    "no_editors": "No one else can edit this bookmark's content yet.",
+    "close": "Close"
+  },
+  "content_conflict": {
+    "title": "This text changed while you were editing",
+    "description": "Another save reached the server first. Choose which version should become the canonical bookmark content.",
+    "draft": "Your draft",
+    "server_version": "Server version",
+    "use_server": "Use server version",
+    "saving_draft": "Saving draft…",
+    "keep_draft": "Keep my draft"
+  },
   "dialogs": {
     "bookmarks": {
       "delete_confirmation_title": "Delete Bookmark?",

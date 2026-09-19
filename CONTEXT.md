@@ -16,6 +16,34 @@ _Avoid_: treating an asset subtype as a new bookmark type.
 The authoring format of a text bookmark, either Markdown or plain text.
 _Avoid_: assuming every text bookmark is Markdown.
 
+**Bookmark content**:
+The canonical saved body of a bookmark. For shared editing, this means the Markdown or plain-text body, not bookmark metadata or personal state.
+_Avoid_: using content to mean title, note, tags, list membership, or owner controls.
+
+**List role**:
+A user's permission to view a list, change its bookmark membership, or manage the list. A list editor does not automatically become a bookmark content editor.
+_Avoid_: treating list editor and content editor as synonyms.
+
+**Content editor**:
+A user with a distinct capability to edit shared bookmark content. This capability does not imply permission to change metadata, list membership, or delete the bookmark.
+_Avoid_: using editor without specifying whether it means a list editor or content editor.
+
+**Shared content editing**:
+Non-realtime editing of one canonical bookmark body. Multiple users may work on local drafts concurrently, but a stale save requires an explicit conflict decision.
+_Avoid_: calling this Google Docs-style realtime collaboration.
+
+**Content edit grant**:
+An explicit named permission on one bookmark, controlled only by the bookmark owner. It grants permission to edit the bookmark body, not permission to view the bookmark or change any other bookmark state.
+_Avoid_: deriving content edit permission from list ownership, list editor role, or public access.
+
+**Effective content access**:
+A user can edit shared content only when they have both an active content edit grant and a current authenticated view path through a manual shared list. Recursive manual-list access counts; public and smart-list access do not. If every qualifying view path is lost, the grant is dormant and must be granted again after access is restored.
+_Avoid_: treating a historical grant as permanently active after list access is revoked and restored.
+
+**Content edit conflict**:
+A stale save whose local draft was based on an older canonical text revision. The user must explicitly keep their draft or use the server version; v1 does not merge drafts automatically.
+_Avoid_: silently applying last-write-wins or implying realtime co-editing.
+
 **Highlight**:
 An annotation attached to a selected span of saved bookmark content, optionally with a color or note.
 _Avoid_: treating a highlight as a separate bookmark.

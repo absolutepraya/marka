@@ -55,6 +55,12 @@ export default function BookmarkView() {
       includeContent: false,
     }),
   );
+  const { data: contentPermissions } = useQuery(
+    api.bookmarks.getContentPermissions.queryOptions(
+      { bookmarkId: slug },
+      { enabled: bookmark?.content.type === BookmarkTypes.TEXT },
+    ),
+  );
 
   if (error) {
     return <FullPageError error={error.message} onRetry={refetch} />;
@@ -78,7 +84,13 @@ export default function BookmarkView() {
       break;
     case BookmarkTypes.TEXT:
       title = bookmark.title;
-      comp = <BookmarkTextView bookmark={bookmark} />;
+      comp = (
+        <BookmarkTextView
+          bookmark={bookmark}
+          canEditContent={contentPermissions?.canEdit === true}
+          textVersion={contentPermissions?.textVersion}
+        />
+      );
       break;
     case BookmarkTypes.ASSET:
       title = bookmark.title ?? bookmark.content.fileName;

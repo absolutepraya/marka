@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MarkdownEditor from "@/components/ui/markdown/markdown-editor";
 import { MarkdownReadonly } from "@/components/ui/markdown/markdown-readonly";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useUpdateBookmark } from "@karakeep/shared-react/hooks/bookmarks";
 import type { ZBookmarkTextFormat } from "@karakeep/shared/types/bookmarks";
 import { useTranslation } from "@/lib/i18n/client";
+
+import { useTRPC } from "@karakeep/shared-react/trpc";
+
+import { BookmarkContentConflictDialog } from "./BookmarkContentConflictDialog";
 
 function PlainTextEditor({
   initialText,
@@ -45,6 +50,9 @@ function PlainTextEditor({
 export function BookmarkMarkdownComponent({
   children: bookmark,
   readOnly = true,
+  canEditContent = false,
+  textVersion,
+  onUseServer,
 }: {
   children: {
     id: string;
@@ -54,57 +62,147 @@ export function BookmarkMarkdownComponent({
     };
   };
   readOnly?: boolean;
+  canEditContent?: boolean;
+  textVersion?: number;
+  onUseServer?: () => void;
 }) {
   const { t } = useTranslation();
-  const { mutate: updateBookmarkMutator, isPending } = useUpdateBookmark({
-    onSuccess: () => {
+  const api = useTRPC();
+  const queryClient = useQueryClient();
+  const { mutateAsync: updateBookmark, isPending } = useUpdateBookmark();
+  const baseVersionRef = useRef(textVersion);
+  const [conflict, setConflict] = useState<{
+    draft: string;
+    serverText: string;
+    serverVersion: number;
+  } | null>(null);
+
+  useEffect(() => {
+    baseVersionRef.current = textVersion;
+  }, [textVersion]);
+
+  const isConflictError = (error: unknown) =>
+    typeof error === "object" &&
+    error !== null &&
+    "data" in error &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "code" in error.data &&
+    error.data.code === "CONFLICT";
+
+  const onSave = async (
+    text: string,
+    version = baseVersionRef.current,
+  ): Promise<boolean> => {
+    if (!canEditContent) return false;
+    try {
+      await updateBookmark({
+        bookmarkId: bookmark.id,
+        text,
+        ...(version === undefined ? {} : { textBaseVersion: version }),
+      });
+      if (version !== undefined) {
+        baseVersionRef.current = version + 1;
+      }
       toast({
         description: t("actions.note_updated"),
       });
-    },
-    onError: () => {
+      return true;
+    } catch (error) {
+      if (isConflictError(error)) {
+        try {
+          const [serverBookmark, permissions] = await Promise.all([
+            queryClient.fetchQuery(
+              api.bookmarks.getBookmark.queryOptions({
+                bookmarkId: bookmark.id,
+                includeContent: false,
+              }),
+            ),
+            queryClient.fetchQuery(
+              api.bookmarks.getContentPermissions.queryOptions({
+                bookmarkId: bookmark.id,
+              }),
+            ),
+          ]);
+          setConflict({
+            draft: text,
+            serverText:
+              serverBookmark.content.type === "text"
+                ? serverBookmark.content.text
+                : "",
+            serverVersion: permissions.textVersion,
+          });
+        } catch {
+          toast({
+            description: t("common.something_went_wrong"),
+            variant: "destructive",
+          });
+        }
+        return false;
+      }
       toast({
         description: t("common.something_went_wrong"),
         variant: "destructive",
       });
-    },
-  });
-
-  const onSave = (text: string) => {
-    updateBookmarkMutator({
-      bookmarkId: bookmark.id,
-      text,
-    });
+      return false;
+    }
   };
 
   const format = bookmark.content.format ?? "markdown";
 
   return (
-    <div className="h-full">
-      {readOnly ? (
-        format === "plain" ? (
-          <pre className="bookmark-markdown-preview-plain whitespace-pre-wrap break-words font-sans">
-            {bookmark.content.text}
-          </pre>
+    <>
+      <div className="h-full">
+        {readOnly || !canEditContent ? (
+          format === "plain" ? (
+            <pre className="bookmark-markdown-preview-plain whitespace-pre-wrap break-words font-sans">
+              {bookmark.content.text}
+            </pre>
+          ) : (
+            <MarkdownReadonly
+              className="bookmark-markdown-preview"
+              onSave={canEditContent ? (text) => void onSave(text) : undefined}
+              allowTodoToggle={canEditContent}
+            >
+              {bookmark.content.text}
+            </MarkdownReadonly>
+          )
+        ) : format === "plain" ? (
+          <PlainTextEditor
+            initialText={bookmark.content.text}
+            isSaving={isPending}
+            onSave={(text) => void onSave(text)}
+          />
         ) : (
-          <MarkdownReadonly
-            className="bookmark-markdown-preview"
-            onSave={onSave}
+          <MarkdownEditor
+            onSave={(text) => void onSave(text)}
+            isSaving={isPending}
           >
             {bookmark.content.text}
-          </MarkdownReadonly>
-        )
-      ) : format === "plain" ? (
-        <PlainTextEditor
-          initialText={bookmark.content.text}
-          isSaving={isPending}
-          onSave={onSave}
-        />
-      ) : (
-        <MarkdownEditor onSave={onSave} isSaving={isPending}>
-          {bookmark.content.text}
-        </MarkdownEditor>
-      )}
-    </div>
+          </MarkdownEditor>
+        )}
+      </div>
+      <BookmarkContentConflictDialog
+        draft={conflict?.draft ?? null}
+        serverText={conflict?.serverText ?? null}
+        isSaving={isPending}
+        onUseServer={() => {
+          setConflict(null);
+          onUseServer?.();
+        }}
+        onKeepDraft={() => {
+          if (conflict) {
+            baseVersionRef.current = conflict.serverVersion;
+            void onSave(conflict.draft, conflict.serverVersion).then(
+              (saved) => {
+                if (saved) {
+                  setConflict(null);
+                }
+              },
+            );
+          }
+        }}
+      />
+    </>
   );
 }

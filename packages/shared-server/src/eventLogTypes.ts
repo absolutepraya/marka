@@ -149,6 +149,31 @@ type EventLogInternal =
       "bookmark.favorited"?: boolean;
     }
   | {
+      ["event.name"]: "bookmark.content_edit";
+      "bookmark.id"?: string;
+      "content.version"?: number;
+    }
+  | {
+      ["event.name"]: "bookmark.content_edit_grant";
+      "bookmark.id"?: string;
+      "content.editor_id": string;
+    }
+  | {
+      ["event.name"]: "bookmark.content_edit_revoke";
+      "bookmark.id"?: string;
+      "content.editor_id": string;
+      "content.revoke_reason"?: "owner" | "view_access_lost";
+    }
+  | {
+      ["event.name"]: "bookmark.content_edit_denied";
+      "bookmark.id"?: string;
+      "content.denial_reason"?:
+        | "not_granted"
+        | "view_access_lost"
+        | "unsupported_update"
+        | "stale_revision";
+    }
+  | {
       ["event.name"]: "bookmark.import";
       "import.source"?: string;
       "import.count"?: number;

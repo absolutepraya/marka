@@ -11,7 +11,15 @@ import type { ZBookmarkTypeText } from "@karakeep/shared/types/bookmarks";
 import { BookmarkTypes, ZBookmark } from "@karakeep/shared/types/bookmarks";
 import { getAssetUrl } from "@karakeep/shared/utils/assetUtils";
 
-export function TextContentSection({ bookmark }: { bookmark: ZBookmark }) {
+export function TextContentSection({
+  bookmark,
+  canEditContent = false,
+  textVersion,
+}: {
+  bookmark: ZBookmark;
+  canEditContent?: boolean;
+  textVersion?: number;
+}) {
   if (bookmark.content.type != BookmarkTypes.TEXT) {
     throw new Error("Invalid content type");
   }
@@ -46,7 +54,10 @@ export function TextContentSection({ bookmark }: { bookmark: ZBookmark }) {
               {t("preview.reader_view")}
             </Link>
           </div>
-          <BookmarkMarkdownComponent>
+          <BookmarkMarkdownComponent
+            canEditContent={canEditContent}
+            textVersion={textVersion}
+          >
             {bookmark as ZBookmarkTypeText}
           </BookmarkMarkdownComponent>
         </div>

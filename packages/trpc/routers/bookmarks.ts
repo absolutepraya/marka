@@ -69,12 +69,55 @@ import { Asset } from "../models/assets";
 import { BareBookmark, Bookmark } from "../models/bookmarks";
 import { WebhooksService } from "../models/webhooks.service";
 import {
+  assertCanEditBookmarkContent,
+  getBookmarkContentPermissions,
+  getBookmarkTextVersion,
+  grantBookmarkContentEditor,
+  revokeBookmarkContentEditor,
+} from "../models/bookmarkContentPermissions";
+import {
   getOfflineSyncBookmarkRecipientIds,
   recordOfflineSyncEvent,
   recordOfflineSyncEvents,
 } from "../models/offlineSync";
 
 const bookmarksProcedure = createScopedAuthedProcedure("bookmarks");
+
+const zBookmarkContentUser = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  image: z.string().nullable(),
+});
+
+const zBookmarkContentPermissions = z.object({
+  canEdit: z.boolean(),
+  canManage: z.boolean(),
+  hasCurrentManualView: z.boolean(),
+  textVersion: z.number().int().nonnegative(),
+  editors: z.array(
+    zBookmarkContentUser.extend({
+      grantedAt: z.date(),
+    }),
+  ),
+  eligibleUsers: z.array(zBookmarkContentUser),
+});
+
+function isTextOnlyBookmarkUpdate(
+  input: z.infer<typeof zUpdateBookmarksRequestSchema>,
+): boolean {
+  return (
+    input.text !== undefined &&
+    input.text !== null &&
+    Object.entries(input).every(
+      ([key, value]) =>
+        value === undefined ||
+        key === "bookmarkId" ||
+        key === "text" ||
+        key === "textBaseVersion",
+    )
+  );
+}
 
 export const ensureBookmarkOwnership = experimental_trpcMiddleware<{
   ctx: AuthedContext;
@@ -541,9 +584,60 @@ export const bookmarksAppRouter = router({
   updateBookmark: bookmarksProcedure
     .input(zUpdateBookmarksRequestSchema)
     .output(zBookmarkSchema)
-    .use(ensureBookmarkOwnership)
+    .use(ensureBookmarkAccess)
     .mutation(async ({ input, ctx }) => {
+      const isOwner = ctx.bookmark.userId === ctx.user.id;
+      if (!isOwner && !isTextOnlyBookmarkUpdate(input)) {
+        logEvent({
+          "event.name": "bookmark.content_edit_denied",
+          "bookmark.id": input.bookmarkId,
+          "content.denial_reason": "unsupported_update",
+        });
+        // Preserve the existing ownership error for metadata and state edits.
+        ctx.bookmark.ensureOwnership();
+      }
+      if (input.text !== undefined && input.textBaseVersion === undefined) {
+        logEvent({
+          "event.name": "bookmark.content_edit_denied",
+          "bookmark.id": input.bookmarkId,
+          "content.denial_reason": "stale_revision",
+        });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "A text base version is required for shared content edits",
+        });
+      }
+
+      let savedTextVersion: number | undefined;
       await ctx.db.transaction(async (tx) => {
+        const transactionContext = {
+          ...ctx,
+          db: tx,
+        } as unknown as AuthedContext;
+        if (!isOwner) {
+          await assertCanEditBookmarkContent(
+            transactionContext,
+            input.bookmarkId,
+          );
+        }
+        if (input.textBaseVersion !== undefined) {
+          const currentTextVersion = await getBookmarkTextVersion(
+            tx,
+            input.bookmarkId,
+          );
+          if (currentTextVersion !== input.textBaseVersion) {
+            logEvent({
+              "event.name": "bookmark.content_edit_denied",
+              "bookmark.id": input.bookmarkId,
+              "content.denial_reason": "stale_revision",
+            });
+            throw new TRPCError({
+              code: "CONFLICT",
+              message:
+                "The bookmark content changed after this draft was opened",
+            });
+          }
+        }
         const offlineChangedFields = [
           ...(input.title !== undefined ? ["title"] : []),
           ...(input.archived !== undefined ? ["archived"] : []),
@@ -602,7 +696,7 @@ export const bookmarksAppRouter = router({
           somethingChanged = true;
         }
 
-        if (input.text) {
+        if (input.text !== undefined) {
           const result = await tx
             .update(bookmarkTexts)
             .set({
@@ -677,18 +771,14 @@ export const bookmarksAppRouter = router({
           await tx
             .update(bookmarks)
             .set(commonUpdateData)
-            .where(
-              and(
-                eq(bookmarks.userId, ctx.user.id),
-                eq(bookmarks.id, input.bookmarkId),
-              ),
-            );
+            .where(eq(bookmarks.id, input.bookmarkId));
         }
         if (offlineChangedFields.length > 0) {
           await recordOfflineSyncEvents(
             tx,
             ctx.user.id,
             await getOfflineSyncBookmarkRecipientIds(
+              ctx,
               tx,
               ctx.user.id,
               input.bookmarkId,
@@ -698,6 +788,9 @@ export const bookmarksAppRouter = router({
             "update",
             offlineChangedFields,
           );
+        }
+        if (input.text !== undefined) {
+          savedTextVersion = await getBookmarkTextVersion(tx, input.bookmarkId);
         }
       });
 
@@ -755,6 +848,14 @@ export const bookmarksAppRouter = router({
         ),
       ]);
 
+      if (input.text !== undefined) {
+        logEvent({
+          "event.name": "bookmark.content_edit",
+          "bookmark.id": input.bookmarkId,
+          "content.version": savedTextVersion,
+        });
+      }
+
       return updatedBookmark;
     }),
 
@@ -764,11 +865,53 @@ export const bookmarksAppRouter = router({
       z.object({
         bookmarkId: z.string(),
         text: z.string(),
+        textBaseVersion: z.number().int().nonnegative().optional(),
       }),
     )
-    .use(ensureBookmarkOwnership)
+    .use(ensureBookmarkAccess)
     .mutation(async ({ input, ctx }) => {
+      const isOwner = ctx.bookmark.userId === ctx.user.id;
+      if (input.text !== undefined && input.textBaseVersion === undefined) {
+        logEvent({
+          "event.name": "bookmark.content_edit_denied",
+          "bookmark.id": input.bookmarkId,
+          "content.denial_reason": "stale_revision",
+        });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "A text base version is required for shared content edits",
+        });
+      }
+      let savedTextVersion: number | undefined;
       await ctx.db.transaction(async (tx) => {
+        const transactionContext = {
+          ...ctx,
+          db: tx,
+        } as unknown as AuthedContext;
+        if (!isOwner) {
+          await assertCanEditBookmarkContent(
+            transactionContext,
+            input.bookmarkId,
+          );
+        }
+        if (input.textBaseVersion !== undefined) {
+          const currentTextVersion = await getBookmarkTextVersion(
+            tx,
+            input.bookmarkId,
+          );
+          if (currentTextVersion !== input.textBaseVersion) {
+            logEvent({
+              "event.name": "bookmark.content_edit_denied",
+              "bookmark.id": input.bookmarkId,
+              "content.denial_reason": "stale_revision",
+            });
+            throw new TRPCError({
+              code: "CONFLICT",
+              message:
+                "The bookmark content changed after this draft was opened",
+            });
+          }
+        }
         const res = await tx
           .update(bookmarkTexts)
           .set({
@@ -785,16 +928,12 @@ export const bookmarksAppRouter = router({
         await tx
           .update(bookmarks)
           .set({ modifiedAt: new Date() })
-          .where(
-            and(
-              eq(bookmarks.id, input.bookmarkId),
-              eq(bookmarks.userId, ctx.user.id),
-            ),
-          );
+          .where(eq(bookmarks.id, input.bookmarkId));
         await recordOfflineSyncEvents(
           tx,
           ctx.user.id,
           await getOfflineSyncBookmarkRecipientIds(
+            ctx,
             tx,
             ctx.user.id,
             input.bookmarkId,
@@ -804,6 +943,7 @@ export const bookmarksAppRouter = router({
           "update",
           ["text"],
         );
+        savedTextVersion = await getBookmarkTextVersion(tx, input.bookmarkId);
       });
       await Promise.all([
         triggerSearchReindex(input.bookmarkId, {
@@ -818,6 +958,11 @@ export const bookmarksAppRouter = router({
           },
         ),
       ]);
+      logEvent({
+        "event.name": "bookmark.content_edit",
+        "bookmark.id": input.bookmarkId,
+        "content.version": savedTextVersion,
+      });
     }),
 
   deleteBookmark: bookmarksProcedure
@@ -832,6 +977,7 @@ export const bookmarksAppRouter = router({
           tx,
           ctx.user.id,
           await getOfflineSyncBookmarkRecipientIds(
+            ctx,
             tx,
             ctx.user.id,
             input.bookmarkId,
@@ -957,6 +1103,39 @@ export const bookmarksAppRouter = router({
       return (
         await Bookmark.fromId(ctx, input.bookmarkId, input.includeContent)
       ).asZBookmark();
+    }),
+  getContentPermissions: bookmarksProcedure
+    .input(z.object({ bookmarkId: z.string() }))
+    .output(zBookmarkContentPermissions)
+    .use(ensureBookmarkAccess)
+    .query(async ({ input, ctx }) => {
+      return await getBookmarkContentPermissions(ctx, input.bookmarkId);
+    }),
+  grantContentEditor: bookmarksProcedure
+    .input(
+      z.object({
+        bookmarkId: z.string(),
+        userId: z.string(),
+      }),
+    )
+    .output(z.object({ success: z.literal(true) }))
+    .use(ensureBookmarkAccess)
+    .mutation(async ({ input, ctx }) => {
+      await grantBookmarkContentEditor(ctx, input.bookmarkId, input.userId);
+      return { success: true as const };
+    }),
+  revokeContentEditor: bookmarksProcedure
+    .input(
+      z.object({
+        bookmarkId: z.string(),
+        userId: z.string(),
+      }),
+    )
+    .output(z.object({ success: z.literal(true) }))
+    .use(ensureBookmarkAccess)
+    .mutation(async ({ input, ctx }) => {
+      await revokeBookmarkContentEditor(ctx, input.bookmarkId, input.userId);
+      return { success: true as const };
     }),
   searchBookmarks: bookmarksProcedure
     .use(createBookmarksQueriedMiddleware())
@@ -1344,6 +1523,7 @@ export const bookmarksAppRouter = router({
             tx,
             ctx.user.id,
             await getOfflineSyncBookmarkRecipientIds(
+              ctx,
               tx,
               ctx.user.id,
               input.bookmarkId,
