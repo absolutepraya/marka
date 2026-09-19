@@ -137,6 +137,30 @@ describe("useOfflineSafeBookmarkMutation", () => {
     expect(mocks.onlineUpdateMutateAsync).not.toHaveBeenCalled();
   });
 
+  it("preserves an explicit text base version when queuing offline", async () => {
+    const { result } = renderHook(() => useOfflineSafeBookmarkUpdate());
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        bookmarkId: "b1",
+        text: "Draft text",
+        textBaseVersion: 2,
+      });
+    });
+
+    expect(mocks.queueBookmarkUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookmarkId: "b1",
+        fields: { text: "Draft text" },
+        baseVersions: { text: 2 },
+      }),
+    );
+    expect(mocks.getBookmarkFieldVersion).not.toHaveBeenCalledWith(
+      "b1",
+      "text",
+    );
+  });
+
   it("requires verified replica field versions before queuing offline", async () => {
     mocks.getBookmarkFieldVersion.mockResolvedValue(undefined);
     const { result } = renderHook(() => useOfflineSafeBookmarkUpdate());

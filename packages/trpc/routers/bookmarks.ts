@@ -596,7 +596,7 @@ export const bookmarksAppRouter = router({
         // Preserve the existing ownership error for metadata and state edits.
         ctx.bookmark.ensureOwnership();
       }
-      if (!isOwner && input.textBaseVersion === undefined) {
+      if (input.text !== undefined && input.textBaseVersion === undefined) {
         logEvent({
           "event.name": "bookmark.content_edit_denied",
           "bookmark.id": input.bookmarkId,
@@ -871,7 +871,7 @@ export const bookmarksAppRouter = router({
     .use(ensureBookmarkAccess)
     .mutation(async ({ input, ctx }) => {
       const isOwner = ctx.bookmark.userId === ctx.user.id;
-      if (!isOwner && input.textBaseVersion === undefined) {
+      if (input.text !== undefined && input.textBaseVersion === undefined) {
         logEvent({
           "event.name": "bookmark.content_edit_denied",
           "bookmark.id": input.bookmarkId,

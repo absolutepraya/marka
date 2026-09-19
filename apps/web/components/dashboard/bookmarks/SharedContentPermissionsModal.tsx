@@ -26,6 +26,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
 import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
+import { useTranslation } from "@/lib/i18n/client";
 
 export function SharedContentPermissionsModal({
   bookmark,
@@ -40,6 +41,7 @@ export function SharedContentPermissionsModal({
 }) {
   const api = useTRPC();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [selectedUserId, setSelectedUserId] = useState<string>();
   const { data, isPending } = useQuery(
     api.bookmarks.getContentPermissions.queryOptions(
@@ -64,7 +66,7 @@ export function SharedContentPermissionsModal({
       onSuccess: async () => {
         setSelectedUserId(undefined);
         await invalidate();
-        toast({ description: "Content editing access granted" });
+        toast({ description: t("shared_content.grant_success") });
       },
       onError: (error) =>
         toast({ variant: "destructive", description: error.message }),
@@ -74,7 +76,7 @@ export function SharedContentPermissionsModal({
     api.bookmarks.revokeContentEditor.mutationOptions({
       onSuccess: async () => {
         await invalidate();
-        toast({ description: "Content editing access revoked" });
+        toast({ description: t("shared_content.revoke_success") });
       },
       onError: (error) =>
         toast({ variant: "destructive", description: error.message }),
@@ -88,11 +90,10 @@ export function SharedContentPermissionsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="size-5" aria-hidden="true" />
-            Shared content
+            {t("shared_content.title")}
           </DialogTitle>
           <DialogDescription>
-            Give named people permission to edit this bookmark&apos;s Markdown
-            or plain-text body. List roles and visibility stay separate.
+            {t("shared_content.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -100,11 +101,10 @@ export function SharedContentPermissionsModal({
           <section className="space-y-3" aria-labelledby="add-content-editor">
             <div>
               <h3 id="add-content-editor" className="text-sm font-medium">
-                Add a content editor
+                {t("shared_content.add_editor")}
               </h3>
               <p className="text-sm text-muted-foreground">
-                Only people with current access through a shared manual list can
-                be selected.
+                {t("shared_content.eligible_description")}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -114,7 +114,9 @@ export function SharedContentPermissionsModal({
                 disabled={isPending || grant.isPending}
               >
                 <SelectTrigger className="min-h-10 min-w-0 flex-1">
-                  <SelectValue placeholder="Choose a person" />
+                  <SelectValue
+                    placeholder={t("shared_content.choose_person")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {data?.eligibleUsers.map((user) => (
@@ -153,13 +155,12 @@ export function SharedContentPermissionsModal({
                 ) : (
                   <UserPlus className="size-4" />
                 )}
-                Grant access
+                {t("shared_content.grant_access")}
               </Button>
             </div>
             {data?.eligibleUsers.length === 0 && (
               <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                Share a manual list with someone first, then return here to
-                grant content editing access.
+                {t("shared_content.no_eligible_users")}
               </p>
             )}
           </section>
@@ -170,13 +171,14 @@ export function SharedContentPermissionsModal({
           >
             <div className="flex items-center justify-between gap-3">
               <h3 id="current-content-editors" className="text-sm font-medium">
-                Current content editors
+                {t("shared_content.current_editors")}
               </h3>
               <Badge variant="secondary">{data?.editors.length ?? 0}</Badge>
             </div>
             {isPending ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" /> Loading access…
+                <Loader2 className="size-4 animate-spin" />{" "}
+                {t("shared_content.loading")}
               </div>
             ) : data?.editors.length ? (
               <div className="space-y-2">
@@ -214,14 +216,14 @@ export function SharedContentPermissionsModal({
                       }
                     >
                       <UserRoundX className="size-4" aria-hidden="true" />
-                      Revoke
+                      {t("shared_content.revoke")}
                     </Button>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                No one else can edit this bookmark&apos;s content yet.
+                {t("shared_content.no_editors")}
               </p>
             )}
           </section>
@@ -233,7 +235,7 @@ export function SharedContentPermissionsModal({
             variant="secondary"
             onClick={() => setOpen(false)}
           >
-            Close
+            {t("shared_content.close")}
           </Button>
         </DialogFooter>
       </ResponsiveDialogContent>

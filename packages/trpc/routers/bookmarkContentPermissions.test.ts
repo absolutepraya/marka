@@ -66,6 +66,13 @@ describe("Bookmark content permissions", () => {
       ]),
     );
 
+    await expect(
+      ownerApi.bookmarks.updateBookmark({
+        bookmarkId: bookmark.id,
+        text: "Missing revision",
+      }),
+    ).rejects.toThrow(/text base version is required/);
+
     await ownerApi.bookmarks.grantContentEditor({
       bookmarkId: bookmark.id,
       userId: (await collaboratorApi.users.whoami()).id,

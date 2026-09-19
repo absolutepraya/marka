@@ -827,9 +827,20 @@ describe("Bookmark Routes", () => {
       type: BookmarkTypes.TEXT,
     });
 
+    await expect(
+      api.updateBookmarkText({
+        bookmarkId: createdBookmark.id,
+        text: "WORLD HELLO",
+      }),
+    ).rejects.toThrow(/text base version is required/);
+
+    const permissions = await api.getContentPermissions({
+      bookmarkId: createdBookmark.id,
+    });
     await api.updateBookmarkText({
       bookmarkId: createdBookmark.id,
       text: "WORLD HELLO",
+      textBaseVersion: permissions.textVersion,
     });
 
     const bookmark = await api.getBookmark({ bookmarkId: createdBookmark.id });

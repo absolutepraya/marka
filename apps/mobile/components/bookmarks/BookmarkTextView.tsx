@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Keyboard,
@@ -38,13 +38,21 @@ export default function BookmarkTextView({
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = useState(false);
+  const isEditingRef = useRef(false);
   const initialText = bookmark.content.text;
   const [content, setContent] = useState(initialText);
   const [baseVersion, setBaseVersion] = useState(textVersion);
 
+  const setEditing = (editing: boolean) => {
+    isEditingRef.current = editing;
+    setIsEditing(editing);
+  };
+
   useEffect(() => {
+    if (isEditingRef.current) return;
+    setContent(initialText);
     setBaseVersion(textVersion);
-  }, [textVersion]);
+  }, [initialText, textVersion]);
 
   const { mutate, isPending } = useUpdateBookmark();
 
@@ -71,32 +79,39 @@ export default function BookmarkTextView({
                   bookmarkId: bookmark.id,
                 }),
               ),
-            ]).then(([serverBookmark, permissions]) => {
-              const serverText =
-                serverBookmark.content.type === BookmarkTypes.TEXT
-                  ? serverBookmark.content.text
-                  : "";
-              Alert.alert(
-                "Text changed elsewhere",
-                "Choose which version to keep.",
-                [
-                  {
-                    text: "Use server version",
-                    style: "cancel",
-                    onPress: () => {
-                      setContent(serverText);
-                      setBaseVersion(permissions.textVersion);
-                      setIsEditing(false);
+            ])
+              .then(([serverBookmark, permissions]) => {
+                const serverText =
+                  serverBookmark.content.type === BookmarkTypes.TEXT
+                    ? serverBookmark.content.text
+                    : "";
+                Alert.alert(
+                  "Text changed elsewhere",
+                  "Choose which version to keep.",
+                  [
+                    {
+                      text: "Use server version",
+                      style: "cancel",
+                      onPress: () => {
+                        setContent(serverText);
+                        setBaseVersion(permissions.textVersion);
+                        setEditing(false);
+                      },
                     },
-                  },
-                  {
-                    text: "Keep my draft",
-                    onPress: () =>
-                      handleSave(input.text ?? "", permissions.textVersion),
-                  },
-                ],
-              );
-            });
+                    {
+                      text: "Keep my draft",
+                      onPress: () =>
+                        handleSave(input.text ?? "", permissions.textVersion),
+                    },
+                  ],
+                );
+              })
+              .catch(() => {
+                toast({
+                  message: "Something went wrong",
+                  variant: "destructive",
+                });
+              });
             return;
           }
           toast({
@@ -105,7 +120,8 @@ export default function BookmarkTextView({
           });
         },
         onSuccess: () => {
-          setIsEditing(false);
+          setContent(draft);
+          setEditing(false);
           setBaseVersion((current) =>
             version === undefined ? current : version + 1,
           );
@@ -120,7 +136,8 @@ export default function BookmarkTextView({
 
   const handleDiscard = () => {
     setContent(initialText);
-    setIsEditing(false);
+    setBaseVersion(textVersion);
+    setEditing(false);
     Keyboard.dismiss();
   };
 
@@ -170,7 +187,7 @@ export default function BookmarkTextView({
     <ScrollView className="m-4 flex-1 rounded-lg border border-border bg-card p-2">
       <Pressable
         disabled={!canEditContent}
-        onPress={() => canEditContent && setIsEditing(true)}
+        onPress={() => canEditContent && setEditing(true)}
       >
         <View className="min-h-[200px] rounded-xl p-4">
           <BookmarkTextMarkdown text={content} />

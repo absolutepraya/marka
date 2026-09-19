@@ -185,12 +185,16 @@ function getOfflineUpdateFields(
 async function getRequiredFieldVersions(
   bookmarkId: string,
   fields: string[],
+  suppliedVersions: Partial<Record<string, number>> = {},
 ): Promise<Record<string, number>> {
   const versions = await Promise.all(
-    fields.map(
-      async (field) =>
-        [field, await getBookmarkFieldVersion(bookmarkId, field)] as const,
-    ),
+    fields.map(async (field) => {
+      const suppliedVersion = suppliedVersions[field];
+      if (suppliedVersion !== undefined) {
+        return [field, suppliedVersion] as const;
+      }
+      return [field, await getBookmarkFieldVersion(bookmarkId, field)] as const;
+    }),
   );
   const baseVersions: Record<string, number> = {};
   for (const [field, version] of versions) {
@@ -246,6 +250,9 @@ export function useOfflineSafeBookmarkUpdate(): OfflineSafeBookmarkMutation<
         const baseVersions = await getRequiredFieldVersions(
           input.bookmarkId,
           changedFields,
+          input.text !== undefined && input.textBaseVersion !== undefined
+            ? { text: input.textBaseVersion }
+            : undefined,
         );
         await queueBookmarkUpdate({
           idempotencyKey: queueMutationIdempotencyKey(),

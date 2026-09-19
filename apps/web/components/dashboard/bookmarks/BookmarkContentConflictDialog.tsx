@@ -9,6 +9,7 @@ import {
   ResponsiveDialogContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/lib/i18n/client";
 
 export function BookmarkContentConflictDialog({
   draft,
@@ -23,26 +24,29 @@ export function BookmarkContentConflictDialog({
   onKeepDraft: () => void;
   onUseServer: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <Dialog open={draft !== null}>
       <ResponsiveDialogContent hideCloseBtn className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>This text changed while you were editing</DialogTitle>
+          <DialogTitle>{t("content_conflict.title")}</DialogTitle>
           <DialogDescription>
-            Another save reached the server first. Choose which version should
-            become the canonical bookmark content.
+            {t("content_conflict.description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4" role="alert">
           <div className="space-y-1.5">
-            <p className="text-sm font-medium">Your draft</p>
+            <p className="text-sm font-medium">{t("content_conflict.draft")}</p>
             <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border bg-muted/50 p-3 text-sm">
               {draft ?? ""}
             </pre>
           </div>
           <div className="space-y-1.5">
-            <p className="text-sm font-medium">Server version</p>
+            <p className="text-sm font-medium">
+              {t("content_conflict.server_version")}
+            </p>
             <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border bg-muted/50 p-3 text-sm">
               {serverText ?? ""}
             </pre>
@@ -57,7 +61,7 @@ export function BookmarkContentConflictDialog({
             disabled={isSaving}
             onClick={onUseServer}
           >
-            Use server version
+            {t("content_conflict.use_server")}
           </Button>
           <Button
             type="button"
@@ -65,7 +69,9 @@ export function BookmarkContentConflictDialog({
             disabled={isSaving}
             onClick={onKeepDraft}
           >
-            {isSaving ? "Saving draft…" : "Keep my draft"}
+            {isSaving
+              ? t("content_conflict.saving_draft")
+              : t("content_conflict.keep_draft")}
           </Button>
         </DialogFooter>
       </ResponsiveDialogContent>

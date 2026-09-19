@@ -110,27 +110,34 @@ export function BookmarkMarkdownComponent({
       return true;
     } catch (error) {
       if (isConflictError(error)) {
-        const [serverBookmark, permissions] = await Promise.all([
-          queryClient.fetchQuery(
-            api.bookmarks.getBookmark.queryOptions({
-              bookmarkId: bookmark.id,
-              includeContent: false,
-            }),
-          ),
-          queryClient.fetchQuery(
-            api.bookmarks.getContentPermissions.queryOptions({
-              bookmarkId: bookmark.id,
-            }),
-          ),
-        ]);
-        setConflict({
-          draft: text,
-          serverText:
-            serverBookmark.content.type === "text"
-              ? serverBookmark.content.text
-              : "",
-          serverVersion: permissions.textVersion,
-        });
+        try {
+          const [serverBookmark, permissions] = await Promise.all([
+            queryClient.fetchQuery(
+              api.bookmarks.getBookmark.queryOptions({
+                bookmarkId: bookmark.id,
+                includeContent: false,
+              }),
+            ),
+            queryClient.fetchQuery(
+              api.bookmarks.getContentPermissions.queryOptions({
+                bookmarkId: bookmark.id,
+              }),
+            ),
+          ]);
+          setConflict({
+            draft: text,
+            serverText:
+              serverBookmark.content.type === "text"
+                ? serverBookmark.content.text
+                : "",
+            serverVersion: permissions.textVersion,
+          });
+        } catch {
+          toast({
+            description: t("common.something_went_wrong"),
+            variant: "destructive",
+          });
+        }
         return false;
       }
       toast({

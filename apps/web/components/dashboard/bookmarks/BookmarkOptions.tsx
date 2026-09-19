@@ -309,7 +309,7 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
     },
     {
       id: "shared-content",
-      title: "Shared content",
+      title: t("shared_content.title"),
       icon: <ShieldCheck className="mr-2 size-4" />,
       visible: isOwner && bookmark.content.type === BookmarkTypes.TEXT,
       disabled: false,
