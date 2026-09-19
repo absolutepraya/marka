@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MarkdownEditor from "@/components/ui/markdown/markdown-editor";
 import { MarkdownReadonly } from "@/components/ui/markdown/markdown-readonly";
 import { toast } from "@/components/ui/sonner";
@@ -70,7 +70,7 @@ export function BookmarkMarkdownComponent({
   const api = useTRPC();
   const queryClient = useQueryClient();
   const { mutateAsync: updateBookmark, isPending } = useUpdateBookmark();
-  const [baseVersion, setBaseVersion] = useState(textVersion);
+  const baseVersionRef = useRef(textVersion);
   const [conflict, setConflict] = useState<{
     draft: string;
     serverText: string;
@@ -78,7 +78,7 @@ export function BookmarkMarkdownComponent({
   } | null>(null);
 
   useEffect(() => {
-    setBaseVersion(textVersion);
+    baseVersionRef.current = textVersion;
   }, [textVersion]);
 
   const isConflictError = (error: unknown) =>
@@ -92,7 +92,7 @@ export function BookmarkMarkdownComponent({
 
   const onSave = async (
     text: string,
-    version = baseVersion,
+    version = baseVersionRef.current,
   ): Promise<boolean> => {
     if (!canEditContent) return false;
     try {
@@ -101,9 +101,9 @@ export function BookmarkMarkdownComponent({
         text,
         ...(version === undefined ? {} : { textBaseVersion: version }),
       });
-      setBaseVersion((current) =>
-        version === undefined ? current : version + 1,
-      );
+      if (version !== undefined) {
+        baseVersionRef.current = version + 1;
+      }
       toast({
         description: t("actions.note_updated"),
       });
@@ -192,7 +192,7 @@ export function BookmarkMarkdownComponent({
         }}
         onKeepDraft={() => {
           if (conflict) {
-            setBaseVersion(conflict.serverVersion);
+            baseVersionRef.current = conflict.serverVersion;
             void onSave(conflict.draft, conflict.serverVersion).then(
               (saved) => {
                 if (saved) {
