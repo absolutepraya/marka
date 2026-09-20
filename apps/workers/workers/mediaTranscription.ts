@@ -247,6 +247,9 @@ export async function transcribeRemoteUrl(
       "yt-dlp",
       [
         ...serverConfig.crawler.ytDlpArguments,
+        ...(serverConfig.crawler.maxVideoDownloadSize > 0
+          ? ["--max-filesize", `${serverConfig.crawler.maxVideoDownloadSize}M`]
+          : []),
         "--extract-audio",
         "--audio-format",
         "mp3",
@@ -271,6 +274,17 @@ export async function transcribeRemoteUrl(
       .sort()[0];
     if (!sourceFile) {
       throw new Error("yt-dlp produced no audio file for transcription");
+    }
+    if (serverConfig.crawler.maxVideoDownloadSize > 0) {
+      const sourceStats = await fs.promises.stat(
+        path.join(directory, sourceFile),
+      );
+      const maxBytes = serverConfig.crawler.maxVideoDownloadSize * 1024 * 1024;
+      if (sourceStats.size > maxBytes) {
+        throw new Error(
+          `Downloaded media exceeds the ${serverConfig.crawler.maxVideoDownloadSize} MB transcription limit`,
+        );
+      }
     }
 
     logger.debug(
