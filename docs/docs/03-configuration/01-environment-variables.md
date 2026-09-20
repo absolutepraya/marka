@@ -200,6 +200,7 @@ Karakeep uses [tesseract.js](https://github.com/naptha/tesseract.js) to extract 
 | OCR_LANGS                | No       | eng       | Comma separated list of the language codes that you want tesseract to support. You can find the language codes [here](https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html). Set to empty string to disable OCR. |
 | OCR_CONFIDENCE_THRESHOLD | No       | 50        | A number between 0 and 100 indicating the minimum acceptable confidence from tessaract. If tessaract's confidence is lower than this value, extracted text won't be stored.                                                               |
 | OCR_USE_LLM              | No       | false     | If set to true, uses the configured inference model (OpenAI or Ollama) for OCR instead of Tesseract. This can provide better results for complex images but requires a configured inference provider (`OPENAI_API_KEY` or `OLLAMA_BASE_URL`). Falls back to Tesseract if no inference provider is configured. |
+| OCR_PDF_MAX_PAGES        | No       | 20        | Maximum number of pages to process with local Tesseract OCR when a PDF has no embedded text. This fallback uses no LLM tokens.                                                                                                          |
 
 ## Webhook Configs
 

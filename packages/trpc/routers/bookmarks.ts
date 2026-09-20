@@ -85,6 +85,49 @@ import {
 
 const bookmarksProcedure = createScopedAuthedProcedure("bookmarks");
 
+async function enqueueTextBookmarkEnrichment(
+  bookmarkId: string,
+  enqueueOpts: EnqueueOptions,
+) {
+  if (serverConfig.embedding.enableAutoIndexing) {
+    await EmbeddingsQueue.enqueue(
+      {
+        bookmarkId,
+        type: "embed",
+        runTaggingOnComplete: true,
+      },
+      {
+        ...enqueueOpts,
+        idempotencyKey: `bookmark:${bookmarkId}:embed`,
+      },
+    );
+  } else {
+    await OpenAIQueue.enqueue(
+      {
+        bookmarkId,
+        type: "tag",
+      },
+      {
+        ...enqueueOpts,
+        idempotencyKey: `bookmark:${bookmarkId}:tag`,
+      },
+    );
+  }
+
+  if (serverConfig.inference.enableAutoSummarization) {
+    await OpenAIQueue.enqueue(
+      {
+        bookmarkId,
+        type: "summarize",
+      },
+      {
+        ...enqueueOpts,
+        idempotencyKey: `bookmark:${bookmarkId}:summary`,
+      },
+    );
+  }
+}
+
 const zBookmarkContentUser = z.object({
   id: z.string(),
   name: z.string(),
@@ -338,7 +381,6 @@ export const bookmarksAppRouter = router({
                 createdAt: input.createdAt,
                 source: input.source,
                 summarizationStatus:
-                  input.type === BookmarkTypes.LINK &&
                   serverConfig.inference.enableAutoSummarization &&
                   input.summary === undefined
                     ? "pending"
@@ -528,24 +570,7 @@ export const bookmarksAppRouter = router({
           break;
         }
         case BookmarkTypes.TEXT: {
-          if (serverConfig.embedding.enableAutoIndexing) {
-            await EmbeddingsQueue.enqueue(
-              {
-                bookmarkId: bookmark.id,
-                type: "embed",
-                runTaggingOnComplete: true,
-              },
-              enqueueOpts,
-            );
-          } else {
-            await OpenAIQueue.enqueue(
-              {
-                bookmarkId: bookmark.id,
-                type: "tag",
-              },
-              enqueueOpts,
-            );
-          }
+          await enqueueTextBookmarkEnrichment(bookmark.id, enqueueOpts);
           break;
         }
         case BookmarkTypes.ASSET: {
@@ -620,6 +645,9 @@ export const bookmarksAppRouter = router({
         });
       }
 
+      const contentChanged =
+        input.text !== undefined || input.assetContent !== undefined;
+      let existingSummaryIsManual = false;
       let savedTextVersion: number | undefined;
       await ctx.db.transaction(async (tx) => {
         const transactionContext = {
@@ -649,6 +677,14 @@ export const bookmarksAppRouter = router({
                 "The bookmark content changed after this draft was opened",
             });
           }
+        }
+        if (contentChanged) {
+          const currentBookmark = await tx.query.bookmarks.findFirst({
+            where: eq(bookmarks.id, input.bookmarkId),
+            columns: { summaryProvenance: true },
+          });
+          existingSummaryIsManual =
+            currentBookmark?.summaryProvenance === "manual";
         }
         const offlineChangedFields = [
           ...(input.title !== undefined ? ["title"] : []),
@@ -753,6 +789,7 @@ export const bookmarksAppRouter = router({
           summary: string | null;
           summaryProvenance: "web" | "transcript" | "manual" | null;
           summaryStale: boolean;
+          summarizationStatus: "pending" | null;
           createdAt: Date;
           modifiedAt: Date; // Always update modifiedAt
         }> = {
@@ -774,6 +811,17 @@ export const bookmarksAppRouter = router({
           commonUpdateData.summary = input.summary;
           commonUpdateData.summaryProvenance = "manual";
           commonUpdateData.summaryStale = false;
+        }
+        if (
+          contentChanged &&
+          input.summary === undefined &&
+          !existingSummaryIsManual
+        ) {
+          commonUpdateData.summaryStale = true;
+          commonUpdateData.summarizationStatus = serverConfig.inference
+            .enableAutoSummarization
+            ? "pending"
+            : null;
         }
         if (input.createdAt !== undefined) {
           commonUpdateData.createdAt = input.createdAt;
@@ -814,6 +862,12 @@ export const bookmarksAppRouter = router({
           /* includeContent: */ false,
         )
       ).asZBookmark();
+
+      if (contentChanged && updatedBookmark.summaryProvenance !== "manual") {
+        await enqueueTextBookmarkEnrichment(input.bookmarkId, {
+          groupId: ctx.user.id,
+        });
+      }
 
       if (input.archived !== undefined) {
         logEvent({
@@ -895,6 +949,7 @@ export const bookmarksAppRouter = router({
         });
       }
       let savedTextVersion: number | undefined;
+      let existingSummaryIsManual = false;
       await ctx.db.transaction(async (tx) => {
         const transactionContext = {
           ...ctx,
@@ -924,6 +979,12 @@ export const bookmarksAppRouter = router({
             });
           }
         }
+        const currentBookmark = await tx.query.bookmarks.findFirst({
+          where: eq(bookmarks.id, input.bookmarkId),
+          columns: { summaryProvenance: true },
+        });
+        existingSummaryIsManual =
+          currentBookmark?.summaryProvenance === "manual";
         const res = await tx
           .update(bookmarkTexts)
           .set({
@@ -939,7 +1000,18 @@ export const bookmarksAppRouter = router({
         }
         await tx
           .update(bookmarks)
-          .set({ modifiedAt: new Date() })
+          .set({
+            modifiedAt: new Date(),
+            ...(!existingSummaryIsManual
+              ? {
+                  summaryStale: true,
+                  summarizationStatus: serverConfig.inference
+                    .enableAutoSummarization
+                    ? "pending"
+                    : null,
+                }
+              : {}),
+          })
           .where(eq(bookmarks.id, input.bookmarkId));
         await recordOfflineSyncEvents(
           tx,
@@ -957,6 +1029,11 @@ export const bookmarksAppRouter = router({
         );
         savedTextVersion = await getBookmarkTextVersion(tx, input.bookmarkId);
       });
+      if (!existingSummaryIsManual) {
+        await enqueueTextBookmarkEnrichment(input.bookmarkId, {
+          groupId: ctx.user.id,
+        });
+      }
       await Promise.all([
         triggerSearchReindex(input.bookmarkId, {
           groupId: ctx.user.id,

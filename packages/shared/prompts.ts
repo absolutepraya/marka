@@ -191,3 +191,20 @@ Rules:
 - If there is no text in the image, respond with an empty string.
 - Output ONLY the extracted text, nothing else.`;
 }
+
+/**
+ * Build a summary prompt for an image when OCR did not produce usable text.
+ * Keep the image at low detail in the caller unless a higher-detail pass is
+ * explicitly justified, so visual summaries do not spend tokens on pixels
+ * that OCR has already covered.
+ */
+export function buildImageSummaryPrompt(
+  lang: string,
+  customPrompts: string[],
+): string {
+  return constructSummaryPrompt(
+    lang,
+    customPrompts,
+    "Describe the image's main subject, important visual details, and practical meaning. Treat the image itself as the source.",
+  );
+}

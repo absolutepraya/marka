@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildImageSummaryPrompt,
   constructSummaryPrompt,
   constructTextTaggingPrompt,
   normalizeSummary,
@@ -51,5 +52,12 @@ describe("enrichment prompts", () => {
     expect(prompt).toContain(
       "useful details, implications, or practical meaning",
     );
+  });
+
+  it("uses the image itself as the source for visual summaries", () => {
+    const prompt = buildImageSummaryPrompt("English", []);
+
+    expect(prompt).toContain("Treat the image itself as the source");
+    expect(prompt).toContain("exactly two paragraphs");
   });
 });
