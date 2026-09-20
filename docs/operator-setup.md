@@ -213,6 +213,7 @@ This repository deploys with a **pull-based split Docker flow**.
 - `.github/workflows/release.yml` builds paired immutable `:web-v<version>` and `:workers-v<version>` images, plus matching `:web-sha-<sha>` and `:workers-sha-<sha>` rollback tags
 - the workflow validates source metadata and promotes the mutable `:web-stable` and `:workers-stable` channel only after both immutable images are verified
 - GitHub Releases are generated from the same tag after image promotion; the Git tag and source commit remain authoritative
+- `v*` tags are protected from updates and deletion, and the release workflow accepts direct or recovery triggers only from the repository owner or the automatic GitHub Actions release workflow
 - `.github/workflows/docker.yml` keeps commit-addressed SHA images available for successful `main` builds, but does not move the stable channel
 - package manifest versions remain independent of the shared product release
 - `web` runs Next.js and owns database migrations

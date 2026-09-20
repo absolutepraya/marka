@@ -140,6 +140,10 @@ blocking CI before building paired immutable `web-v<version>` and
 `workers-v<version>` images. It then promotes the paired `web-stable` and
 `workers-stable` channel and creates the GitHub Release.
 
+The repository protects `v*` tags from updates and deletion. Direct tag
+publication and recovery dispatches are limited to the repository owner or the
+automatic GitHub Actions release workflow.
+
 The stable channel is mutable and Watchtower updates the two services
 independently, so adjacent releases must remain compatible. Exact rollback uses
 matching immutable version tags or matching `web-sha-<sha>` and
