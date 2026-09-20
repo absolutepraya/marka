@@ -653,8 +653,11 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
           ),
         );
     }
+  }
 
-    // Update the search index
+  if (!isFixMode || anythingChanged) {
+    // Update the search index even when media enrichment is deferred to the
+    // transcript worker or transcription later fails.
     await triggerSearchReindex(bookmarkId, enqueueOpts);
   }
 }

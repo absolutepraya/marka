@@ -24,6 +24,15 @@ export const zBookmarkSearchDocument = z.object({
 
 export type BookmarkSearchDocument = z.infer<typeof zBookmarkSearchDocument>;
 
+export function combineSearchContent(
+  ...contents: (string | null | undefined)[]
+): string | null {
+  const combined = contents
+    .filter((content): content is string => Boolean(content?.trim()))
+    .join("\n\n");
+  return combined || null;
+}
+
 export type SortOrder = "asc" | "desc";
 export type SortableAttributes = "createdAt";
 
