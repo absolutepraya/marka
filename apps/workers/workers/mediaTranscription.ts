@@ -18,6 +18,19 @@ import {
 const TRANSCRIPTION_TMP_FOLDER = path.join(os.tmpdir(), "marka-transcription");
 const MAX_TRANSCRIPTION_CHUNKS = 512;
 
+function maxTranscriptionDurationSeconds() {
+  return MAX_TRANSCRIPTION_CHUNKS * serverConfig.transcription.chunkSeconds;
+}
+
+function safeUrlForLog(url: string) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return "<invalid-url>";
+  }
+}
+
 export interface MediaTranscriptionResult {
   text: string;
   language?: string;
@@ -47,6 +60,30 @@ async function transcribeAudioChunks(
   );
 
   try {
+    const durationResult = await execa(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        inputPath,
+      ],
+      { cancelSignal: abortSignal },
+    );
+    const durationSeconds = Number(durationResult.stdout.trim());
+    const maxDurationSeconds = maxTranscriptionDurationSeconds();
+    if (!Number.isFinite(durationSeconds)) {
+      throw new Error(`Could not determine the duration of ${sourceName}`);
+    }
+    if (durationSeconds > maxDurationSeconds) {
+      throw new Error(
+        `Media ${sourceName} is too long to transcribe; maximum duration is ${maxDurationSeconds} seconds`,
+      );
+    }
+
     const outputTemplate = path.join(chunkDirectory, "chunk-%05d.mp3");
     await execa(
       "ffmpeg",
@@ -76,11 +113,15 @@ async function transcribeAudioChunks(
 
     const chunkFiles = (await fs.promises.readdir(chunkDirectory))
       .filter((fileName) => fileName.endsWith(".mp3"))
-      .sort()
-      .slice(0, MAX_TRANSCRIPTION_CHUNKS);
+      .sort();
 
     if (chunkFiles.length === 0) {
       throw new Error(`ffmpeg produced no audio chunks for ${sourceName}`);
+    }
+    if (chunkFiles.length > MAX_TRANSCRIPTION_CHUNKS) {
+      throw new Error(
+        `Media ${sourceName} produced too many transcription chunks; maximum is ${MAX_TRANSCRIPTION_CHUNKS}`,
+      );
     }
 
     const transcripts: string[] = [];
@@ -212,6 +253,8 @@ export async function transcribeRemoteUrl(
         "--audio-quality",
         "64K",
         "--no-playlist",
+        "--match-filter",
+        `duration <= ${maxTranscriptionDurationSeconds()}`,
         "--output",
         outputTemplate,
         ...(proxy ? ["--proxy", proxy.proxy.toString()] : []),
@@ -230,7 +273,9 @@ export async function transcribeRemoteUrl(
       throw new Error("yt-dlp produced no audio file for transcription");
     }
 
-    logger.debug(`[transcription] Downloaded remote media for ${url}`);
+    logger.debug(
+      `[transcription] Downloaded remote media for ${safeUrlForLog(url)}`,
+    );
     return await transcribeAudioChunks(
       path.join(directory, sourceFile),
       sourceFile,
