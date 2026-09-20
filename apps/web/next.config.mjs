@@ -26,8 +26,11 @@ if (!process.env.SERVER_VERSION && process.env.SERVER_COMMIT) {
   process.env.SERVER_VERSION = process.env.SERVER_COMMIT;
 }
 
-const serviceWorkerBuildVersion =
-  process.env.SERVER_COMMIT ?? process.env.SERVER_VERSION ?? "development";
+const serviceWorkerBuildVersion = (
+  process.env.SERVER_COMMIT ??
+  process.env.SERVER_VERSION ??
+  "development"
+).toLowerCase();
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",

@@ -53,7 +53,7 @@ jobs:
             echo "short_sha=${short_sha}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Check immutable commit image pair
+      - name: Check immutable commit image tags
         id: images
         env:
           IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
@@ -66,25 +66,38 @@ jobs:
 
           web_digest="$(get_digest "$IMAGE_NAME:web-sha-$SHORT_SHA" || true)"
           workers_digest="$(get_digest "$IMAGE_NAME:workers-sha-$SHORT_SHA" || true)"
-          if [[ -n "$web_digest" && -n "$workers_digest" ]]; then
-            echo "build=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          if [[ -n "$web_digest" ]]; then
+            echo "web_exists=true" >> "$GITHUB_OUTPUT"
+            echo "build_web=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "web_exists=false" >> "$GITHUB_OUTPUT"
+            echo "build_web=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$workers_digest" ]]; then
+            echo "workers_exists=true" >> "$GITHUB_OUTPUT"
+            echo "build_workers=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "workers_exists=false" >> "$GITHUB_OUTPUT"
+            echo "build_workers=true" >> "$GITHUB_OUTPUT"
           fi
           if [[ -n "$web_digest" || -n "$workers_digest" ]]; then
-            echo "Immutable commit image pair is partial. Refusing to overwrite it." >&2
-            exit 1
+            echo "verify_existing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "verify_existing=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "build=true" >> "$GITHUB_OUTPUT"
 
       - name: Verify existing commit image pair
-        if: steps.images.outputs.build == 'false'
+        if: steps.images.outputs.verify_existing == 'true'
         env:
           IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
           TARGET: ${{ steps.meta.outputs.target }}
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+          WEB_EXISTS: ${{ steps.images.outputs.web_exists }}
+          WORKERS_EXISTS: ${{ steps.images.outputs.workers_exists }}
         run: |
           set -euo pipefail
-          for ref in "$IMAGE_NAME:web-sha-$SHORT_SHA" "$IMAGE_NAME:workers-sha-$SHORT_SHA"; do
+          verify_ref() {
+            local ref="$1"
             docker pull "$ref" >/dev/null
             source="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')"
             revision="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
@@ -96,10 +109,16 @@ jobs:
               echo "Existing commit image $ref points to $revision, expected $TARGET" >&2
               exit 1
             }
-          done
+          }
+          if [[ "$WEB_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:web-sha-$SHORT_SHA"
+          fi
+          if [[ "$WORKERS_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:workers-sha-$SHORT_SHA"
+          fi
 
       - name: Build and push web image
-        if: steps.images.outputs.build == 'true'
+        if: steps.images.outputs.build_web == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
@@ -115,7 +134,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push workers image
-        if: steps.images.outputs.build == 'true'
+        if: steps.images.outputs.build_workers == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .

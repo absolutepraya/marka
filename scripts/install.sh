@@ -804,7 +804,7 @@ update_command() {
   check_platform
   management_install_dir
   check_docker
-  info "Pulling the current paired web-stable/workers-stable images and recreating changed services..."
+  info "Pulling the configured web and workers images and recreating changed services..."
   compose_in_install_dir config --quiet >/dev/null
   compose_in_install_dir pull
   compose_in_install_dir up -d --remove-orphans

@@ -42,6 +42,9 @@ if [[ "$1" == "buildx" && "$2" == "imagetools" && "$3" == "inspect" ]]; then
 fi
 
 if [[ "$1" == "buildx" && "$2" == "imagetools" && "$3" == "create" ]]; then
+  if [[ -n "${FAKE_RELEASE_LOG:-}" ]]; then
+    printf '%s\n' "$*" >>"$FAKE_RELEASE_LOG"
+  fi
   target="$5"
   source="$6"
   if [[ "${FAKE_RELEASE_FAIL_WORKERS:-0}" == "1" && "$target" == *workers-stable ]]; then
@@ -86,6 +89,21 @@ assert_state "$state" "ghcr.io/absolutepraya/marka:web-stable" "sha256:web-new"
 assert_state "$state" "ghcr.io/absolutepraya/marka:workers-stable" "sha256:workers-new"
 
 cat >"$state" <<'EOF_STATE'
+ghcr.io/absolutepraya/marka:web-stable=sha256:web-new
+ghcr.io/absolutepraya/marka:web-v0.1.0=sha256:web-new
+ghcr.io/absolutepraya/marka:workers-v0.1.0=sha256:workers-new
+EOF_STATE
+PATH="$fake_bin:$PATH" \
+FAKE_RELEASE_STATE="$state" \
+IMAGE_NAME="ghcr.io/absolutepraya/marka" \
+VERSION="0.1.0" \
+WEB_DIGEST="sha256:web-new" \
+WORKERS_DIGEST="sha256:workers-new" \
+bash "$PROMOTER"
+assert_state "$state" "ghcr.io/absolutepraya/marka:web-stable" "sha256:web-new"
+assert_state "$state" "ghcr.io/absolutepraya/marka:workers-stable" "sha256:workers-new"
+
+cat >"$state" <<'EOF_STATE'
 ghcr.io/absolutepraya/marka:web-stable=sha256:web-old
 ghcr.io/absolutepraya/marka:workers-stable=sha256:workers-old
 ghcr.io/absolutepraya/marka:web-v0.1.0=sha256:web-new
@@ -103,5 +121,25 @@ if PATH="$fake_bin:$PATH" \
 fi
 assert_state "$state" "ghcr.io/absolutepraya/marka:web-stable" "sha256:web-old"
 assert_state "$state" "ghcr.io/absolutepraya/marka:workers-stable" "sha256:workers-old"
+
+failure_log="$root/failure.log"
+: >"$failure_log"
+if failure_output="$(PATH="$fake_bin:$PATH" \
+  FAKE_RELEASE_STATE="$state" \
+  FAKE_RELEASE_LOG="$failure_log" \
+  FAKE_RELEASE_FAIL_WORKERS="1" \
+  IMAGE_NAME="ghcr.io/absolutepraya/marka" \
+  VERSION="0.1.0" \
+  WEB_DIGEST="sha256:web-new" \
+  WORKERS_DIGEST="sha256:workers-new" \
+  bash "$PROMOTER" 2>&1)"; then
+  fail "promotion unexpectedly succeeded when rollback restoration failed"
+fi
+grep -Fq "Manual stable-channel recovery is required." <<<"$failure_output" ||
+  fail "rollback failure did not print manual recovery instructions"
+[[ "$(grep -Fc 'ghcr.io/absolutepraya/marka:web-stable' "$failure_log")" -ge 2 ]] ||
+  fail "web rollback was not attempted after worker promotion failure"
+[[ "$(grep -Fc 'ghcr.io/absolutepraya/marka:workers-stable' "$failure_log")" -ge 2 ]] ||
+  fail "worker rollback was not attempted after worker promotion failure"
 
 printf 'Release promotion tests passed.\n'

@@ -120,7 +120,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check immutable release image pair
+      - name: Check immutable release image tags
         id: images
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
@@ -132,54 +132,84 @@ jobs:
             docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>/dev/null | head -n 1
           }
 
-          version_count=0
-          sha_count=0
-          [[ -n "$(get_digest "$IMAGE_NAME:web-v$VERSION")" ]] && version_count=$((version_count + 1))
-          [[ -n "$(get_digest "$IMAGE_NAME:workers-v$VERSION")" ]] && version_count=$((version_count + 1))
-          [[ -n "$(get_digest "$IMAGE_NAME:web-sha-$SHORT_SHA")" ]] && sha_count=$((sha_count + 1))
-          [[ -n "$(get_digest "$IMAGE_NAME:workers-sha-$SHORT_SHA")" ]] && sha_count=$((sha_count + 1))
+          web_version_digest="$(get_digest "$IMAGE_NAME:web-v$VERSION" || true)"
+          workers_version_digest="$(get_digest "$IMAGE_NAME:workers-v$VERSION" || true)"
+          web_sha_digest="$(get_digest "$IMAGE_NAME:web-sha-$SHORT_SHA" || true)"
+          workers_sha_digest="$(get_digest "$IMAGE_NAME:workers-sha-$SHORT_SHA" || true)"
 
-          ((version_count == 0 || version_count == 2)) || {
-            echo "Immutable release version pair is partial. Refusing to overwrite release tags." >&2
-            exit 1
-          }
-          ((sha_count == 0 || sha_count == 2)) || {
-            echo "Immutable release SHA pair is partial. Refusing to overwrite rollback tags." >&2
-            exit 1
-          }
-          if ((version_count == 2 && sha_count == 2)); then
-            echo "build=false" >> "$GITHUB_OUTPUT"
-            echo "ensure_sha=false" >> "$GITHUB_OUTPUT"
-            echo "reuse_sha=true" >> "$GITHUB_OUTPUT"
-          elif ((version_count == 2 && sha_count == 0)); then
-            echo "build=false" >> "$GITHUB_OUTPUT"
-            echo "ensure_sha=true" >> "$GITHUB_OUTPUT"
-            echo "reuse_sha=false" >> "$GITHUB_OUTPUT"
+          if [[ -n "$web_version_digest" ]]; then
+            echo "web_version_exists=true" >> "$GITHUB_OUTPUT"
+            echo "build_web=false" >> "$GITHUB_OUTPUT"
           else
-            echo "build=true" >> "$GITHUB_OUTPUT"
-            echo "ensure_sha=false" >> "$GITHUB_OUTPUT"
-            echo "reuse_sha=$([[ $sha_count -eq 2 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+            echo "web_version_exists=false" >> "$GITHUB_OUTPUT"
+            echo "build_web=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$workers_version_digest" ]]; then
+            echo "workers_version_exists=true" >> "$GITHUB_OUTPUT"
+            echo "build_workers=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "workers_version_exists=false" >> "$GITHUB_OUTPUT"
+            echo "build_workers=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$web_sha_digest" ]]; then
+            echo "web_sha_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "web_sha_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$workers_sha_digest" ]]; then
+            echo "workers_sha_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "workers_sha_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ -n "$web_version_digest" && -z "$web_sha_digest" ]]; then
+            echo "ensure_web_sha=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ensure_web_sha=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$workers_version_digest" && -z "$workers_sha_digest" ]]; then
+            echo "ensure_workers_sha=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ensure_workers_sha=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$web_version_digest" || -n "$workers_version_digest" || -n "$web_sha_digest" || -n "$workers_sha_digest" ]]; then
+            echo "verify_existing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "verify_existing=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ -z "$web_version_digest" ]]; then
             {
               echo 'web_tags<<EOF'
               echo "$IMAGE_NAME:web-v$VERSION"
-              if ((sha_count == 0)); then echo "$IMAGE_NAME:web-sha-$SHORT_SHA"; fi
+              if [[ -z "$web_sha_digest" ]]; then echo "$IMAGE_NAME:web-sha-$SHORT_SHA"; fi
               echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -z "$workers_version_digest" ]]; then
+            {
               echo 'workers_tags<<EOF'
               echo "$IMAGE_NAME:workers-v$VERSION"
-              if ((sha_count == 0)); then echo "$IMAGE_NAME:workers-sha-$SHORT_SHA"; fi
+              if [[ -z "$workers_sha_digest" ]]; then echo "$IMAGE_NAME:workers-sha-$SHORT_SHA"; fi
               echo 'EOF'
             } >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Verify existing SHA rollback pair
-        if: steps.images.outputs.reuse_sha == 'true'
+      - name: Verify existing immutable image tags
+        if: steps.images.outputs.verify_existing == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
+          VERSION: ${{ steps.release.outputs.version }}
           TARGET: ${{ steps.release.outputs.target }}
           SHORT_SHA: ${{ steps.release.outputs.short_sha }}
+          WEB_VERSION_EXISTS: ${{ steps.images.outputs.web_version_exists }}
+          WORKERS_VERSION_EXISTS: ${{ steps.images.outputs.workers_version_exists }}
+          WEB_SHA_EXISTS: ${{ steps.images.outputs.web_sha_exists }}
+          WORKERS_SHA_EXISTS: ${{ steps.images.outputs.workers_sha_exists }}
         run: |
           set -euo pipefail
-          for ref in "$IMAGE_NAME:web-sha-$SHORT_SHA" "$IMAGE_NAME:workers-sha-$SHORT_SHA"; do
+          verify_ref() {
+            local ref="$1" expected_release="$2"
             docker pull "$ref" >/dev/null
             source="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')"
             revision="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
@@ -191,10 +221,35 @@ jobs:
               echo "Existing rollback image $ref points to $revision, expected $TARGET" >&2
               exit 1
             }
-          done
+            if [[ "$expected_release" == "required" ]]; then
+              release="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
+              [[ "$release" == "$VERSION" ]] || {
+                echo "Existing release image $ref has release label $release, expected $VERSION" >&2
+                exit 1
+              }
+            else
+              release="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
+              [[ -z "$release" || "$release" == "<no value>" || "$release" == "$VERSION" ]] || {
+                echo "Existing rollback image $ref has unexpected release label $release" >&2
+                exit 1
+              }
+            fi
+          }
+          if [[ "$WEB_VERSION_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:web-v$VERSION" required
+          fi
+          if [[ "$WORKERS_VERSION_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:workers-v$VERSION" required
+          fi
+          if [[ "$WEB_SHA_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:web-sha-$SHORT_SHA" optional
+          fi
+          if [[ "$WORKERS_SHA_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:workers-sha-$SHORT_SHA" optional
+          fi
 
       - name: Build and push web release images
-        if: steps.images.outputs.build == 'true'
+        if: steps.images.outputs.build_web == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
@@ -213,7 +268,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push workers release images
-        if: steps.images.outputs.build == 'true'
+        if: steps.images.outputs.build_workers == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
@@ -276,16 +331,54 @@ jobs:
             echo "workers_digest=$workers_digest"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Complete missing SHA rollback pair
-        if: steps.images.outputs.ensure_sha == 'true'
+      - name: Complete missing SHA rollback tags
+        if: steps.images.outputs.ensure_web_sha == 'true' || steps.images.outputs.ensure_workers_sha == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
           SHORT_SHA: ${{ steps.release.outputs.short_sha }}
         run: |
           set -euo pipefail
-          docker buildx imagetools create --tag "$IMAGE_NAME:web-sha-$SHORT_SHA" "$IMAGE_NAME:web-v$VERSION"
-          docker buildx imagetools create --tag "$IMAGE_NAME:workers-sha-$SHORT_SHA" "$IMAGE_NAME:workers-v$VERSION"
+          if [[ "${{ steps.images.outputs.ensure_web_sha }}" == "true" ]]; then
+            docker buildx imagetools create --tag "$IMAGE_NAME:web-sha-$SHORT_SHA" "$IMAGE_NAME:web-v$VERSION"
+          fi
+          if [[ "${{ steps.images.outputs.ensure_workers_sha }}" == "true" ]]; then
+            docker buildx imagetools create --tag "$IMAGE_NAME:workers-sha-$SHORT_SHA" "$IMAGE_NAME:workers-v$VERSION"
+          fi
+
+      - name: Verify SHA rollback image tags
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
+          VERSION: ${{ steps.release.outputs.version }}
+          TARGET: ${{ steps.release.outputs.target }}
+          SHORT_SHA: ${{ steps.release.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          get_digest() {
+            docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>/dev/null | head -n 1
+          }
+          for ref in "$IMAGE_NAME:web-sha-$SHORT_SHA" "$IMAGE_NAME:workers-sha-$SHORT_SHA"; do
+            [[ -n "$(get_digest "$ref" || true)" ]] || {
+              echo "Missing SHA rollback image $ref" >&2
+              exit 1
+            }
+            docker pull "$ref" >/dev/null
+            source="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')"
+            revision="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+            release="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
+            [[ "$source" == "https://github.com/absolutepraya/marka" ]] || {
+              echo "Unexpected source label on $ref: $source" >&2
+              exit 1
+            }
+            [[ "$revision" == "$TARGET" ]] || {
+              echo "Unexpected source revision on $ref: $revision" >&2
+              exit 1
+            }
+            [[ -z "$release" || "$release" == "<no value>" || "$release" == "$VERSION" ]] || {
+              echo "Unexpected release label on $ref: $release" >&2
+              exit 1
+            }
+          done
 
       - name: Promote and verify paired stable channel
         env:
