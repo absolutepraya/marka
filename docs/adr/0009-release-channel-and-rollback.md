@@ -13,8 +13,17 @@ publication versioning.
 
 An annotated `vMAJOR.MINOR.PATCH` Git tag is the authoritative shared release
 identity. The normalized SemVer value is release metadata; package manifest
-versions remain independent metadata and are not silently bumped by this
-issue.
+versions remain independent metadata and are not silently bumped by a shared
+release.
+
+The tag is created automatically after a successful exact-commit CI run on
+`main`. The automatic release workflow classifies commits since the latest
+release tag using Conventional Commit semantics: `feat` is a minor bump,
+breaking-change markers are major, release-worthy fixes and runtime changes are
+patch, and documentation-only changes are ignored. A
+`Release: major|minor|patch|none` footer can override the classification. The first
+release is `v0.1.0`; later versions increment the highest level found in the
+eligible commits. If no eligible change exists, no tag is created.
 
 A release is built from one eligible source commit. The web and workers
 artifacts from that commit receive paired immutable version tags such as
@@ -67,14 +76,16 @@ edit. A committed `CHANGELOG.md` is not required by this issue.
 The Git tag and source commit remain authoritative. A GitHub Release is a
 human-facing explanation of that release, not a deployment pointer.
 
-The release workflow proceeds in this order:
+The automatic and tag-triggered workflows proceed in this order:
 
-1. validate the annotated tag and eligible source commit;
-2. verify the exact-commit blocking CI result;
-3. build and publish immutable version and SHA artifacts;
-4. verify both image digests and source provenance;
-5. promote and verify the stable pair;
-6. create the GitHub Release.
+1. classify the commits after successful `main` CI;
+2. create the next annotated release tag when a release is warranted;
+3. validate the annotated tag and eligible source commit;
+4. verify the exact-commit blocking CI result;
+5. build and publish immutable version and SHA artifacts;
+6. verify both image digests and source provenance;
+7. promote and verify the stable pair;
+8. create the GitHub Release.
 
 If stable promotion partially fails, the workflow restores the previous stable
 pair and fails visibly. If GitHub Release creation fails after deployment

@@ -1,0 +1,95 @@
+name: Automatic release
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+
+concurrency:
+  group: automatic-release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Decide release version
+        id: decision
+        env:
+          TARGET: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+          git fetch --force origin main:refs/remotes/origin/main
+          decision="$(node scripts/release-version.mjs)"
+          echo "$decision" | tee release-decision.json
+          {
+            echo "should_release=$(jq -r '.shouldRelease' release-decision.json)"
+            echo "tag=$(jq -r '.tag // empty' release-decision.json)"
+            echo "version=$(jq -r '.version // empty' release-decision.json)"
+            echo "level=$(jq -r '.level' release-decision.json)"
+            echo "reason=$(jq -r '.reason' release-decision.json)"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Automatic release decision"
+            echo
+            echo "- Target: \`$TARGET\`"
+            echo "- Release: \`$(jq -r '.tag // "none"' release-decision.json)\`"
+            echo "- Bump: \`$(jq -r '.level' release-decision.json)\`"
+            echo "- Reason: $(jq -r '.reason' release-decision.json)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create annotated release tag
+        id: tag
+        if: steps.decision.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.decision.outputs.tag }}
+          TARGET: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          existing_target="$(git rev-list -n 1 "$RELEASE_TAG" 2>/dev/null || true)"
+          if [[ -n "$existing_target" ]]; then
+            if [[ "$existing_target" == "$TARGET" ]]; then
+              echo "Release tag $RELEASE_TAG already points to $TARGET."
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if git merge-base --is-ancestor "$TARGET" "$existing_target"; then
+              echo "A later release already covers $TARGET with $RELEASE_TAG."
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Release tag $RELEASE_TAG exists at an unrelated commit." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --annotate "$RELEASE_TAG" "$TARGET" --message "Marka $RELEASE_TAG"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "$RELEASE_TAG"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+      - name: Start release publication
+        if: steps.tag.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.decision.outputs.tag }}
+        run: gh workflow run release.yml --field release_tag="$RELEASE_TAG"

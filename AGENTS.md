@@ -189,6 +189,9 @@ Marka uses a **pull-based** personal VPS deploy flow that is separate from the p
 High-level flow:
 - CI passes on `main`
 - `.github/workflows/docker.yml` builds immutable commit-addressed images from successful `main` builds; `.github/workflows/release.yml` validates annotated release tags and promotes paired `web-stable` / `workers-stable` images
+- `.github/workflows/automatic-release.yml` runs after successful `main` CI, classifies merged Conventional Commit messages, and creates the next annotated release tag only when a release is warranted
+- release classification is `feat` to minor, breaking-change markers to major, release-worthy fixes or runtime changes to patch, and documentation-only `docs` / `test` / `style` / `ci` / `chore` to no release; `Release: major|minor|patch|none` is an explicit footer override
+- agents must choose a truthful Conventional Commit type in PR titles and must not manually create release tags or bump package manifest versions
 - a Watchtower container on the VPS polls the paired GHCR tags and redeploys automatically
 
 Important notes:
