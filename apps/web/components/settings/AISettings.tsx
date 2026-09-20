@@ -85,6 +85,7 @@ export function AIPreferences() {
     values: settings
       ? {
           inferredTagLang: settings.inferredTagLang ?? "",
+          summaryLanguage: settings.summaryLanguage ?? "",
           autoTaggingEnabled: settings.autoTaggingEnabled,
           autoSummarizationEnabled: settings.autoSummarizationEnabled,
         }
@@ -121,6 +122,42 @@ export function AIPreferences() {
                 <Input
                   {...field}
                   id="inferredTagLang"
+                  value={field.value ?? ""}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value.length > 0 ? e.target.value : null,
+                    )
+                  }
+                  aria-invalid={fieldState.invalid}
+                  placeholder={`Default (${clientConfig.inference.inferredTagLang})`}
+                  type="text"
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            name="summaryLanguage"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field
+                className="rounded-lg border p-3"
+                data-invalid={fieldState.invalid}
+              >
+                <FieldContent>
+                  <FieldLabel htmlFor="summaryLanguage">
+                    {t("settings.ai.summary_language")}
+                  </FieldLabel>
+                  <FieldDescription>
+                    {t("settings.ai.summary_language_description")}
+                  </FieldDescription>
+                </FieldContent>
+                <Input
+                  {...field}
+                  id="summaryLanguage"
                   value={field.value ?? ""}
                   onChange={(e) =>
                     field.onChange(
@@ -776,6 +813,7 @@ export function PromptDemo() {
   );
   const inferredTagLang =
     settings?.inferredTagLang ?? clientConfig.inference.inferredTagLang;
+  const summaryLanguage = settings?.summaryLanguage ?? inferredTagLang;
 
   // Resolve curated tag names for preview
   const curatedTagNames =
@@ -857,7 +895,7 @@ export function PromptDemo() {
           </p>
           <code className="block whitespace-pre-wrap rounded-md bg-muted p-3 text-sm text-muted-foreground">
             {buildSummaryPromptUntruncated(
-              inferredTagLang,
+              summaryLanguage,
               withTagsExpanded(
                 (prompts ?? [])
                   .filter((p) => p.appliesTo == "summary")

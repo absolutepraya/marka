@@ -196,6 +196,7 @@ describe("User Routes", () => {
       autoTaggingEnabled: null,
       curatedTagIds: null,
       inferredTagLang: null,
+      summaryLanguage: null,
       tagStyle: "titlecase-spaces",
     });
 
@@ -215,6 +216,7 @@ describe("User Routes", () => {
       autoSummarizationEnabled: true,
       autoTaggingEnabled: true,
       inferredTagLang: "en",
+      summaryLanguage: "Indonesian",
       tagStyle: "lowercase-underscores",
     });
 
@@ -238,6 +240,7 @@ describe("User Routes", () => {
       autoTaggingEnabled: true,
       curatedTagIds: null,
       inferredTagLang: "en",
+      summaryLanguage: "Indonesian",
       tagStyle: "lowercase-underscores",
     });
 

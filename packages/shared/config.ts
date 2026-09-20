@@ -71,6 +71,13 @@ const allEnv = z.object({
   INFERENCE_FETCH_TIMEOUT_SEC: z.coerce.number().default(300),
   INFERENCE_TEXT_MODEL: z.string().default("gpt-4.1-mini"),
   INFERENCE_IMAGE_MODEL: z.string().default("gpt-4o-mini"),
+  TRANSCRIPTION_ENABLED: stringBool("false"),
+  TRANSCRIPTION_MODEL: z.string().default("whisper-1"),
+  TRANSCRIPTION_CHUNK_SECONDS: z.coerce.number().int().positive().default(600),
+  TRANSCRIPTION_JOB_TIMEOUT_SEC: z.coerce
+    .number()
+    .positive()
+    .default(30 * 60),
   EMBEDDING_ENABLE_AUTO_INDEXING: stringBool("false"),
   EMBEDDING_TEXT_MODEL: z.string().default("text-embedding-3-small"),
   EMBEDDING_DIMENSIONS: z.coerce.number().default(1536),
@@ -331,6 +338,12 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
           : val.INFERENCE_OUTPUT_SCHEMA,
       enableAutoTagging: val.INFERENCE_ENABLE_AUTO_TAGGING,
       enableAutoSummarization: val.INFERENCE_ENABLE_AUTO_SUMMARIZATION,
+    },
+    transcription: {
+      enabled: val.TRANSCRIPTION_ENABLED,
+      model: val.TRANSCRIPTION_MODEL,
+      chunkSeconds: val.TRANSCRIPTION_CHUNK_SECONDS,
+      jobTimeoutSec: val.TRANSCRIPTION_JOB_TIMEOUT_SEC,
     },
     embedding: {
       enableAutoIndexing: val.EMBEDDING_ENABLE_AUTO_INDEXING,

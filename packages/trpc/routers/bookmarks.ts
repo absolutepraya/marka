@@ -27,12 +27,14 @@ import {
   OpenAIQueue,
   QueuePriority,
   QuotaService,
+  TranscriptQueue,
   triggerSearchReindex,
 } from "@karakeep/shared-server";
 import serverConfig from "@karakeep/shared/config";
 import { getBookmarkAssetTypeForMimeType } from "@karakeep/shared/content-support";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
 import { buildSummaryPrompt } from "@karakeep/shared/prompts.server";
+import { normalizeSummary } from "@karakeep/shared/prompts";
 import { EnqueueOptions } from "@karakeep/shared/queueing";
 import { getRateLimitClient } from "@karakeep/shared/ratelimiting";
 import { FilterQuery, getSearchClient } from "@karakeep/shared/search";
@@ -554,6 +556,16 @@ export const bookmarksAppRouter = router({
             },
             enqueueOpts,
           );
+          if (
+            serverConfig.transcription.enabled &&
+            (bookmark.content.assetType === "video" ||
+              bookmark.content.assetType === "audio")
+          ) {
+            await TranscriptQueue.enqueue(
+              { bookmarkId: bookmark.id },
+              enqueueOpts,
+            );
+          }
           break;
         }
       }
@@ -1698,11 +1710,14 @@ Author: ${bookmark.author ?? ""}
         where: eq(users.id, ctx.user.id),
         columns: {
           inferredTagLang: true,
+          summaryLanguage: true,
         },
       });
 
       const summaryPrompt = await buildSummaryPrompt(
-        userSettings?.inferredTagLang ?? serverConfig.inference.inferredTagLang,
+        userSettings?.summaryLanguage ??
+          userSettings?.inferredTagLang ??
+          serverConfig.inference.inferredTagLang,
         prompts.map((p) => p.text),
         bookmarkDetails,
         serverConfig.inference.contextLength,
@@ -1723,15 +1738,17 @@ Author: ${bookmark.author ?? ""}
         });
       }
 
+      const normalizedSummary = normalizeSummary(summary.response);
+
       addLogFields<"bookmark.summarize">({
-        "inference.summary.size": Buffer.byteLength(summary.response, "utf8"),
+        "inference.summary.size": Buffer.byteLength(normalizedSummary, "utf8"),
         "inference.total_tokens": summary.totalTokens,
       });
 
       await ctx.db
         .update(bookmarks)
         .set({
-          summary: summary.response,
+          summary: normalizedSummary,
           summaryProvenance: "manual",
           summaryStale: false,
         })
@@ -1752,7 +1769,7 @@ Author: ${bookmark.author ?? ""}
 
       return {
         bookmarkId: input.bookmarkId,
-        summary: summary.response,
+        summary: normalizedSummary,
       };
     }),
 });

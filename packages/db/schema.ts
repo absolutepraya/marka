@@ -125,6 +125,7 @@ export const users = sqliteTable("user", {
   }).default("titlecase-spaces"),
   curatedTagIds: text("curatedTagIds", { mode: "json" }).$type<string[]>(),
   inferredTagLang: text("inferredTagLang"),
+  summaryLanguage: text("summaryLanguage"),
 });
 
 export const accounts = sqliteTable(
@@ -322,7 +323,9 @@ export const bookmarkTranscripts = sqliteTable(
     bookmarkId: text("bookmarkId")
       .notNull()
       .references(() => bookmarks.id, { onDelete: "cascade" }),
-    provider: text("provider", { enum: ["youtube"] }).notNull(),
+    provider: text("provider", {
+      enum: ["youtube", "azure-whisper"],
+    }).notNull(),
     providerItemId: text("providerItemId").notNull(),
     status: text("status", {
       enum: ["pending", "ready", "unavailable", "failed"],

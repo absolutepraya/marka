@@ -153,6 +153,7 @@ async function fetchBookmark(bookmarkId: string) {
       link: true,
       text: true,
       asset: true,
+      transcript: true,
       tagsOnBookmarks: {
         with: {
           tag: true,
@@ -320,6 +321,17 @@ async function buildEmbeddingText(
       metadataForEmbedding(bookmark.asset.metadata),
     );
     rawContent = bookmark.asset.content;
+  }
+
+  if (bookmark.transcript?.status === "ready") {
+    appendProfileField(
+      parts,
+      "Transcript",
+      truncateText(
+        bookmark.transcript.text ?? "",
+        contentBudget(serverConfig.embedding.contextLength),
+      ),
+    );
   }
 
   const normalizedContent = normalizeEmbeddingText(rawContent);

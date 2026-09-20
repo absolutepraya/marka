@@ -1,0 +1,243 @@
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { execa } from "execa";
+
+import { readAsset } from "@karakeep/shared/assetdb";
+import serverConfig from "@karakeep/shared/config";
+import { InferenceClientFactory } from "@karakeep/shared/inference";
+import type { InferenceClient } from "@karakeep/shared/inference";
+import logger from "@karakeep/shared/logger";
+
+import {
+  getProxyAgent,
+  resolveValidatedRedirectUrl,
+  selectRunProxies,
+} from "network";
+
+const TRANSCRIPTION_TMP_FOLDER = path.join(os.tmpdir(), "marka-transcription");
+const MAX_TRANSCRIPTION_CHUNKS = 512;
+
+export interface MediaTranscriptionResult {
+  text: string;
+  language?: string;
+}
+
+function extensionForSource(
+  fileName: string | null | undefined,
+  contentType: string,
+) {
+  const extension = fileName ? path.extname(fileName) : "";
+  if (extension) {
+    return extension;
+  }
+
+  const typeExtension = contentType.split("/")[1]?.split(";")[0];
+  return typeExtension ? `.${typeExtension}` : ".bin";
+}
+
+async function transcribeAudioChunks(
+  inputPath: string,
+  sourceName: string,
+  abortSignal: AbortSignal,
+  inferenceClient: InferenceClient,
+): Promise<MediaTranscriptionResult> {
+  const chunkDirectory = await fs.promises.mkdtemp(
+    path.join(TRANSCRIPTION_TMP_FOLDER, "chunks-"),
+  );
+
+  try {
+    const outputTemplate = path.join(chunkDirectory, "chunk-%05d.mp3");
+    await execa(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        inputPath,
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-f",
+        "segment",
+        "-segment_time",
+        String(serverConfig.transcription.chunkSeconds),
+        "-c:a",
+        "libmp3lame",
+        "-b:a",
+        "64k",
+        outputTemplate,
+      ],
+      { cancelSignal: abortSignal },
+    );
+
+    const chunkFiles = (await fs.promises.readdir(chunkDirectory))
+      .filter((fileName) => fileName.endsWith(".mp3"))
+      .sort()
+      .slice(0, MAX_TRANSCRIPTION_CHUNKS);
+
+    if (chunkFiles.length === 0) {
+      throw new Error(`ffmpeg produced no audio chunks for ${sourceName}`);
+    }
+
+    const transcripts: string[] = [];
+    let language: string | undefined;
+    for (const chunkFile of chunkFiles) {
+      abortSignal.throwIfAborted();
+      const chunkPath = path.join(chunkDirectory, chunkFile);
+      const chunk = await fs.promises.readFile(chunkPath);
+      const response = await inferenceClient.transcribeAudio(
+        chunk,
+        chunkFile,
+        "audio/mpeg",
+        abortSignal,
+      );
+      const text = response.text.trim();
+      if (text) {
+        transcripts.push(text);
+      }
+      language ??= response.language;
+    }
+
+    const text = transcripts.join("\n\n").trim();
+    if (!text) {
+      throw new Error(
+        `Transcription returned no readable text for ${sourceName}`,
+      );
+    }
+
+    return { text, language };
+  } finally {
+    await fs.promises.rm(chunkDirectory, { recursive: true, force: true });
+  }
+}
+
+async function transcribeBuffer(
+  buffer: Buffer,
+  fileName: string | null | undefined,
+  contentType: string,
+  abortSignal: AbortSignal,
+): Promise<MediaTranscriptionResult> {
+  const inferenceClient = InferenceClientFactory.build();
+  if (!inferenceClient) {
+    throw new Error(
+      "Audio transcription requires a configured OpenAI-compatible inference client",
+    );
+  }
+
+  await fs.promises.mkdir(TRANSCRIPTION_TMP_FOLDER, { recursive: true });
+  const directory = await fs.promises.mkdtemp(
+    path.join(TRANSCRIPTION_TMP_FOLDER, "source-"),
+  );
+  const sourceName =
+    fileName || `source${extensionForSource(fileName, contentType)}`;
+  const inputPath = path.join(
+    directory,
+    `input${extensionForSource(sourceName, contentType)}`,
+  );
+
+  try {
+    await fs.promises.writeFile(inputPath, buffer);
+    return await transcribeAudioChunks(
+      inputPath,
+      sourceName,
+      abortSignal,
+      inferenceClient,
+    );
+  } finally {
+    await fs.promises.rm(directory, { recursive: true, force: true });
+  }
+}
+
+export async function transcribeAsset(params: {
+  userId: string;
+  assetId: string;
+  fileName?: string | null;
+  contentType?: string | null;
+  abortSignal: AbortSignal;
+}): Promise<MediaTranscriptionResult> {
+  const { asset, metadata } = await readAsset({
+    userId: params.userId,
+    assetId: params.assetId,
+  });
+  const contentType = params.contentType ?? metadata.contentType;
+  if (!contentType) {
+    throw new Error(`Asset ${params.assetId} has no content type`);
+  }
+
+  return transcribeBuffer(
+    asset,
+    params.fileName ?? metadata.fileName,
+    contentType,
+    params.abortSignal,
+  );
+}
+
+export async function transcribeRemoteUrl(
+  url: string,
+  abortSignal: AbortSignal,
+): Promise<MediaTranscriptionResult> {
+  const inferenceClient = InferenceClientFactory.build();
+  if (!inferenceClient) {
+    throw new Error(
+      "Audio transcription requires a configured OpenAI-compatible inference client",
+    );
+  }
+
+  const runProxy = selectRunProxies();
+  const resolvedUrl = await resolveValidatedRedirectUrl(
+    url,
+    { signal: abortSignal },
+    runProxy,
+  );
+  const proxy = getProxyAgent(resolvedUrl.toString(), runProxy);
+
+  await fs.promises.mkdir(TRANSCRIPTION_TMP_FOLDER, { recursive: true });
+  const directory = await fs.promises.mkdtemp(
+    path.join(TRANSCRIPTION_TMP_FOLDER, "remote-"),
+  );
+  const outputTemplate = path.join(directory, "source.%(ext)s");
+
+  try {
+    await execa(
+      "yt-dlp",
+      [
+        ...serverConfig.crawler.ytDlpArguments,
+        "--extract-audio",
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "64K",
+        "--no-playlist",
+        "--output",
+        outputTemplate,
+        ...(proxy ? ["--proxy", proxy.proxy.toString()] : []),
+        resolvedUrl.toString(),
+      ],
+      { cancelSignal: abortSignal },
+    );
+
+    const sourceFile = (await fs.promises.readdir(directory))
+      .filter(
+        (fileName) =>
+          fileName.startsWith("source.") && !fileName.endsWith(".part"),
+      )
+      .sort()[0];
+    if (!sourceFile) {
+      throw new Error("yt-dlp produced no audio file for transcription");
+    }
+
+    logger.debug(`[transcription] Downloaded remote media for ${url}`);
+    return await transcribeAudioChunks(
+      path.join(directory, sourceFile),
+      sourceFile,
+      abortSignal,
+      inferenceClient,
+    );
+  } finally {
+    await fs.promises.rm(directory, { recursive: true, force: true });
+  }
+}

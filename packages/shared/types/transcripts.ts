@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const zTranscriptProvider = z.literal("youtube");
+export const zTranscriptProvider = z.enum(["youtube", "azure-whisper"]);
 export type TranscriptProvider = z.infer<typeof zTranscriptProvider>;
 
 export const zTranscriptStatus = z.enum([

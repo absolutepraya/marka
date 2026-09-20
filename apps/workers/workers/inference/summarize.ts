@@ -18,6 +18,7 @@ import serverConfig from "@karakeep/shared/config";
 import { InferenceClient } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
 import { buildSummaryPrompt } from "@karakeep/shared/prompts.server";
+import { normalizeSummary } from "@karakeep/shared/prompts";
 import { DequeuedJob } from "@karakeep/shared/queueing";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import { Bookmark } from "@karakeep/trpc/models/bookmarks";
@@ -52,7 +53,13 @@ async function fetchBookmarkDetailsForSummary(bookmarkId: string) {
           text: true,
         },
       },
-      // If assets (like PDFs with extracted text) should be summarized, extend here
+      asset: {
+        columns: {
+          assetType: true,
+          fileName: true,
+          sourceUrl: true,
+        },
+      },
     },
   });
 
@@ -105,6 +112,7 @@ export async function runSummarization(
     columns: {
       autoSummarizationEnabled: true,
       inferredTagLang: true,
+      summaryLanguage: true,
     },
   });
 
@@ -130,45 +138,41 @@ export async function runSummarization(
   }
 
   let textToSummarize = "";
-  if (bookmarkData.type === BookmarkTypes.LINK && bookmarkData.link) {
+  if (summarySource === "transcript") {
+    if (
+      bookmarkData.transcript?.status !== "ready" ||
+      !bookmarkData.transcript.text?.trim()
+    ) {
+      logger.info(
+        `[inference][${jobId}] Transcript is not ready for bookmark ${bookmarkId}. Skipping summary.`,
+      );
+      return false;
+    }
+
     const link = bookmarkData.link;
-
-    if (summarySource === "transcript") {
-      if (
-        bookmarkData.transcript?.status !== "ready" ||
-        !bookmarkData.transcript.text?.trim()
-      ) {
-        logger.info(
-          `[inference][${jobId}] Transcript is not ready for bookmark ${bookmarkId}. Skipping summary.`,
-        );
-        return false;
-      }
-
-      textToSummarize = `
-Title: ${link.title ?? ""}
-Description: ${link.description ?? ""}
+    const asset = bookmarkData.asset;
+    textToSummarize = `
+Title: ${link?.title ?? asset?.fileName ?? ""}
+Description: ${link?.description ?? ""}
 Transcript${bookmarkData.transcript.sourceLanguage ? ` (${bookmarkData.transcript.sourceLanguage})` : ""}: ${bookmarkData.transcript.text}
-Publisher: ${link.publisher ?? ""}
-Author: ${link.author ?? ""}
-URL: ${link.url ?? ""}
+Publisher: ${link?.publisher ?? ""}
+Author: ${link?.author ?? ""}
+URL: ${link?.url ?? asset?.sourceUrl ?? ""}
 `;
-    } else {
-      // Extract plain text content from HTML for summarization
-      const content =
-        (await Bookmark.getBookmarkPlainTextContent(
-          link,
-          bookmarkData.userId,
-        )) ?? "";
+  } else if (bookmarkData.type === BookmarkTypes.LINK && bookmarkData.link) {
+    const link = bookmarkData.link;
+    const content =
+      (await Bookmark.getBookmarkPlainTextContent(link, bookmarkData.userId)) ??
+      "";
 
-      if (!link.description && !content) {
-        // No content to infer from; skip summarization
-        logger.info(
-          `[inference] No content found for link "${bookmarkId}". Skipping summary.`,
-        );
-        return false;
-      }
+    if (!link.description && !content) {
+      logger.info(
+        `[inference] No content found for link "${bookmarkId}". Skipping summary.`,
+      );
+      return false;
+    }
 
-      textToSummarize = `
+    textToSummarize = `
 Title: ${link.title ?? ""}
 Description: ${link.description ?? ""}
 Content: ${content}
@@ -176,7 +180,6 @@ Publisher: ${link.publisher ?? ""}
 Author: ${link.author ?? ""}
 URL: ${link.url ?? ""}
 `;
-    }
   } else {
     logger.warn(
       `[inference][${jobId}] Bookmark ${bookmarkId} (type: ${bookmarkData.type}) is not a LINK or TEXT type with content, or content is missing. Skipping summary.`,
@@ -206,7 +209,9 @@ URL: ${link.url ?? ""}
   });
 
   const summaryPrompt = await buildSummaryPrompt(
-    userSettings?.inferredTagLang ?? serverConfig.inference.inferredTagLang,
+    userSettings?.summaryLanguage ??
+      userSettings?.inferredTagLang ??
+      serverConfig.inference.inferredTagLang,
     prompts.map((p) => p.text),
     textToSummarize,
     serverConfig.inference.contextLength,
@@ -227,8 +232,10 @@ URL: ${link.url ?? ""}
     );
   }
 
+  const summary = normalizeSummary(summaryResult.response);
+
   addLogFields<"inferenceWorker.run">({
-    "inference.summary.size": Buffer.byteLength(summaryResult.response, "utf8"),
+    "inference.summary.size": Buffer.byteLength(summary, "utf8"),
     "inference.total_tokens": summaryResult.totalTokens,
   });
 
@@ -263,7 +270,7 @@ URL: ${link.url ?? ""}
   await db
     .update(bookmarks)
     .set({
-      summary: summaryResult.response,
+      summary,
       summaryProvenance: summarySource,
       summaryStale: false,
       modifiedAt: new Date(),

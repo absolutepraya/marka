@@ -159,12 +159,16 @@ async function readImageTextWithLLM(
     base64,
     {
       schema: null,
+      imageDetail: "high",
     },
   );
 
   const extractedText = response.response.trim();
   if (!extractedText) {
-    return null;
+    logger.info(
+      "[assetPreprocessing] LLM OCR returned no text. Falling back to Tesseract.",
+    );
+    return readImageText(buffer);
   }
 
   return extractedText;
@@ -416,6 +420,13 @@ async function extractAndSaveImageText(
       logger.error(
         `[assetPreprocessing][${jobId}] Failed to read image text with LLM: ${e}`,
       );
+      try {
+        imageText = await readImageText(asset);
+      } catch (fallbackError) {
+        logger.error(
+          `[assetPreprocessing][${jobId}] Failed to read image text with Tesseract fallback: ${fallbackError}`,
+        );
+      }
     }
   } else {
     logger.info(
@@ -581,6 +592,10 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
       anythingChanged ||= extractedScreenshot;
       break;
     }
+    case "audio":
+      // Audio is transcribed by TranscriptWorker after the original asset is
+      // available. There is no preprocessing step required here.
+      break;
     default:
       throw new Error(
         `[assetPreprocessing][${jobId}] Unsupported bookmark type`,
@@ -596,7 +611,11 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
     priority: req.priority,
     groupId: bookmark.userId,
   };
-  if (!isFixMode || anythingChanged) {
+  const isTranscribedMedia =
+    (bookmark.asset.assetType === "video" ||
+      bookmark.asset.assetType === "audio") &&
+    serverConfig.transcription.enabled;
+  if ((!isFixMode || anythingChanged) && !isTranscribedMedia) {
     if (serverConfig.embedding.enableAutoIndexing) {
       await EmbeddingsQueue.enqueue(
         {

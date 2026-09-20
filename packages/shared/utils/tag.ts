@@ -40,7 +40,7 @@ export function getPotentialRelevantTagsPrompt(
   potentialRelevantTags?: string[],
 ): string {
   if (potentialRelevantTags && potentialRelevantTags.length > 0) {
-    return `- Similar bookmarks were tagged with the following tags (reuse if possible, ignore if irrelevant): ${potentialRelevantTags.join(", ")}`;
+    return `- Similar bookmarks used the following existing tags. Reuse one when it fits, preserve its spelling, and ignore it when irrelevant. This list is a suggestion, not a requirement: ${potentialRelevantTags.join(", ")}`;
   }
   return "";
 }
