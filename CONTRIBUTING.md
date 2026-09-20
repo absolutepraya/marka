@@ -128,7 +128,7 @@ determines the next release from the merged Conventional Commit messages:
 
 - `feat` creates a minor release.
 - `fix`, `perf`, `refactor`, `build`, `security`, `deps`, and `revert` create a patch release.
-- `!` markers or a `BREAKING CHANGE:` footer create a major release.
+- `!` markers or a `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer create a major release.
 - `docs`, `test`, `style`, `ci`, and documentation-only `chore` changes do not create a release.
 - A `Release: major|minor|patch|none` commit footer is an explicit override.
 - An unrecognized commit that changes runtime or deployment files falls back to a patch release.

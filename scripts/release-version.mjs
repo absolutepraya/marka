@@ -19,7 +19,7 @@ const PATCH_TYPES = new Set([
   "security",
 ]);
 const RELEASE_OVERRIDE_PATTERN = /^Release:\s*(major|minor|patch|none)\s*$/im;
-const BREAKING_CHANGE_PATTERN = /^BREAKING CHANGE(?:S)?\s*:/im;
+const BREAKING_CHANGE_PATTERN = /^BREAKING[ -]CHANGE(?:S)?\s*:/im;
 const CONVENTIONAL_COMMIT_PATTERN =
   /^([a-z][a-z0-9-]*)(?:\([^\n()]+\))?(!)?:\s+.+$/i;
 
@@ -27,7 +27,7 @@ const NON_RUNTIME_PATH_PATTERNS = [
   /^(?:AGENTS|CLAUDE|GEMINI|CONTRIBUTING|CONTEXT|README)\.md$/i,
   /^\.github\//,
   /^docs\//,
-  /(?:^|\/)(?:[^/]+\.)?(?:test|spec)\.[cm]?[jt]sx?$/i,
+  /(?:^|\/)(?:[^/]+\.)?(?:test|spec)\.(?:[cm]?[jt]sx?|sh)$/i,
   /(?:^|\/)(?:test|tests|__tests__)\//i,
   /(?:^|\/)[^/]*\.(?:md|mdx|txt)$/i,
 ];

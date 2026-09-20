@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.repository.default_branch || github.ref_name }}
 
       - name: Validate release tag and source commit
         id: release
@@ -37,6 +37,8 @@ jobs:
         run: |
           set -euo pipefail
           tag="${REQUESTED_RELEASE_TAG:-$GITHUB_REF_NAME}"
+          git fetch --force --tags origin
+          git fetch --force origin main:refs/remotes/origin/main
           if [[ "${{ github.event_name }}" == "push" ]]; then
             [[ "${{ github.event.created }}" == "true" && "${{ github.event.forced }}" != "true" ]] || {
               echo "Release tags must be created once and never moved." >&2
@@ -64,11 +66,29 @@ jobs:
             }
           fi
 
-          git fetch --no-tags origin main
           git merge-base --is-ancestor "$target" origin/main || {
             echo "Release target $target is not reachable from origin/main" >&2
             exit 1
           }
+
+          latest_release_tag=""
+          while read -r candidate; do
+            candidate_target="$(git rev-parse "${candidate}^{commit}")"
+            if git merge-base --is-ancestor "$candidate_target" origin/main; then
+              latest_release_tag="$candidate"
+            fi
+          done < <(
+            git for-each-ref --format="%(refname:strip=2) %(objecttype)" 'refs/tags/v*' |
+              awk '$2 == "tag" { print $1 }' |
+              grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' |
+              sort -V || true
+          )
+          promote_stable=false
+          if [[ "$tag" == "$latest_release_tag" ]]; then
+            promote_stable=true
+          else
+            echo "Skipping stable promotion for older release $tag; latest is $latest_release_tag."
+          fi
 
           short_sha="$(git rev-parse --short=12 "$target")"
           {
@@ -76,6 +96,7 @@ jobs:
             echo "version=$version"
             echo "target=$target"
             echo "short_sha=$short_sha"
+            echo "promote_stable=$promote_stable"
           } >> "$GITHUB_OUTPUT"
 
       - name: Verify exact-commit blocking CI
@@ -122,10 +143,20 @@ jobs:
             exit 1
           }
 
+      - name: Check out validated release source
+        if: steps.release.outputs.promote_stable == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ steps.release.outputs.target }}
+
       - name: Set up Docker Buildx
+        if: steps.release.outputs.promote_stable == 'true'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Log in to GHCR
+        if: steps.release.outputs.promote_stable == 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
@@ -134,6 +165,7 @@ jobs:
 
       - name: Check immutable release image tags
         id: images
+        if: steps.release.outputs.promote_stable == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -208,7 +240,7 @@ jobs:
           fi
 
       - name: Verify existing immutable image tags
-        if: steps.images.outputs.verify_existing == 'true'
+        if: steps.release.outputs.promote_stable == 'true' && steps.images.outputs.verify_existing == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -261,7 +293,7 @@ jobs:
           fi
 
       - name: Build and push web release images
-        if: steps.images.outputs.build_web == 'true'
+        if: steps.release.outputs.promote_stable == 'true' && steps.images.outputs.build_web == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
@@ -280,7 +312,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push workers release images
-        if: steps.images.outputs.build_workers == 'true'
+        if: steps.release.outputs.promote_stable == 'true' && steps.images.outputs.build_workers == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
@@ -300,6 +332,7 @@ jobs:
 
       - name: Verify immutable image digests and source metadata
         id: verified
+        if: steps.release.outputs.promote_stable == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -344,7 +377,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Complete missing SHA rollback tags
-        if: steps.images.outputs.ensure_web_sha == 'true' || steps.images.outputs.ensure_workers_sha == 'true'
+        if: steps.release.outputs.promote_stable == 'true' && (steps.images.outputs.ensure_web_sha == 'true' || steps.images.outputs.ensure_workers_sha == 'true')
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -359,6 +392,7 @@ jobs:
           fi
 
       - name: Verify SHA rollback image tags
+        if: steps.release.outputs.promote_stable == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -393,6 +427,7 @@ jobs:
           done
 
       - name: Promote and verify paired stable channel
+        if: steps.release.outputs.promote_stable == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}

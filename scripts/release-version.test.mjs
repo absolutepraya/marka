@@ -27,6 +27,13 @@ test("classifies conventional release levels", () => {
     }).level,
     "major",
   );
+  assert.equal(
+    classifyCommit({
+      subject: "refactor: replace the API contract",
+      body: "BREAKING-CHANGE: clients must migrate",
+    }).level,
+    "major",
+  );
 });
 
 test("does not release documentation-only changes", () => {
@@ -51,6 +58,13 @@ test("does not release documentation-only changes", () => {
     classifyCommit({
       subject: "ci: automate release tags",
       files: [".github/workflows/automatic-release.yml"],
+    }).level,
+    "none",
+  );
+  assert.equal(
+    classifyCommit({
+      subject: "test: cover shell installer behavior",
+      files: ["scripts/install.test.sh", "scripts/promote-release.test.sh"],
     }).level,
     "none",
   );
