@@ -7,6 +7,7 @@ import {
   decideRelease,
   determineBump,
   latestReleaseTag,
+  parseRemoteReleaseRefs,
 } from "./release-version.mjs";
 
 test("classifies conventional release levels", () => {
@@ -94,6 +95,20 @@ test("selects the highest valid release tag", () => {
     tag: "v0.10.0",
     version: "0.10.0",
   });
+});
+
+test("keeps only annotated semantic-version release tags", () => {
+  assert.deepEqual(
+    parseRemoteReleaseRefs(
+      [
+        "aaa refs/tags/v0.1.0",
+        "bbb refs/tags/v0.1.0^{}",
+        "ccc refs/tags/v0.1.1",
+        "ddd refs/tags/not-a-release^{}",
+      ].join("\n"),
+    ),
+    ["v0.1.0"],
+  );
 });
 
 test("produces an automated release decision", () => {

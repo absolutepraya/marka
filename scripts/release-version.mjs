@@ -169,14 +169,20 @@ function git(args) {
   }).trim();
 }
 
+export function parseRemoteReleaseRefs(output) {
+  return output
+    .split("\n")
+    .map((line) => line.split(/\s+/)[1])
+    .filter((ref) => /^refs\/tags\/v\d+\.\d+\.\d+\^\{\}$/.test(ref ?? ""))
+    .map((ref) => ref.slice("refs/tags/".length, -"^{}".length));
+}
+
 function remoteReleaseTags() {
   // Local clones can retain unrelated upstream v* tags. Only origin tags are
   // authoritative for Marka release numbering.
-  return git(["ls-remote", "--tags", "origin", "refs/tags/v*"])
-    .split("\n")
-    .map((line) => line.split(/\s+/)[1])
-    .filter((ref) => /^refs\/tags\/v\d+\.\d+\.\d+$/.test(ref ?? ""))
-    .map((ref) => ref.slice("refs/tags/".length));
+  return parseRemoteReleaseRefs(
+    git(["ls-remote", "--tags", "origin", "refs/tags/v*"]),
+  );
 }
 
 function isAncestor(ancestor, descendant = "HEAD") {
