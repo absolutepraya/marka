@@ -68,6 +68,13 @@ test("does not release documentation-only changes", () => {
     }).level,
     "none",
   );
+  assert.equal(
+    classifyCommit({
+      subject: "chore: update release runtime",
+      files: ["scripts/release-version.mjs"],
+    }).level,
+    "patch",
+  );
 });
 
 test("allows an explicit release footer", () => {

@@ -144,7 +144,6 @@ jobs:
           }
 
       - name: Check out validated release source
-        if: steps.release.outputs.promote_stable == 'true'
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
@@ -152,11 +151,9 @@ jobs:
           ref: ${{ steps.release.outputs.target }}
 
       - name: Set up Docker Buildx
-        if: steps.release.outputs.promote_stable == 'true'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Log in to GHCR
-        if: steps.release.outputs.promote_stable == 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
@@ -165,7 +162,6 @@ jobs:
 
       - name: Check immutable release image tags
         id: images
-        if: steps.release.outputs.promote_stable == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -240,7 +236,7 @@ jobs:
           fi
 
       - name: Verify existing immutable image tags
-        if: steps.release.outputs.promote_stable == 'true' && steps.images.outputs.verify_existing == 'true'
+        if: steps.images.outputs.verify_existing == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -293,7 +289,7 @@ jobs:
           fi
 
       - name: Build and push web release images
-        if: steps.release.outputs.promote_stable == 'true' && steps.images.outputs.build_web == 'true'
+        if: steps.images.outputs.build_web == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
@@ -312,7 +308,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push workers release images
-        if: steps.release.outputs.promote_stable == 'true' && steps.images.outputs.build_workers == 'true'
+        if: steps.images.outputs.build_workers == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
@@ -332,7 +328,6 @@ jobs:
 
       - name: Verify immutable image digests and source metadata
         id: verified
-        if: steps.release.outputs.promote_stable == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -377,7 +372,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Complete missing SHA rollback tags
-        if: steps.release.outputs.promote_stable == 'true' && (steps.images.outputs.ensure_web_sha == 'true' || steps.images.outputs.ensure_workers_sha == 'true')
+        if: steps.images.outputs.ensure_web_sha == 'true' || steps.images.outputs.ensure_workers_sha == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
@@ -392,7 +387,6 @@ jobs:
           fi
 
       - name: Verify SHA rollback image tags
-        if: steps.release.outputs.promote_stable == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
