@@ -74,7 +74,8 @@ Important installer facts:
 - the script never installs Docker, changes firewall rules, configures DNS, or provisions TLS/reverse-proxy infrastructure
 - default configuration directory is `~/marka`; default persistent data directory is `~/marka/data`
 - generated Compose project name remains `karakeep` for compatibility
-- generated app images are the paired `ghcr.io/absolutepraya/marka:web-main` and `ghcr.io/absolutepraya/marka:workers-main` tags
+- generated app images default to the paired `ghcr.io/absolutepraya/marka:web-stable` and `ghcr.io/absolutepraya/marka:workers-stable` channel
+- immutable `web-v<version>` / `workers-v<version>` and `web-sha-<sha>` / `workers-sha-<sha>` pairs are the rollback references
 - the default web listener is `127.0.0.1:3000`, intended to sit behind an operator-managed reverse proxy for Internet-facing installs
 - search choices are managed Meilisearch, external Meilisearch, or disabled search
 - renderer choices are managed private Chrome, external token-protected Browserless, or disabled browser rendering
@@ -187,7 +188,7 @@ Marka uses a **pull-based** personal VPS deploy flow that is separate from the p
 
 High-level flow:
 - CI passes on `main`
-- `.github/workflows/docker.yml` builds and pushes matching `ghcr.io/<owner>/marka:web-main` and `ghcr.io/<owner>/marka:workers-main` images from the same successful commit
+- `.github/workflows/docker.yml` builds immutable commit-addressed images from successful `main` builds; `.github/workflows/release.yml` validates annotated release tags and promotes paired `web-stable` / `workers-stable` images
 - a Watchtower container on the VPS polls the paired GHCR tags and redeploys automatically
 
 Important notes:

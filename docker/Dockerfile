@@ -56,7 +56,11 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 ARG SERVER_VERSION=development
+ARG SERVER_RELEASE=
+ARG SERVER_COMMIT=
 ENV SERVER_VERSION=${SERVER_VERSION}
+ENV SERVER_RELEASE=${SERVER_RELEASE}
+ENV SERVER_COMMIT=${SERVER_COMMIT}
 
 # Build the db migration script
 RUN cd packages/db && \
@@ -81,11 +85,17 @@ RUN (cd apps/mcp && pnpm --config.verify-deps-before-run=false build)
 
 # Replace with node:24-slim as soon as https://github.com/nodejs/node/pull/65042 is fixed and uploaded to Docker hub
 FROM node:24.18.1-slim AS aio_builder
-LABEL org.opencontainers.image.source="https://github.com/karakeep-app/karakeep"
+ARG SERVER_VERSION=nightly
+ARG SERVER_RELEASE=
+ARG SERVER_COMMIT=
+LABEL org.opencontainers.image.source="https://github.com/absolutepraya/marka" \
+      org.opencontainers.image.version="${SERVER_RELEASE}" \
+      org.opencontainers.image.revision="${SERVER_COMMIT}"
 WORKDIR /app
 
-ARG SERVER_VERSION=nightly
 ENV SERVER_VERSION=${SERVER_VERSION}
+ENV SERVER_RELEASE=${SERVER_RELEASE}
+ENV SERVER_COMMIT=${SERVER_COMMIT}
 
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
@@ -219,7 +229,7 @@ ENV USING_LEGACY_SEPARATE_CONTAINERS=true \
 
 # Replace with node:24-slim as soon as https://github.com/nodejs/node/pull/65042 is fixed and uploaded to Docker hub
 FROM node:24.18.1-slim AS cli
-LABEL org.opencontainers.image.source="https://github.com/karakeep-app/karakeep"
+LABEL org.opencontainers.image.source="https://github.com/absolutepraya/marka"
 WORKDIR /app
 
 COPY --from=base /app/apps/cli/dist/index.mjs apps/cli/index.mjs
@@ -227,7 +237,11 @@ COPY --from=base /app/apps/cli/dist/index.mjs apps/cli/index.mjs
 WORKDIR /app/apps/cli
 
 ARG SERVER_VERSION=nightly
+ARG SERVER_RELEASE=
+ARG SERVER_COMMIT=
 ENV SERVER_VERSION=${SERVER_VERSION}
+ENV SERVER_RELEASE=${SERVER_RELEASE}
+ENV SERVER_COMMIT=${SERVER_COMMIT}
 
 ENTRYPOINT ["node", "index.mjs"]
 
@@ -235,7 +249,7 @@ ENTRYPOINT ["node", "index.mjs"]
 
 # Replace with node:24-slim as soon as https://github.com/nodejs/node/pull/65042 is fixed and uploaded to Docker hub
 FROM node:24.18.1-slim AS mcp
-LABEL org.opencontainers.image.source="https://github.com/karakeep-app/karakeep"
+LABEL org.opencontainers.image.source="https://github.com/absolutepraya/marka"
 WORKDIR /app
 
 COPY --from=base /app/apps/mcp/dist/index.js apps/mcp/index.js

@@ -69,8 +69,13 @@ Fresh deployments always start with signups enabled so the first administrator a
 
 The script uses the stable Compose project name `karakeep` for compatibility and the paired Marka images:
 
-- `ghcr.io/absolutepraya/marka:web-main`
-- `ghcr.io/absolutepraya/marka:workers-main`
+- `ghcr.io/absolutepraya/marka:web-stable`
+- `ghcr.io/absolutepraya/marka:workers-stable`
+
+`stable` is a mutable channel pointer for the current supported release. The
+release workflow publishes immutable `web-v<version>` and `workers-v<version>`
+tags, along with matching `web-sha-<sha>` and `workers-sha-<sha>` rollback tags.
+The two application images are always treated as a pair.
 
 A default fully featured installation runs four containers:
 
@@ -156,7 +161,7 @@ The script copy in the configuration directory also acts as the management helpe
 
 `backup` briefly stops the web and worker services, archives the authoritative SQLite/assets data directory, then restores them if they were running. Meilisearch is not included because it is a derived search index. The backup command checks for `tar` when it is invoked.
 
-`update` pulls the current `web-main` and `workers-main` images and recreates changed services. For rollback, pin both images to matching immutable `web-sha-<sha>` and `workers-sha-<sha>` tags from the same known-good commit.
+`update` pulls the current paired `web-stable` and `workers-stable` images and recreates changed services. For an exact rollback, edit both application image lines in the generated `docker-compose.yml` to matching immutable `web-v<version>` and `workers-v<version>` tags, or matching `web-sha-<sha>` and `workers-sha-<sha>` tags from one known-good source commit. Do not roll back only one service. After both services are healthy, restore the stable tags before the next normal update.
 
 `uninstall` removes the Compose containers and network only. It intentionally keeps both the configuration directory and persistent data directory.
 

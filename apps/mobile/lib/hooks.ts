@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
+import { createServerVersionResponse } from "@karakeep/shared/version";
+import type { ServerVersionResponse } from "@karakeep/shared/version";
 
 import useAppSettings from "./settings";
 import { buildApiHeaders } from "./utils";
@@ -32,8 +34,12 @@ export function useServerVersion() {
         throw new Error(`Failed to fetch server version: ${response.status}`);
       }
 
-      const data = await response.json();
-      return data.version as string;
+      const data = (await response.json()) as Partial<ServerVersionResponse>;
+      return createServerVersionResponse({
+        legacyVersion: data.version,
+        release: data.release,
+        commit: data.commit,
+      });
     },
     enabled: !!settings.address,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes

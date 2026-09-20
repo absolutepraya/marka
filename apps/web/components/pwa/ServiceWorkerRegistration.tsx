@@ -12,6 +12,8 @@ import React, {
 import { useSession } from "@/lib/auth/client";
 import { recordThumbnailAccess } from "@/lib/offline-library/repository";
 
+import { normalizeCommitSha } from "@karakeep/shared/version";
+
 type WorkerMessage =
   | { type: "ACTIVATE_UPDATE" }
   | { type: "UPDATE_ACTIVATION_BLOCKED" }
@@ -269,27 +271,32 @@ export default function ServiceWorkerRegistration({
           return;
         }
 
-        const body = (await response.json()) as { version?: unknown };
-        if (!isValidBuild(appBuild) || !isDeployBuild(body.version)) {
+        const body = (await response.json()) as {
+          version?: unknown;
+          commit?: unknown;
+        };
+        const deployedVersion =
+          normalizeCommitSha(body.commit) ?? normalizeCommitSha(body.version);
+        if (!isValidBuild(appBuild) || !isDeployBuild(deployedVersion)) {
           setUpdateStatus("unavailable");
           return;
         }
 
-        setDeployedBuild(body.version);
+        setDeployedBuild(deployedVersion);
         if (
           registrationRef.current &&
           typeof registrationRef.current.update === "function"
         ) {
           await registrationRef.current.update().catch(() => undefined);
         }
-        if (body.version === appBuild) {
+        if (deployedVersion === appBuild) {
           setUpdateStatus("current");
           return;
         }
 
         setUpdateStatus("available");
         const registration = await navigator.serviceWorker.register(
-          `/sw.js?v=${encodeURIComponent(body.version)}`,
+          `/sw.js?v=${encodeURIComponent(deployedVersion)}`,
           {
             scope: "/",
             updateViaCache: "none",
@@ -300,19 +307,19 @@ export default function ServiceWorkerRegistration({
           await registration.update().catch(() => undefined);
         }
 
-        if (isWorkerForBuild(registration.waiting, body.version)) {
+        if (isWorkerForBuild(registration.waiting, deployedVersion)) {
           setUpdateStatus("ready");
           return;
         }
 
         if (
           registration.installing &&
-          isWorkerForBuild(registration.installing, body.version)
+          isWorkerForBuild(registration.installing, deployedVersion)
         ) {
           watchInstallingWorker(
             registration,
             registration.installing,
-            body.version,
+            deployedVersion,
           );
         } else {
           setUpdateStatus("available");

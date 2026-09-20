@@ -29,5 +29,8 @@ export const zClientConfigSchema = z.object({
     privacyPolicyUrl: z.string().optional(),
   }),
   serverVersion: z.string().optional(),
+  serverRelease: z.string().optional(),
+  serverCommit: z.string().optional(),
+  serverCommitShort: z.string().optional(),
   disableNewReleaseCheck: z.boolean(),
 });

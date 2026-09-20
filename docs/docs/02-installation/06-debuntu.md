@@ -1,5 +1,12 @@
 # Debian 12/Ubuntu 24.04
 
+:::warning Release contract scope
+The legacy source-built `marka-linux.sh` and this Debuntu page are outside the
+issue #69 release and rollback contract. They do not consume the paired GHCR
+`stable` channel or its immutable release image tags. For the supported
+release-based Docker path, use the [guided Docker setup](./11-guided-docker-setup.md).
+:::
+
 :::warning
 This script is a stripped-down version of those found in the [Proxmox Community Scripts](https://github.com/community-scripts/ProxmoxVE) repo. It has been adapted to work on baremetal Debian 12 or Ubuntu 24.04 installs **only**. Any other use is not supported and you use this script at your own risk.
 :::

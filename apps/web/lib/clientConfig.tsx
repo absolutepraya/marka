@@ -23,6 +23,9 @@ export const ClientConfigCtx = createContext<ClientConfig>({
     privacyPolicyUrl: undefined,
   },
   serverVersion: undefined,
+  serverRelease: undefined,
+  serverCommit: undefined,
+  serverCommitShort: undefined,
   disableNewReleaseCheck: true,
 });
 

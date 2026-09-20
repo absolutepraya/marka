@@ -23,6 +23,7 @@ import useAppSettings from "@/lib/settings";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
+import { formatServerVersionDisplay } from "@karakeep/shared/version";
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -395,7 +396,9 @@ export default function Settings() {
               ? "Loading..."
               : serverVersionError
                 ? "unavailable"
-                : (serverVersion ?? "unknown")}
+                : serverVersion
+                  ? formatServerVersionDisplay(serverVersion)
+                  : "unknown"}
           </Text>
         </View>
       </View>

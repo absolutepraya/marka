@@ -117,6 +117,25 @@ A good PR for this repo should include:
 - commands run for validation
 - any deploy, migration, or compatibility implications
 
+### Release and deployment changes
+
+The shared Marka web and workers release identity is an annotated
+`vMAJOR.MINOR.PATCH` Git tag. Package manifest versions remain independent and
+must not be silently bumped as part of a shared release. The tag workflow checks
+that the tagged commit is reachable from `main` and has successful exact-commit
+blocking CI before building paired immutable `web-v<version>` and
+`workers-v<version>` images. It then promotes the paired `web-stable` and
+`workers-stable` channel and creates the GitHub Release.
+
+The stable channel is mutable and Watchtower updates the two services
+independently, so adjacent releases must remain compatible. Exact rollback uses
+matching immutable version tags or matching `web-sha-<sha>` and
+`workers-sha-<sha>` tags. Release contract tests are offline and run with:
+
+```bash
+pnpm test:release-contract
+```
+
 ## Review expectations
 
 Pull requests targeting `main` may receive automated review from CodeRabbit in addition to the repository's GitHub Actions checks.
