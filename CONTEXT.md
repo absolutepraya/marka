@@ -81,3 +81,49 @@ _Avoid_: treating saved or crawled HTML as trusted markup.
 **Office files (out of scope)**:
 Office ingestion, provider-backed viewing, and editing are canceled from Marka's active product scope. Generic raw attachments, if accepted by a separate path, do not imply document support.
 _Avoid_: reopening the retired Office proposals by referring to them as an available or planned viewer.
+
+## Release and deployment model
+
+**Release**:
+A SemVer identity for one compatible web and workers product pair, represented by an immutable annotated Git tag. A release is distinct from package manifest versions.
+_Avoid_: treating an SDK, MCP, mobile, extension, or other package version as the shared product release.
+
+**Build**:
+A deployable web or workers artifact produced from one source commit. A release has paired builds, but a build is not itself a release or a deployment.
+_Avoid_: using build, release, and deployment interchangeably.
+
+**Release channel**:
+A mutable pair of deployment references intended to resolve to the same release. `stable` is the only supported channel for this scope.
+_Avoid_: treating a channel pointer as an immutable rollback reference.
+
+**Deployment**:
+The web and workers services currently running for an installation. Services may roll forward independently, so adjacent builds must remain compatible during a channel update.
+_Avoid_: assuming that promoting a channel changes every service atomically.
+
+**Release provenance**:
+The metadata that identifies a running build precisely, including its release identity and source commit, with image-level evidence available for operator verification.
+_Avoid_: treating a short commit display or a mutable channel name as sufficient exact provenance.
+
+**Rollback artifact**:
+An immutable, paired web and workers image reference that can restore a known-good deployment. Version-tagged artifacts are the preferred human-readable choice; SHA-tagged artifacts remain available as a fallback.
+_Avoid_: rolling back only one service or relying on a mutable channel pointer.
+
+**GitHub Release**:
+A human-facing publication associated with one immutable Git tag. It explains a release and may contain generated or edited notes, but it does not define the release identity or replace image provenance.
+_Avoid_: treating a GitHub Release page as the source of truth instead of its Git tag and source commit.
+
+**Eligible release commit**:
+A source commit that is reachable from `main` and has a successful exact-commit CI result for the repository's blocking checks. A tag on an eligible commit may enter the release workflow.
+_Avoid_: accepting the latest branch result, an unrelated successful run, or advisory-only checks as release eligibility.
+
+**Release compatibility window**:
+The bounded period while independently updated web and workers services overlap during a channel rollout. Both adjacent releases must remain compatible throughout this window.
+_Avoid_: describing an independently rolled deployment as an atomic switch.
+
+**Build identity**:
+The full source commit that uniquely identifies a deployable build. A release number is useful for human communication, but the build identity is the value used to determine whether two running or cached builds are actually different.
+_Avoid_: using a release number alone as a cache, service-worker, or rollback identity.
+
+**Compatibility version field**:
+The existing server-version response field retained for clients that only understand a commit string. It remains a full commit when available; newer clients use structured release metadata alongside it.
+_Avoid_: changing the legacy field from a commit identity to a release number without a compatibility layer.

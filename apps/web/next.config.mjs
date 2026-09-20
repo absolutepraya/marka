@@ -1,12 +1,11 @@
 import bundleAnalyzer from "@next/bundle-analyzer";
 import { execSync } from "node:child_process";
 
-// Fork versioning: surface the git commit as SERVER_VERSION so the sidebar
-// shows the build you're running. Docker builds set SERVER_VERSION via a build
-// arg; locally we derive it from git (no-op when git isn't available).
-if (!process.env.SERVER_VERSION) {
+// Fork versioning: keep SERVER_VERSION as the legacy full-commit alias while
+// exposing the same commit through the explicit SERVER_COMMIT variable.
+if (!process.env.SERVER_COMMIT && !process.env.SERVER_VERSION) {
   try {
-    process.env.SERVER_VERSION = execSync("git rev-parse HEAD", {
+    process.env.SERVER_COMMIT = execSync("git rev-parse HEAD", {
       stdio: ["ignore", "pipe", "ignore"],
     })
       .toString()
@@ -17,7 +16,18 @@ if (!process.env.SERVER_VERSION) {
   }
 }
 
-const serviceWorkerBuildVersion = process.env.SERVER_VERSION ?? "development";
+if (
+  !process.env.SERVER_COMMIT &&
+  /^[0-9a-f]{7,40}$/i.test(process.env.SERVER_VERSION ?? "")
+) {
+  process.env.SERVER_COMMIT = process.env.SERVER_VERSION;
+}
+if (!process.env.SERVER_VERSION && process.env.SERVER_COMMIT) {
+  process.env.SERVER_VERSION = process.env.SERVER_COMMIT;
+}
+
+const serviceWorkerBuildVersion =
+  process.env.SERVER_COMMIT ?? process.env.SERVER_VERSION ?? "development";
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",

@@ -47,6 +47,11 @@ REF=<tag-or-commit-sha>; curl -fsSLo /tmp/marka-setup.sh "https://raw.githubuser
 
 Read the [guided installation guide](docs/docs/02-installation/11-guided-docker-setup.md) for all configuration modes and rollback details.
 
+Marka web and workers releases share an annotated `vMAJOR.MINOR.PATCH` Git tag.
+The production Compose file and guided installer follow the paired `stable`
+channel. Each release also keeps immutable version and source-commit image tags
+so operators can roll back web and workers together.
+
 ## Develop Marka
 
 Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution rules and [`docs/operator-setup.md`](docs/operator-setup.md) for local development and deployment workflows.

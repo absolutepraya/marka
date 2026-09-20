@@ -155,6 +155,33 @@ describe("ServiceWorkerRegistration", () => {
     });
   });
 
+  it("prefers the full commit field over the legacy version field", async () => {
+    mocks.fetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          version: "ccccccc",
+          commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        }),
+        {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        },
+      ),
+    );
+
+    renderRegistration();
+
+    await waitFor(() => {
+      expect(mocks.register).toHaveBeenCalledWith(
+        "/sw.js?v=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        {
+          scope: "/",
+          updateViaCache: "none",
+        },
+      );
+    });
+  });
+
   it("refreshes the registered worker during a manual version check", async () => {
     const initialUpdate = vi.fn().mockResolvedValue(undefined);
     const registeredUpdate = vi.fn().mockResolvedValue(undefined);

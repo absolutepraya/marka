@@ -1,8 +1,7 @@
-name: Build and Push image
+name: Build and Push commit images
 
-# Pull-based deploy: this workflow builds + pushes version-compatible web and
-# workers images to GHCR. The VPS runs Watchtower, which polls those tags and
-# redeploys both Marka services without an inbound SSH deploy step.
+# Pull-based deploy support: this workflow keeps immutable commit images
+# available for rollback. Release tags are built and promoted by release.yml.
 
 on:
   workflow_run:
@@ -46,47 +45,87 @@ jobs:
         run: |
           set -euo pipefail
           image_name="ghcr.io/${{ github.repository_owner }}/marka"
+          target="${{ github.event.workflow_run.head_sha || github.sha }}"
           short_sha="$(git rev-parse --short=12 HEAD)"
           {
             echo "image_name=${image_name}"
-            echo "sha_tag=sha-${short_sha}"
+            echo "target=${target}"
+            echo "short_sha=${short_sha}"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Check immutable commit image pair
+        id: images
+        env:
+          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          get_digest() {
+            docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>/dev/null | head -n 1
+          }
+
+          web_digest="$(get_digest "$IMAGE_NAME:web-sha-$SHORT_SHA" || true)"
+          workers_digest="$(get_digest "$IMAGE_NAME:workers-sha-$SHORT_SHA" || true)"
+          if [[ -n "$web_digest" && -n "$workers_digest" ]]; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -n "$web_digest" || -n "$workers_digest" ]]; then
+            echo "Immutable commit image pair is partial. Refusing to overwrite it." >&2
+            exit 1
+          fi
+          echo "build=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify existing commit image pair
+        if: steps.images.outputs.build == 'false'
+        env:
+          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
+          TARGET: ${{ steps.meta.outputs.target }}
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          for ref in "$IMAGE_NAME:web-sha-$SHORT_SHA" "$IMAGE_NAME:workers-sha-$SHORT_SHA"; do
+            docker pull "$ref" >/dev/null
+            source="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')"
+            revision="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+            [[ "$source" == "https://github.com/absolutepraya/marka" ]] || {
+              echo "Unexpected source label on existing commit image $ref: $source" >&2
+              exit 1
+            }
+            [[ "$revision" == "$TARGET" ]] || {
+              echo "Existing commit image $ref points to $revision, expected $TARGET" >&2
+              exit 1
+            }
+          done
+
       - name: Build and push web image
+        if: steps.images.outputs.build == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
           file: docker/Dockerfile
           target: web
           platforms: linux/amd64
-          build-args: SERVER_VERSION=${{ github.event.workflow_run.head_sha || github.sha }}
+          build-args: |
+            SERVER_VERSION=${{ steps.meta.outputs.target }}
+            SERVER_COMMIT=${{ steps.meta.outputs.target }}
           push: true
-          tags: ${{ steps.meta.outputs.image_name }}:web-${{ steps.meta.outputs.sha_tag }}
+          tags: ${{ steps.meta.outputs.image_name }}:web-sha-${{ steps.meta.outputs.short_sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build and push workers image
+        if: steps.images.outputs.build == 'true'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
           file: docker/Dockerfile
           target: workers
           platforms: linux/amd64
-          build-args: SERVER_VERSION=${{ github.event.workflow_run.head_sha || github.sha }}
+          build-args: |
+            SERVER_VERSION=${{ steps.meta.outputs.target }}
+            SERVER_COMMIT=${{ steps.meta.outputs.target }}
           push: true
-          tags: ${{ steps.meta.outputs.image_name }}:workers-${{ steps.meta.outputs.sha_tag }}
+          tags: ${{ steps.meta.outputs.image_name }}:workers-sha-${{ steps.meta.outputs.short_sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Promote paired release tags
-        env:
-          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
-          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
-        run: |
-          set -euo pipefail
-          docker buildx imagetools create \
-            --tag "${IMAGE_NAME}:web-main" \
-            "${IMAGE_NAME}:web-${SHA_TAG}"
-          docker buildx imagetools create \
-            --tag "${IMAGE_NAME}:workers-main" \
-            "${IMAGE_NAME}:workers-${SHA_TAG}"

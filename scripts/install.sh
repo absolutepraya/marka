@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1"
+SCRIPT_VERSION="2"
 DEFAULT_INSTALL_DIR="${HOME}/marka"
 DEFAULT_PUBLIC_URL="http://localhost:3000"
 DEFAULT_PORT="3000"
@@ -10,8 +10,8 @@ DEFAULT_SEARCH_MODE="managed"
 DEFAULT_RENDERER_MODE="managed"
 DEFAULT_AI_MODE="deferred"
 COMPOSE_PROJECT_NAME="karakeep"
-WEB_IMAGE="ghcr.io/absolutepraya/marka:web-main"
-WORKERS_IMAGE="ghcr.io/absolutepraya/marka:workers-main"
+WEB_IMAGE="ghcr.io/absolutepraya/marka:web-stable"
+WORKERS_IMAGE="ghcr.io/absolutepraya/marka:workers-stable"
 MEILI_IMAGE="getmeili/meilisearch:v1.41.0"
 CHROME_IMAGE="ghcr.io/karakeep-app/karakeep-chrome:release"
 
@@ -594,7 +594,7 @@ write_generated_files() {
     say "# Stable project name: $COMPOSE_PROJECT_NAME"
     say "# Update with: ./install.sh update"
     say "# Back up first with: ./install.sh backup"
-    say "# For rollback, pin web/workers to matching immutable web-sha-<sha> and workers-sha-<sha> tags from one known-good commit."
+    say "# For rollback, pin web/workers to matching immutable web-v<version> and workers-v<version> tags, or matching web-sha-<sha> and workers-sha-<sha> tags, from one known-good commit."
     say "name: $COMPOSE_PROJECT_NAME"
     say ""
     say "services:"
@@ -804,7 +804,7 @@ update_command() {
   check_platform
   management_install_dir
   check_docker
-  info "Pulling the current paired web-main/workers-main images and recreating changed services..."
+  info "Pulling the current paired web-stable/workers-stable images and recreating changed services..."
   compose_in_install_dir config --quiet >/dev/null
   compose_in_install_dir pull
   compose_in_install_dir up -d --remove-orphans
