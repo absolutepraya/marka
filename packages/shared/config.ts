@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import path from "path";
 import { z } from "zod";
 
+import { createServerVersionResponse } from "./version";
+
 const stringBool = (defaultValue: string) =>
   z
     .string()
@@ -168,6 +170,8 @@ const allEnv = z.object({
 
   // Build only flag
   SERVER_VERSION: z.string().optional(),
+  SERVER_RELEASE: z.string().optional(),
+  SERVER_COMMIT: z.string().optional(),
   CHANGELOG_VERSION: z.string().optional(),
   DISABLE_NEW_RELEASE_CHECK: stringBool("false"),
 
@@ -437,6 +441,8 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
       privacyPolicyUrl: val.PRIVACY_POLICY_URL,
     },
     serverVersion: val.SERVER_VERSION,
+    serverRelease: val.SERVER_RELEASE,
+    serverCommit: val.SERVER_COMMIT,
     changelogVersion: val.CHANGELOG_VERSION,
     disableNewReleaseCheck: val.DISABLE_NEW_RELEASE_CHECK,
     usingLegacySeparateContainers: val.USING_LEGACY_SEPARATE_CONTAINERS,
@@ -586,6 +592,12 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
 const serverConfig: Readonly<z.infer<typeof serverConfigSchema>> =
   serverConfigSchema.parse(process.env);
 
+const serverVersion = createServerVersionResponse({
+  legacyVersion: serverConfig.serverVersion,
+  release: serverConfig.serverRelease,
+  commit: serverConfig.serverCommit,
+});
+
 // Always explicitly pick up stuff from server config to avoid accidentally leaking stuff
 export const clientConfig = {
   publicUrl: serverConfig.publicUrl,
@@ -613,6 +625,9 @@ export const clientConfig = {
     privacyPolicyUrl: serverConfig.legal.privacyPolicyUrl,
   },
   serverVersion: serverConfig.serverVersion,
+  serverRelease: serverVersion.release ?? undefined,
+  serverCommit: serverVersion.commit ?? undefined,
+  serverCommitShort: serverVersion.shortCommit ?? undefined,
   disableNewReleaseCheck: serverConfig.disableNewReleaseCheck,
 };
 export type ClientConfig = typeof clientConfig;

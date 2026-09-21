@@ -1,0 +1,456 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing annotated release tag to publish"
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Release tags are immutable. Only the repository owner may use the
+    # recovery dispatch or push a tag directly; automatic release dispatches
+    # run as the GitHub Actions bot.
+    if: >-
+      (github.event_name == 'push' &&
+      github.actor == github.repository_owner) ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.actor == github.repository_owner ||
+      github.actor == 'github-actions[bot]'))
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.repository.default_branch || github.ref_name }}
+
+      - name: Validate release tag and source commit
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          tag="${REQUESTED_RELEASE_TAG:-$GITHUB_REF_NAME}"
+          git fetch --force --tags origin
+          git fetch --force origin main:refs/remotes/origin/main
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            [[ "${{ github.event.created }}" == "true" && "${{ github.event.forced }}" != "true" ]] || {
+              echo "Release tags must be created once and never moved." >&2
+              exit 1
+            }
+          fi
+          tag_type="$(git cat-file -t "refs/tags/$tag")"
+          [[ "$tag_type" == "tag" ]] || {
+            echo "Release tags must be annotated tags, received $tag_type" >&2
+            exit 1
+          }
+
+          release_json="$(node scripts/release-contract.mjs validate-tag "$tag")"
+          version="$(jq -r '.version' <<<"$release_json")"
+          existing_release_count="$(gh release list --limit 1 --json tagName --jq 'length')"
+          if [[ "$existing_release_count" == "0" && "$tag" != "v0.1.0" ]]; then
+            echo "The first Marka release must be v0.1.0, received $tag" >&2
+            exit 1
+          fi
+          target="$(git rev-parse "${tag}^{commit}")"
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            [[ "$target" == "$GITHUB_SHA" ]] || {
+              echo "Tag target $target does not match event commit $GITHUB_SHA" >&2
+              exit 1
+            }
+          fi
+
+          git merge-base --is-ancestor "$target" origin/main || {
+            echo "Release target $target is not reachable from origin/main" >&2
+            exit 1
+          }
+
+          latest_release_tag=""
+          while read -r candidate; do
+            candidate_target="$(git rev-parse "${candidate}^{commit}")"
+            if git merge-base --is-ancestor "$candidate_target" origin/main; then
+              latest_release_tag="$candidate"
+            fi
+          done < <(
+            git for-each-ref --format="%(refname:strip=2) %(objecttype)" 'refs/tags/v*' |
+              awk '$2 == "tag" { print $1 }' |
+              grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' |
+              sort -V || true
+          )
+          promote_stable=false
+          if [[ "$tag" == "$latest_release_tag" ]]; then
+            promote_stable=true
+          else
+            echo "Skipping stable promotion for older release $tag; latest is $latest_release_tag."
+          fi
+
+          short_sha="$(git rev-parse --short=12 "$target")"
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "target=$target"
+            echo "short_sha=$short_sha"
+            echo "promote_stable=$promote_stable"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact-commit blocking CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ steps.release.outputs.target }}
+        run: |
+          set -euo pipefail
+          ci_run_id="$(gh run list --workflow CI --commit "$TARGET" --limit 20 \
+            --json databaseId,status,conclusion,headSha \
+            --jq '.[] | select(.headSha == env.TARGET and .status == "completed" and .conclusion == "success") | .databaseId' \
+            | head -n 1)"
+          [[ -n "$ci_run_id" ]] || {
+            echo "No successful CI workflow run exists for $TARGET" >&2
+            exit 1
+          }
+
+          ci_jobs="$(gh run view "$ci_run_id" --json jobs --jq '.jobs[] | [.name, .conclusion] | @tsv')"
+          for job in lint format typecheck tests open-api-spec; do
+            grep -Fq "$job$(printf '\t')success" <<<"$ci_jobs" || {
+              echo "Blocking CI job $job did not succeed in run $ci_run_id" >&2
+              exit 1
+            }
+          done
+
+      - name: Verify installer CI when installer paths changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ steps.release.outputs.target }}
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff-tree --no-commit-id --name-only -r "${TARGET}^1" "$TARGET")"
+          if ! grep -Eq '^(scripts/install\.sh|scripts/install\.test\.sh|\.github/workflows/installer-tests\.yml)$' <<<"$changed_files"; then
+            echo "No installer contract paths changed. Installer CI is not required."
+            exit 0
+          fi
+
+          installer_run_id="$(gh run list --workflow "Installer Tests" --commit "$TARGET" --limit 20 \
+            --json databaseId,status,conclusion,headSha \
+            --jq '.[] | select(.headSha == env.TARGET and .status == "completed" and .conclusion == "success") | .databaseId' \
+            | head -n 1)"
+          [[ -n "$installer_run_id" ]] || {
+            echo "Installer paths changed but no successful Installer Tests run exists for $TARGET" >&2
+            exit 1
+          }
+
+      - name: Check out validated release source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ steps.release.outputs.target }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check immutable release image tags
+        id: images
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
+          VERSION: ${{ steps.release.outputs.version }}
+          SHORT_SHA: ${{ steps.release.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          get_digest() {
+            docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>/dev/null | head -n 1
+          }
+
+          web_version_digest="$(get_digest "$IMAGE_NAME:web-v$VERSION" || true)"
+          workers_version_digest="$(get_digest "$IMAGE_NAME:workers-v$VERSION" || true)"
+          web_sha_digest="$(get_digest "$IMAGE_NAME:web-sha-$SHORT_SHA" || true)"
+          workers_sha_digest="$(get_digest "$IMAGE_NAME:workers-sha-$SHORT_SHA" || true)"
+
+          if [[ -n "$web_version_digest" ]]; then
+            echo "web_version_exists=true" >> "$GITHUB_OUTPUT"
+            echo "build_web=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "web_version_exists=false" >> "$GITHUB_OUTPUT"
+            echo "build_web=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$workers_version_digest" ]]; then
+            echo "workers_version_exists=true" >> "$GITHUB_OUTPUT"
+            echo "build_workers=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "workers_version_exists=false" >> "$GITHUB_OUTPUT"
+            echo "build_workers=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$web_sha_digest" ]]; then
+            echo "web_sha_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "web_sha_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$workers_sha_digest" ]]; then
+            echo "workers_sha_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "workers_sha_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ -n "$web_version_digest" && -z "$web_sha_digest" ]]; then
+            echo "ensure_web_sha=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ensure_web_sha=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$workers_version_digest" && -z "$workers_sha_digest" ]]; then
+            echo "ensure_workers_sha=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ensure_workers_sha=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$web_version_digest" || -n "$workers_version_digest" || -n "$web_sha_digest" || -n "$workers_sha_digest" ]]; then
+            echo "verify_existing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "verify_existing=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ -z "$web_version_digest" ]]; then
+            {
+              echo 'web_tags<<EOF'
+              echo "$IMAGE_NAME:web-v$VERSION"
+              if [[ -z "$web_sha_digest" ]]; then echo "$IMAGE_NAME:web-sha-$SHORT_SHA"; fi
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -z "$workers_version_digest" ]]; then
+            {
+              echo 'workers_tags<<EOF'
+              echo "$IMAGE_NAME:workers-v$VERSION"
+              if [[ -z "$workers_sha_digest" ]]; then echo "$IMAGE_NAME:workers-sha-$SHORT_SHA"; fi
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify existing immutable image tags
+        if: steps.images.outputs.verify_existing == 'true'
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
+          VERSION: ${{ steps.release.outputs.version }}
+          TARGET: ${{ steps.release.outputs.target }}
+          SHORT_SHA: ${{ steps.release.outputs.short_sha }}
+          WEB_VERSION_EXISTS: ${{ steps.images.outputs.web_version_exists }}
+          WORKERS_VERSION_EXISTS: ${{ steps.images.outputs.workers_version_exists }}
+          WEB_SHA_EXISTS: ${{ steps.images.outputs.web_sha_exists }}
+          WORKERS_SHA_EXISTS: ${{ steps.images.outputs.workers_sha_exists }}
+        run: |
+          set -euo pipefail
+          verify_ref() {
+            local ref="$1" expected_release="$2"
+            docker pull "$ref" >/dev/null
+            source="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')"
+            revision="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+            [[ "$source" == "https://github.com/absolutepraya/marka" ]] || {
+              echo "Unexpected source label on existing rollback image $ref: $source" >&2
+              exit 1
+            }
+            [[ "$revision" == "$TARGET" ]] || {
+              echo "Existing rollback image $ref points to $revision, expected $TARGET" >&2
+              exit 1
+            }
+            if [[ "$expected_release" == "required" ]]; then
+              release="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
+              [[ "$release" == "$VERSION" ]] || {
+                echo "Existing release image $ref has release label $release, expected $VERSION" >&2
+                exit 1
+              }
+            else
+              release="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
+              [[ -z "$release" || "$release" == "<no value>" || "$release" == "$VERSION" ]] || {
+                echo "Existing rollback image $ref has unexpected release label $release" >&2
+                exit 1
+              }
+            fi
+          }
+          if [[ "$WEB_VERSION_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:web-v$VERSION" required
+          fi
+          if [[ "$WORKERS_VERSION_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:workers-v$VERSION" required
+          fi
+          if [[ "$WEB_SHA_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:web-sha-$SHORT_SHA" optional
+          fi
+          if [[ "$WORKERS_SHA_EXISTS" == "true" ]]; then
+            verify_ref "$IMAGE_NAME:workers-sha-$SHORT_SHA" optional
+          fi
+
+      - name: Build and push web release images
+        if: steps.images.outputs.build_web == 'true'
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: web
+          platforms: linux/amd64
+          build-args: |
+            SERVER_VERSION=${{ steps.release.outputs.target }}
+            SERVER_COMMIT=${{ steps.release.outputs.target }}
+            SERVER_RELEASE=${{ steps.release.outputs.version }}
+          push: true
+          tags: ${{ steps.images.outputs.web_tags }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push workers release images
+        if: steps.images.outputs.build_workers == 'true'
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: workers
+          platforms: linux/amd64
+          build-args: |
+            SERVER_VERSION=${{ steps.release.outputs.target }}
+            SERVER_COMMIT=${{ steps.release.outputs.target }}
+            SERVER_RELEASE=${{ steps.release.outputs.version }}
+          push: true
+          tags: ${{ steps.images.outputs.workers_tags }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify immutable image digests and source metadata
+        id: verified
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
+          VERSION: ${{ steps.release.outputs.version }}
+          TARGET: ${{ steps.release.outputs.target }}
+        run: |
+          set -euo pipefail
+          get_digest() {
+            docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>/dev/null | head -n 1
+          }
+          web_ref="$IMAGE_NAME:web-v$VERSION"
+          workers_ref="$IMAGE_NAME:workers-v$VERSION"
+          web_digest="$(get_digest "$web_ref")"
+          workers_digest="$(get_digest "$workers_ref")"
+          [[ -n "$web_digest" && -n "$workers_digest" ]] || {
+            echo "Immutable web/workers image digests are missing" >&2
+            exit 1
+          }
+
+          docker pull "$web_ref" >/dev/null
+          docker pull "$workers_ref" >/dev/null
+          for ref in "$web_ref" "$workers_ref"; do
+            source="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')"
+            revision="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+            release="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
+            [[ "$source" == "https://github.com/absolutepraya/marka" ]] || {
+              echo "Unexpected source label on $ref: $source" >&2
+              exit 1
+            }
+            [[ "$revision" == "$TARGET" ]] || {
+              echo "Unexpected source revision on $ref: $revision" >&2
+              exit 1
+            }
+            [[ "$release" == "$VERSION" ]] || {
+              echo "Unexpected release label on $ref: $release" >&2
+              exit 1
+            }
+          done
+
+          {
+            echo "web_digest=$web_digest"
+            echo "workers_digest=$workers_digest"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Complete missing SHA rollback tags
+        if: steps.images.outputs.ensure_web_sha == 'true' || steps.images.outputs.ensure_workers_sha == 'true'
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
+          VERSION: ${{ steps.release.outputs.version }}
+          SHORT_SHA: ${{ steps.release.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.images.outputs.ensure_web_sha }}" == "true" ]]; then
+            docker buildx imagetools create --tag "$IMAGE_NAME:web-sha-$SHORT_SHA" "$IMAGE_NAME:web-v$VERSION"
+          fi
+          if [[ "${{ steps.images.outputs.ensure_workers_sha }}" == "true" ]]; then
+            docker buildx imagetools create --tag "$IMAGE_NAME:workers-sha-$SHORT_SHA" "$IMAGE_NAME:workers-v$VERSION"
+          fi
+
+      - name: Verify SHA rollback image tags
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
+          VERSION: ${{ steps.release.outputs.version }}
+          TARGET: ${{ steps.release.outputs.target }}
+          SHORT_SHA: ${{ steps.release.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          get_digest() {
+            docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>/dev/null | head -n 1
+          }
+          for ref in "$IMAGE_NAME:web-sha-$SHORT_SHA" "$IMAGE_NAME:workers-sha-$SHORT_SHA"; do
+            [[ -n "$(get_digest "$ref" || true)" ]] || {
+              echo "Missing SHA rollback image $ref" >&2
+              exit 1
+            }
+            docker pull "$ref" >/dev/null
+            source="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')"
+            revision="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+            release="$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')"
+            [[ "$source" == "https://github.com/absolutepraya/marka" ]] || {
+              echo "Unexpected source label on $ref: $source" >&2
+              exit 1
+            }
+            [[ "$revision" == "$TARGET" ]] || {
+              echo "Unexpected source revision on $ref: $revision" >&2
+              exit 1
+            }
+            [[ -z "$release" || "$release" == "<no value>" || "$release" == "$VERSION" ]] || {
+              echo "Unexpected release label on $ref: $release" >&2
+              exit 1
+            }
+          done
+
+      - name: Promote and verify paired stable channel
+        if: steps.release.outputs.promote_stable == 'true'
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
+          VERSION: ${{ steps.release.outputs.version }}
+          WEB_DIGEST: ${{ steps.verified.outputs.web_digest }}
+          WORKERS_DIGEST: ${{ steps.verified.outputs.workers_digest }}
+        run: |
+          bash scripts/promote-release.sh
+
+      - name: Create or verify GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $RELEASE_TAG already exists."
+            exit 0
+          fi
+          gh release create "$RELEASE_TAG" \
+            --verify-tag \
+            --title "Marka v$VERSION" \
+            --generate-notes

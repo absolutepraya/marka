@@ -16,6 +16,10 @@ const mocks = vi.hoisted(() => ({
     checkForUpdate: vi.fn(),
     activateUpdate: vi.fn(),
   },
+  clientConfig: {
+    serverRelease: undefined as string | undefined,
+    serverCommitShort: undefined as string | undefined,
+  },
 }));
 
 vi.mock("next/link", () => ({
@@ -36,6 +40,10 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/components/pwa/ServiceWorkerRegistration", () => ({
   usePwaLifecycle: () => mocks.lifecycle,
+}));
+
+vi.mock("@/lib/clientConfig", () => ({
+  useClientConfig: () => mocks.clientConfig,
 }));
 
 vi.mock("@/lib/i18n/client", () => ({
@@ -67,6 +75,8 @@ describe("SidebarVersion", () => {
     mocks.lifecycle.updateAvailable = true;
     mocks.lifecycle.activateUpdate.mockReset();
     mocks.lifecycle.checkForUpdate.mockReset();
+    mocks.clientConfig.serverRelease = undefined;
+    mocks.clientConfig.serverCommitShort = undefined;
   });
 
   it("shows the running app build and a ready deployed update", () => {
@@ -87,6 +97,15 @@ describe("SidebarVersion", () => {
         'a[href="https://github.com/absolutepraya/marka"]',
       ),
     ).toBeNull();
+  });
+
+  it("shows the release and short commit when release metadata is available", () => {
+    mocks.clientConfig.serverRelease = "0.1.0";
+    mocks.clientConfig.serverCommitShort = "aaaaaaa";
+
+    const { container } = render(<SidebarVersion />);
+
+    expect(container.textContent).toContain("Build v0.1.0 · aaaaaaa");
   });
 
   it("shows an available update before its worker is ready", () => {
@@ -158,7 +177,7 @@ describe("SidebarVersion", () => {
     const { container } = render(<SidebarVersion placement="profile" />);
 
     const buildLink = container.querySelector('a[href*="/commit/"]');
-    expect(buildLink?.className).toContain("text-xs");
+    expect(buildLink?.className).toContain("text-[11px]");
     expect(buildLink?.className).toContain("opacity-50");
     expect(buildLink?.querySelector("svg")?.className.baseVal).toContain(
       "size-3",

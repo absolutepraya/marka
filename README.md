@@ -47,6 +47,17 @@ REF=<tag-or-commit-sha>; curl -fsSLo /tmp/marka-setup.sh "https://raw.githubuser
 
 Read the [guided installation guide](docs/docs/02-installation/11-guided-docker-setup.md) for all configuration modes and rollback details.
 
+Marka web and workers releases share an annotated `vMAJOR.MINOR.PATCH` Git tag.
+The production Compose file and guided installer follow the paired `stable`
+channel. Each release also keeps immutable version and source-commit image tags
+so operators can roll back web and workers together.
+
+After a successful CI run on `main`, the automatic release workflow classifies
+the merged Conventional Commit messages. It creates the next annotated release
+tag only for release-worthy changes, then the tag workflow publishes the paired
+images and GitHub Release. Documentation-only and other explicitly non-release
+changes do not create a version. Package manifest versions remain independent.
+
 ## Develop Marka
 
 Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution rules and [`docs/operator-setup.md`](docs/operator-setup.md) for local development and deployment workflows.

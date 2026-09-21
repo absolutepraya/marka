@@ -109,6 +109,9 @@ jobs:
         working-directory: packages/shared
         run: pnpm test
 
+      - name: Release Contract Tests
+        run: pnpm test:release-contract
+
       - name: TRPC Tests
         working-directory: packages/trpc
         run: pnpm test

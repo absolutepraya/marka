@@ -4523,8 +4523,8 @@
       "width": 420,
       "height": 160,
       "angle": 0,
-      "strokeColor": "#2f9e44",
-      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#adb5bd",
+      "backgroundColor": "#e9ecef",
       "fillStyle": "solid",
       "strokeWidth": 2.5,
       "strokeStyle": "solid",
@@ -4562,7 +4562,7 @@
           "stroke": "#2f9e44",
           "text": "#1f2937",
           "url": "https://github.com/absolutepraya/marka/issues/69",
-          "status": "open"
+          "status": "closed"
         }
       }
     },
@@ -4574,13 +4574,13 @@
       "width": 372,
       "height": 96,
       "angle": 0,
-      "strokeColor": "#1f2937",
+      "strokeColor": "#495057",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 2,
       "strokeStyle": "solid",
       "roughness": 1,
-      "opacity": 100,
+      "opacity": 68,
       "groupIds": [
         "issue-69"
       ],
@@ -4608,7 +4608,7 @@
         "roadmap": {
           "kind": "label",
           "nodeId": "issue-69",
-          "status": "open"
+          "status": "closed"
         }
       }
     },
@@ -4620,13 +4620,13 @@
       "width": 372,
       "height": 38,
       "angle": 0,
-      "strokeColor": "#1f2937",
+      "strokeColor": "#495057",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 2,
       "strokeStyle": "solid",
       "roughness": 1,
-      "opacity": 100,
+      "opacity": 68,
       "groupIds": [
         "issue-69"
       ],
@@ -4655,7 +4655,7 @@
           "kind": "issue-number",
           "nodeId": "issue-69",
           "issueNumber": 69,
-          "status": "open"
+          "status": "closed"
         }
       }
     },
@@ -4667,13 +4667,13 @@
       "width": 372,
       "height": 38,
       "angle": 0,
-      "strokeColor": "#1f2937",
+      "strokeColor": "#495057",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 2,
       "strokeStyle": "solid",
       "roughness": 1,
-      "opacity": 100,
+      "opacity": 68,
       "groupIds": [
         "issue-69"
       ],
@@ -4702,7 +4702,7 @@
           "kind": "issue-number-bold",
           "nodeId": "issue-69",
           "issueNumber": 69,
-          "status": "open"
+          "status": "closed"
         }
       }
     },
@@ -6859,6 +6859,280 @@
           "kind": "completion-strike",
           "nodeId": "issue-75",
           "textElementId": "number-bold-75",
+          "status": "closed"
+        }
+      }
+    },
+    {
+      "id": "issue-69-complete-box",
+      "type": "rectangle",
+      "x": 912,
+      "y": 2734,
+      "width": 30,
+      "height": 30,
+      "angle": 0,
+      "strokeColor": "#adb5bd",
+      "backgroundColor": "#e9ecef",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [
+        "issue-69"
+      ],
+      "frameId": null,
+      "roundness": {
+        "type": 3
+      },
+      "seed": 1,
+      "version": 1,
+      "versionNonce": 1,
+      "index": null,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 0,
+      "link": "https://github.com/absolutepraya/marka/issues/69",
+      "locked": false,
+      "customData": {
+        "roadmap": {
+          "kind": "completion-checkbox",
+          "nodeId": "issue-69",
+          "status": "closed"
+        }
+      }
+    },
+    {
+      "id": "issue-69-complete-check",
+      "type": "text",
+      "x": 912,
+      "y": 2732,
+      "width": 30,
+      "height": 30,
+      "angle": 0,
+      "strokeColor": "#495057",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [
+        "issue-69"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "seed": 1,
+      "version": 1,
+      "versionNonce": 1,
+      "index": null,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 0,
+      "link": "https://github.com/absolutepraya/marka/issues/69",
+      "locked": false,
+      "text": "✓",
+      "originalText": "✓",
+      "fontSize": 22,
+      "fontFamily": 5,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "customData": {
+        "roadmap": {
+          "kind": "completion-marker",
+          "nodeId": "issue-69",
+          "status": "closed"
+        }
+      }
+    },
+    {
+      "id": "issue-69-strike-label-69-0",
+      "type": "line",
+      "x": 646,
+      "y": 2786.525,
+      "width": 228,
+      "height": 0,
+      "angle": 0,
+      "strokeColor": "#495057",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 2,
+      "opacity": 100,
+      "groupIds": [
+        "issue-69"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "seed": 1,
+      "version": 1,
+      "versionNonce": 1,
+      "index": null,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 0,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          228,
+          0
+        ]
+      ],
+      "customData": {
+        "roadmap": {
+          "kind": "completion-strike",
+          "nodeId": "issue-69",
+          "textElementId": "label-69",
+          "status": "closed"
+        }
+      }
+    },
+    {
+      "id": "issue-69-strike-label-69-1",
+      "type": "line",
+      "x": 646,
+      "y": 2817.775,
+      "width": 228,
+      "height": 0,
+      "angle": 0,
+      "strokeColor": "#495057",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 2,
+      "opacity": 100,
+      "groupIds": [
+        "issue-69"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "seed": 1,
+      "version": 1,
+      "versionNonce": 1,
+      "index": null,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 0,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          228,
+          0
+        ]
+      ],
+      "customData": {
+        "roadmap": {
+          "kind": "completion-strike",
+          "nodeId": "issue-69",
+          "textElementId": "label-69",
+          "status": "closed"
+        }
+      }
+    },
+    {
+      "id": "issue-69-strike-number-69-0",
+      "type": "line",
+      "x": 738.4,
+      "y": 2745.43,
+      "width": 43.199999999999996,
+      "height": 0,
+      "angle": 0,
+      "strokeColor": "#495057",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 2,
+      "opacity": 100,
+      "groupIds": [
+        "issue-69"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "seed": 1,
+      "version": 1,
+      "versionNonce": 1,
+      "index": null,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 0,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          43.199999999999996,
+          0
+        ]
+      ],
+      "customData": {
+        "roadmap": {
+          "kind": "completion-strike",
+          "nodeId": "issue-69",
+          "textElementId": "number-69",
+          "status": "closed"
+        }
+      }
+    },
+    {
+      "id": "issue-69-strike-number-bold-69-0",
+      "type": "line",
+      "x": 739.15,
+      "y": 2745.6299999999997,
+      "width": 43.199999999999996,
+      "height": 0,
+      "angle": 0,
+      "strokeColor": "#495057",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 2,
+      "opacity": 100,
+      "groupIds": [
+        "issue-69"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "seed": 1,
+      "version": 1,
+      "versionNonce": 1,
+      "index": null,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 0,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          43.199999999999996,
+          0
+        ]
+      ],
+      "customData": {
+        "roadmap": {
+          "kind": "completion-strike",
+          "nodeId": "issue-69",
+          "textElementId": "number-bold-69",
           "status": "closed"
         }
       }

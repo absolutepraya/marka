@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePwaLifecycle } from "@/components/pwa/ServiceWorkerRegistration";
+import { useClientConfig } from "@/lib/clientConfig";
 import { useTranslation } from "@/lib/i18n/client";
 import { Download, GitBranch, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export default function SidebarVersion({
   placement = "sidebar",
 }: SidebarVersionProps) {
   const { t } = useTranslation("profile_menu");
+  const { serverRelease, serverCommitShort } = useClientConfig();
   const {
     appBuild,
     deployedBuild,
@@ -40,6 +42,9 @@ export default function SidebarVersion({
     : appBuild === "development"
       ? "development"
       : "unknown";
+  const visibleVersion = serverRelease
+    ? `v${serverRelease} · ${serverCommitShort ?? visibleBuild}`
+    : (serverCommitShort ?? visibleBuild);
   const containerClassName =
     placement === "profile"
       ? "flex h-7 min-w-0 items-center justify-between gap-2 text-[11px] leading-4"
@@ -68,7 +73,7 @@ export default function SidebarVersion({
   const updateStatusClassName =
     placement === "profile" ? "min-w-0 truncate" : undefined;
 
-  const buildLabel = t("build", { build: visibleBuild });
+  const buildLabel = t("build", { build: visibleVersion });
 
   return (
     <div className={containerClassName}>

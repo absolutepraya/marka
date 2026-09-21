@@ -9,12 +9,14 @@ import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Download, Users } from "lucide-react";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
+import { normalizeReleaseVersion } from "@karakeep/shared/version";
 
 const REPO_LATEST_RELEASE_API =
-  "https://api.github.com/repos/karakeep-app/karakeep/releases/latest";
-const REPO_RELEASE_PAGE = "https://github.com/karakeep-app/karakeep/releases";
+  "https://api.github.com/repos/absolutepraya/marka/releases/latest";
+const REPO_RELEASE_PAGE = "https://github.com/absolutepraya/marka/releases";
 
 function useLatestRelease() {
+  const { disableNewReleaseCheck } = useClientConfig();
   const { data } = useQuery({
     queryKey: ["latest-release"],
     queryFn: async () => {
@@ -22,19 +24,25 @@ function useLatestRelease() {
       if (!res.ok) {
         return undefined;
       }
-      const data = (await res.json()) as { name: string };
-      return data.name;
+      const data = (await res.json()) as { tag_name?: unknown };
+      return normalizeReleaseVersion(
+        typeof data.tag_name === "string" ? data.tag_name : null,
+      );
     },
     staleTime: 60 * 60 * 1000,
-    enabled: !useClientConfig().disableNewReleaseCheck,
+    enabled: !disableNewReleaseCheck,
   });
   return data;
 }
 
 function ReleaseInfo() {
-  const currentRelease = useClientConfig().serverVersion ?? "NA";
+  const { serverRelease, serverVersion } = useClientConfig();
+  const currentRelease = serverRelease
+    ? `v${serverRelease}`
+    : (serverVersion ?? "unknown");
   const latestRelease = useLatestRelease();
-  const hasUpdate = latestRelease && currentRelease !== latestRelease;
+  const hasUpdate =
+    !!serverRelease && !!latestRelease && serverRelease !== latestRelease;
 
   return (
     <div className="space-y-2">
@@ -51,7 +59,7 @@ function ReleaseInfo() {
         >
           Update available
           <Badge variant="secondary" className="bg-primary/10 text-primary">
-            {latestRelease}
+            v{latestRelease}
           </Badge>
         </a>
       )}

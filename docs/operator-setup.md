@@ -204,16 +204,25 @@ Repository-specific notes:
 
 This repository deploys with a **pull-based split Docker flow**.
 
-### Build path
-- `.github/workflows/docker.yml` builds the `web` and `workers` targets from the same successful `main` commit
-- the workflow first pushes matching immutable `:web-sha-<sha>` and `:workers-sha-<sha>` tags, then promotes both mutable release tags only after both builds succeed
-- the mutable release tags are `ghcr.io/<owner>/marka:web-main` and `ghcr.io/<owner>/marka:workers-main`
+### Release and build path
+- an annotated `vMAJOR.MINOR.PATCH` Git tag is the shared web and workers release identity
+- after successful CI on `main`, `automatic-release.yml` classifies merged Conventional Commit messages and creates the next tag only when a release is warranted
+- `feat` produces a minor bump, breaking-change markers produce a major bump, release-worthy fixes and runtime changes produce a patch bump, and documentation-only changes produce no release
+- agents and contributors can use a `Release: major|minor|patch|none` commit footer when the default classification needs an explicit override
+- the tag must point to a commit reachable from `main` with successful exact-commit blocking CI: lint, format, typecheck, tests, and open-api-spec
+- `.github/workflows/release.yml` builds paired immutable `:web-v<version>` and `:workers-v<version>` images, plus matching `:web-sha-<sha>` and `:workers-sha-<sha>` rollback tags
+- the workflow validates source metadata and promotes the mutable `:web-stable` and `:workers-stable` channel only after both immutable images are verified
+- GitHub Releases are generated from the same tag after image promotion; the Git tag and source commit remain authoritative
+- `v*` tags are protected from updates and deletion, and the release workflow accepts direct or recovery triggers only from the repository owner or the automatic GitHub Actions release workflow
+- `.github/workflows/docker.yml` keeps commit-addressed SHA images available for successful `main` builds, but does not move the stable channel
+- package manifest versions remain independent of the shared product release
 - `web` runs Next.js and owns database migrations
 - `workers` runs background work with `WORKER_PROFILE=screenshot-first`
 
 ### Deploy path
 - the VPS runs a Watchtower container
-- Watchtower polls the paired release tags and rolls `web` and `workers` forward independently after their immutable images have both been published
+- production Compose defaults to the paired `ghcr.io/<owner>/marka:web-stable` and `ghcr.io/<owner>/marka:workers-stable` channel
+- Watchtower polls the paired stable tags and rolls `web` and `workers` forward independently after their immutable release images have both been published
 - this is a bounded rolling overlap, not an atomic multi-container switch: every release must keep `web` and `workers` compatible with the immediately preceding release, including database migrations
 - Compose starts workers only after web is healthy and Meilisearch has started
 - Browserless is a token-protected private service attached through the external `karakeep-renderer` network
@@ -223,6 +232,13 @@ Important characteristics:
 - no SSH deploy from CI
 - GHCR package is public, so the VPS pulls anonymously
 - the canonical production compose is `deploy/docker-compose.prod.yml`
+
+For an exact rollback, set both `KARAKEEP_WEB_IMAGE` and
+`KARAKEEP_WORKERS_IMAGE` to matching immutable version tags, or matching SHA
+tags from one known-good source commit. Restore the stable channel only after
+both services have been verified healthy. A stable-channel promotion can
+temporarily expose the adjacent web and workers builds because Watchtower is
+not an atomic multi-container switch.
 
 ## Production compose
 
