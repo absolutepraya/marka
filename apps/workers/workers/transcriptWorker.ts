@@ -202,11 +202,17 @@ function fingerprintTranscript(
   providerItemId: string,
   text: string,
 ) {
+  const azureSpeech = serverConfig.transcription.azureSpeech;
+  const transcriptionModel =
+    azureSpeech.endpoint && azureSpeech.key
+      ? azureSpeech.model
+      : serverConfig.transcription.model;
+
   return crypto
     .createHash("sha256")
     .update(provider)
     .update(providerItemId)
-    .update(serverConfig.transcription.model)
+    .update(transcriptionModel)
     .update(text)
     .digest("hex");
 }
