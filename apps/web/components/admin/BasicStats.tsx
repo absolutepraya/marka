@@ -9,7 +9,10 @@ import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Download, Users } from "lucide-react";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
-import { normalizeReleaseVersion } from "@karakeep/shared/version";
+import {
+  formatServerVersionDisplay,
+  normalizeReleaseVersion,
+} from "@karakeep/shared/version";
 
 const REPO_LATEST_RELEASE_API =
   "https://api.github.com/repos/absolutepraya/marka/releases/latest";
@@ -36,10 +39,15 @@ function useLatestRelease() {
 }
 
 function ReleaseInfo() {
-  const { serverRelease, serverVersion } = useClientConfig();
-  const currentRelease = serverRelease
-    ? `v${serverRelease}`
-    : (serverVersion ?? "unknown");
+  const { serverRelease, serverVersion, serverCommit, serverCommitShort } =
+    useClientConfig();
+  const currentVersion = formatServerVersionDisplay({
+    version: serverVersion ?? "unknown",
+    release: serverRelease ?? null,
+    commit: serverCommit ?? null,
+    shortCommit: serverCommitShort ?? null,
+  });
+  const visibleVersion = serverRelease ? `v${currentVersion}` : currentVersion;
   const latestRelease = useLatestRelease();
   const hasUpdate =
     !!serverRelease && !!latestRelease && serverRelease !== latestRelease;
@@ -47,7 +55,7 @@ function ReleaseInfo() {
   return (
     <div className="space-y-2">
       <p className="text-3xl font-semibold tracking-tight text-foreground">
-        {currentRelease}
+        {visibleVersion}
       </p>
       {hasUpdate && (
         <a
