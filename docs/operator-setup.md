@@ -206,10 +206,14 @@ This repository deploys with a **pull-based split Docker flow**.
 
 ### Release and build path
 - an annotated `vMAJOR.MINOR.PATCH` Git tag is the shared web and workers release identity
+- after successful CI on `main`, `automatic-release.yml` classifies merged Conventional Commit messages and creates the next tag only when a release is warranted
+- `feat` produces a minor bump, breaking-change markers produce a major bump, release-worthy fixes and runtime changes produce a patch bump, and documentation-only changes produce no release
+- agents and contributors can use a `Release: major|minor|patch|none` commit footer when the default classification needs an explicit override
 - the tag must point to a commit reachable from `main` with successful exact-commit blocking CI: lint, format, typecheck, tests, and open-api-spec
 - `.github/workflows/release.yml` builds paired immutable `:web-v<version>` and `:workers-v<version>` images, plus matching `:web-sha-<sha>` and `:workers-sha-<sha>` rollback tags
 - the workflow validates source metadata and promotes the mutable `:web-stable` and `:workers-stable` channel only after both immutable images are verified
 - GitHub Releases are generated from the same tag after image promotion; the Git tag and source commit remain authoritative
+- `v*` tags are protected from updates and deletion, and the release workflow accepts direct or recovery triggers only from the repository owner or the automatic GitHub Actions release workflow
 - `.github/workflows/docker.yml` keeps commit-addressed SHA images available for successful `main` builds, but does not move the stable channel
 - package manifest versions remain independent of the shared product release
 - `web` runs Next.js and owns database migrations

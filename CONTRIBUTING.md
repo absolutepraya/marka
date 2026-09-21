@@ -121,11 +121,28 @@ A good PR for this repo should include:
 
 The shared Marka web and workers release identity is an annotated
 `vMAJOR.MINOR.PATCH` Git tag. Package manifest versions remain independent and
-must not be silently bumped as part of a shared release. The tag workflow checks
+must not be silently bumped as part of a shared release.
+
+After successful CI on `main`, `.github/workflows/automatic-release.yml`
+determines the next release from the merged Conventional Commit messages:
+
+- `feat` creates a minor release.
+- `fix`, `perf`, `refactor`, `build`, `security`, `deps`, and `revert` create a patch release.
+- `!` markers or a `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer create a major release.
+- `docs`, `test`, `style`, `ci`, and documentation-only `chore` changes do not create a release.
+- A `Release: major|minor|patch|none` commit footer is an explicit override.
+- An unrecognized commit that changes runtime or deployment files falls back to a patch release.
+
+The workflow creates the next annotated tag automatically. Do not manually
+create release tags or bump package manifest versions. The tag workflow checks
 that the tagged commit is reachable from `main` and has successful exact-commit
 blocking CI before building paired immutable `web-v<version>` and
 `workers-v<version>` images. It then promotes the paired `web-stable` and
 `workers-stable` channel and creates the GitHub Release.
+
+The repository protects `v*` tags from updates and deletion. Direct tag
+publication and recovery dispatches are limited to the repository owner or the
+automatic GitHub Actions release workflow.
 
 The stable channel is mutable and Watchtower updates the two services
 independently, so adjacent releases must remain compatible. Exact rollback uses

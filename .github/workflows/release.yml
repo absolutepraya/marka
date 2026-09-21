@@ -4,13 +4,28 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing annotated release tag to publish"
+        required: true
+        type: string
 
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   release:
+    # Release tags are immutable. Only the repository owner may use the
+    # recovery dispatch or push a tag directly; automatic release dispatches
+    # run as the GitHub Actions bot.
+    if: >-
+      (github.event_name == 'push' &&
+      github.actor == github.repository_owner) ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.actor == github.repository_owner ||
+      github.actor == 'github-actions[bot]'))
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -21,18 +36,24 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.repository.default_branch || github.ref_name }}
 
       - name: Validate release tag and source commit
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUESTED_RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
-          [[ "${{ github.event.created }}" == "true" && "${{ github.event.forced }}" != "true" ]] || {
-            echo "Release tags must be created once and never moved." >&2
-            exit 1
-          }
+          tag="${REQUESTED_RELEASE_TAG:-$GITHUB_REF_NAME}"
+          git fetch --force --tags origin
+          git fetch --force origin main:refs/remotes/origin/main
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            [[ "${{ github.event.created }}" == "true" && "${{ github.event.forced }}" != "true" ]] || {
+              echo "Release tags must be created once and never moved." >&2
+              exit 1
+            }
+          fi
           tag_type="$(git cat-file -t "refs/tags/$tag")"
           [[ "$tag_type" == "tag" ]] || {
             echo "Release tags must be annotated tags, received $tag_type" >&2
@@ -47,16 +68,36 @@ jobs:
             exit 1
           fi
           target="$(git rev-parse "${tag}^{commit}")"
-          [[ "$target" == "$GITHUB_SHA" ]] || {
-            echo "Tag target $target does not match event commit $GITHUB_SHA" >&2
-            exit 1
-          }
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            [[ "$target" == "$GITHUB_SHA" ]] || {
+              echo "Tag target $target does not match event commit $GITHUB_SHA" >&2
+              exit 1
+            }
+          fi
 
-          git fetch --no-tags origin main
           git merge-base --is-ancestor "$target" origin/main || {
             echo "Release target $target is not reachable from origin/main" >&2
             exit 1
           }
+
+          latest_release_tag=""
+          while read -r candidate; do
+            candidate_target="$(git rev-parse "${candidate}^{commit}")"
+            if git merge-base --is-ancestor "$candidate_target" origin/main; then
+              latest_release_tag="$candidate"
+            fi
+          done < <(
+            git for-each-ref --format="%(refname:strip=2) %(objecttype)" 'refs/tags/v*' |
+              awk '$2 == "tag" { print $1 }' |
+              grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' |
+              sort -V || true
+          )
+          promote_stable=false
+          if [[ "$tag" == "$latest_release_tag" ]]; then
+            promote_stable=true
+          else
+            echo "Skipping stable promotion for older release $tag; latest is $latest_release_tag."
+          fi
 
           short_sha="$(git rev-parse --short=12 "$target")"
           {
@@ -64,6 +105,7 @@ jobs:
             echo "version=$version"
             echo "target=$target"
             echo "short_sha=$short_sha"
+            echo "promote_stable=$promote_stable"
           } >> "$GITHUB_OUTPUT"
 
       - name: Verify exact-commit blocking CI
@@ -109,6 +151,13 @@ jobs:
             echo "Installer paths changed but no successful Installer Tests run exists for $TARGET" >&2
             exit 1
           }
+
+      - name: Check out validated release source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ steps.release.outputs.target }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -381,6 +430,7 @@ jobs:
           done
 
       - name: Promote and verify paired stable channel
+        if: steps.release.outputs.promote_stable == 'true'
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/marka
           VERSION: ${{ steps.release.outputs.version }}
