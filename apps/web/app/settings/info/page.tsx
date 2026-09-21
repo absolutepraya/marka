@@ -23,6 +23,7 @@ export default async function InfoPage() {
   return (
     <SettingsPage
       title={t("settings.info.user_info")}
+      description={t("settings.info.page_description")}
       icon={<User className="size-6 shrink-0 text-muted-foreground" />}
     >
       <UserAvatar />

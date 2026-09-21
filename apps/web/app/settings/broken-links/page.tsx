@@ -61,6 +61,7 @@ export default function BrokenLinksPage() {
   return (
     <SettingsPage
       title={t("settings.broken_links.broken_links")}
+      description={t("settings.broken_links.page_description")}
       icon={<LinkIcon className="size-6 shrink-0 text-muted-foreground" />}
     >
       <SettingsSection>
@@ -71,9 +72,9 @@ export default function BrokenLinksPage() {
           </p>
         )}
         {!isPending && data && visibleBookmarks.length > 0 && (
-          <Table className="whitespace-nowrap">
+          <Table className="whitespace-nowrap [&_td]:px-3 [&_td]:py-2 [&_th]:h-10 [&_th]:px-3 [&_th]:py-2">
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>{t("common.url")}</TableHead>
                 <TableHead>{t("common.created_at")}</TableHead>
                 <TableHead>
@@ -87,7 +88,7 @@ export default function BrokenLinksPage() {
             </TableHeader>
             <TableBody>
               {visibleBookmarks.map((b) => (
-                <TableRow key={b.id}>
+                <TableRow key={b.id} className="h-12">
                   <TableCell>{b.url}</TableCell>
                   <TableCell>
                     <FormattedDate date={b.createdAt} />
@@ -102,28 +103,31 @@ export default function BrokenLinksPage() {
                       b.statusCode
                     )}
                   </TableCell>
-                  <TableCell className="flex gap-2">
-                    <ActionButton
-                      variant="secondary"
-                      loading={isRecrawling}
-                      onClick={() => recrawlBookmark({ bookmarkId: b.id })}
-                      className="flex items-center gap-2"
-                    >
-                      <RefreshCw className="size-4" />
-                      {t("actions.recrawl")}
-                    </ActionButton>
-                    <ActionButton
-                      variant="ghostDestructive"
-                      onClick={() => scheduleDelete(b.id)}
-                      loading={pendingBookmarkIdSet.has(b.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <Trash2 className="size-4" />
-                    </ActionButton>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <ActionButton
+                        variant="secondary"
+                        size="sm"
+                        loading={isRecrawling}
+                        onClick={() => recrawlBookmark({ bookmarkId: b.id })}
+                        className="h-8 items-center gap-2"
+                      >
+                        <RefreshCw className="size-4" />
+                        {t("actions.recrawl")}
+                      </ActionButton>
+                      <ActionButton
+                        variant="ghostDestructive"
+                        size="icon-sm"
+                        aria-label={t("actions.delete")}
+                        onClick={() => scheduleDelete(b.id)}
+                        loading={pendingBookmarkIdSet.has(b.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </ActionButton>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
-              <TableRow></TableRow>
             </TableBody>
           </Table>
         )}

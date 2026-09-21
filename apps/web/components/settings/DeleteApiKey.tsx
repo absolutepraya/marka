@@ -52,7 +52,12 @@ export default function DeleteApiKey({
         </ActionButton>
       )}
     >
-      <Button variant="ghost" title={t("actions.delete")}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        title={t("actions.delete")}
+        aria-label={t("actions.delete")}
+      >
         <Trash size={18} />
       </Button>
     </ActionConfirmingDialog>

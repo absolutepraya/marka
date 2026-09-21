@@ -75,6 +75,7 @@ export default function AssetsSettingsPage() {
   return (
     <SettingsPage
       title={t("settings.manage_assets.manage_assets")}
+      description={t("settings.manage_assets.page_description")}
       icon={<ImageIcon className="size-6 shrink-0 text-muted-foreground" />}
     >
       <SettingsSection>
@@ -84,7 +85,7 @@ export default function AssetsSettingsPage() {
           </p>
         )}
         {assets.length > 0 && (
-          <Table className="whitespace-nowrap">
+          <Table className="whitespace-nowrap [&_td]:px-3 [&_td]:py-2 [&_th]:h-10 [&_th]:px-3 [&_th]:py-2">
             <TableHeader>
               <TableRow>
                 <TableHead>{t("settings.manage_assets.asset_type")}</TableHead>
@@ -98,7 +99,7 @@ export default function AssetsSettingsPage() {
             </TableHeader>
             <TableBody>
               {assets.map((asset) => (
-                <TableRow key={asset.id}>
+                <TableRow key={asset.id} className="h-12">
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {ASSET_TYPE_TO_ICON[asset.assetType]}
@@ -163,8 +164,11 @@ export default function AssetsSettingsPage() {
                         >
                           <Button
                             variant="destructive"
-                            size="sm"
-                            title="Delete"
+                            size="icon-sm"
+                            aria-label={t(
+                              "settings.manage_assets.delete_asset",
+                            )}
+                            title={t("settings.manage_assets.delete_asset")}
                           >
                             <Trash2 className="size-4" />
                           </Button>

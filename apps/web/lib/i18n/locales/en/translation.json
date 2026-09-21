@@ -162,6 +162,7 @@
     "user_settings": "User Settings",
     "info": {
       "user_info": "User Info",
+      "page_description": "Manage your profile, preferences, and reading experience.",
       "basic_details": "Basic Details",
       "change_password": "Change Password",
       "current_password": "Current Password",
@@ -228,7 +229,7 @@
     },
     "stats": {
       "usage_statistics": "Usage Statistics",
-      "insights_description": "Insights into your bookmarking habits and collection",
+      "insights_description": "Insights into your bookmarking habits.",
       "failed_to_load": "Failed to load statistics",
       "overview": {
         "total_bookmarks": "Total Bookmarks",
@@ -282,6 +283,7 @@
     },
     "ai": {
       "ai_settings": "AI Settings",
+      "page_description": "Configure automatic tagging, summaries, and other AI-assisted features.",
       "auto_tagging": "Auto-tagging",
       "auto_tagging_description": "Automatically generate tags for your bookmarks using AI.",
       "auto_summarization": "Auto-summarization",
@@ -316,6 +318,7 @@
     },
     "feeds": {
       "rss_subscriptions": "RSS Subscriptions",
+      "page_description": "Manage the RSS feeds that keep your library up to date.",
       "add_a_subscription": "Add a Subscription",
       "feed_enabled": "RSS Feed enabled",
       "feed_disabled": "RSS Feed disabled"
@@ -459,12 +462,14 @@
     },
     "broken_links": {
       "broken_links": "Broken Links",
+      "page_description": "Review links that failed to crawl and retry or remove them.",
       "last_crawled_at": "Last Crawled At",
       "crawling_status": "Crawling Status",
       "crawling_failed": "Crawling Failed"
     },
     "manage_assets": {
       "manage_assets": "Manage Assets",
+      "page_description": "Review stored files, their sizes, and the bookmarks they belong to.",
       "no_assets": "You don't have any assets yet.",
       "asset_type": "Asset Type",
       "bookmark_link": "Bookmark Link",
@@ -526,6 +531,7 @@
     },
     "subscription": {
       "subscription": "Subscription",
+      "page_description": "Manage your plan, billing, and usage quotas.",
       "manage_subscription": "Manage your subscription and billing information",
       "current_plan": "Current Plan",
       "billing_period": "Billing Period",

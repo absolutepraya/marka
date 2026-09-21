@@ -66,7 +66,12 @@ export default function RegenerateApiKey({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" title="Regenerate">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title="Regenerate"
+          aria-label={t("actions.regenerate")}
+        >
           <RefreshCcw className="h-4 w-4" />
         </Button>
       </DialogTrigger>
