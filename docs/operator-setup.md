@@ -103,6 +103,12 @@ The main workspace uses `main_` when `pnpm dev:start` does not find an explicit 
 
 Do not share a worktree's `.data/local` directory with another worktree. SQLite rows and stored assets are authoritative per workspace; Meilisearch remains derived state and can be rebuilt into that workspace's namespace.
 
+### T3 Code worktrees
+
+T3 Code can import the project actions from the root [`t3.json`](../t3.json). The `Setup worktree` action runs automatically for new T3 worktrees. It installs dependencies, creates the package `.env` links, pulls the full production state into the worktree, runs migrations, and starts `pnpm dev:start -d`.
+
+The T3 setup assigns web ports in the `4000` to `4999` range, keeping them separate from the main workspace and WT slots. Assignments are kept in the ignored `.dev/t3-ports.tsv` registry and reserved under a filesystem lock, so concurrent worktree creation cannot choose the same port. Set `T3_PORT_REGISTRY_FILE` only when a different local registry location is needed. Existing T3 worktrees need the setup action run once manually because the automatic hook only runs during creation.
+
 ### Direct/manual start
 
 If you intentionally bypass `pnpm dev:start`, manual starts **must** set an explicit unique `MEILI_INDEX_PREFIX` for that workspace. Use `main_` only for the main workspace; parallel worktrees need distinct prefixes.

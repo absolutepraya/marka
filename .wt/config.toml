@@ -5,13 +5,16 @@ name_strategy = "cities"
 branch_template = "{user}/{name}"
 default_base = "origin/main"
 
-# Setup prepares isolated dependencies and local state only. It does not start
-# a development server or any long-running service.
+# Setup prepares isolated dependencies, imports production state, and starts
+# this worktree's detached development server.
 setup = [
   "mise exec node@24 -- corepack pnpm install --frozen-lockfile",
-  "bash \"$WT_ROOT_PATH/scripts/setup-worktree.sh\"",
   "ln -sfn ../../.env apps/web/.env",
   "ln -sfn ../../.env apps/workers/.env",
   "ln -sfn ../../.env packages/db/.env",
+  "WT_DATA_SOURCE=prod bash \"$WT_ROOT_PATH/scripts/setup-worktree.sh\"",
+  "pnpm dev:start -d",
 ]
-teardown = []
+teardown = [
+  "pnpm dev:stop",
+]

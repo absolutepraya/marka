@@ -44,6 +44,8 @@ pnpm dev:start
 
 This repository supports [`wt`](https://github.com/absolutepraya/wt) for isolated worktrees. Use `wt new <name>` before making a parallel change; the project configuration prepares separate local data and web ports while sharing the machine-level Chrome and Meilisearch services.
 
+T3 Code can import the checked-in [`t3.json`](t3.json). New T3 worktrees use the same production-state pull, isolated environment setup, and detached development server flow.
+
 For the full workflow, detached mode, and production deploy notes, use:
 - [`docs/operator-setup.md`](docs/operator-setup.md)
 

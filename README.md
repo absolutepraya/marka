@@ -88,6 +88,10 @@ wt ls
 
 The project configuration in [`.wt/config.toml`](.wt/config.toml) prepares isolated dependencies, data, ports, and Meilisearch namespaces for each worktree.
 
+T3 Code can import the project actions in [`t3.json`](t3.json). Its automatic
+`Setup worktree` action imports production state, prepares the isolated
+environment, and starts the detached development server.
+
 ### Pull production state into local development
 
 Use the safe dry run first:
