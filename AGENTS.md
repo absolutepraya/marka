@@ -251,6 +251,20 @@ If you edit development or deployment facts, keep these aligned:
 - `docs/docs/02-installation/11-guided-docker-setup.md`
 - relevant pages under `docs/docs/**`
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues for `absolutepraya/marka`, managed with `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles use the default label names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: use the root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
+
 ## Roadmap diagram workflow
 
 Marka's issue-linked roadmap is a human-authored single-canvas dependency map for the current full product and platform issue set. The authored source is `docs/roadmap/roadmap.excalidraw`. Generated files are `docs/roadmap/roadmap.generated.excalidraw`, the themed `roadmap-light.svg`, `roadmap-light.png`, `roadmap-dark.svg`, and `roadmap-dark.png` pair, plus `roadmap.svg` and `roadmap.png` as exact light-mode compatibility aliases; the generated Roadmap section in `README.md` is also bot-owned.
