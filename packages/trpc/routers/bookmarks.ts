@@ -88,6 +88,7 @@ const bookmarksProcedure = createScopedAuthedProcedure("bookmarks");
 async function enqueueTextBookmarkEnrichment(
   bookmarkId: string,
   enqueueOpts: EnqueueOptions,
+  options: { skipSummarization?: boolean } = {},
 ) {
   if (serverConfig.embedding.enableAutoIndexing) {
     await EmbeddingsQueue.enqueue(
@@ -114,7 +115,10 @@ async function enqueueTextBookmarkEnrichment(
     );
   }
 
-  if (serverConfig.inference.enableAutoSummarization) {
+  if (
+    serverConfig.inference.enableAutoSummarization &&
+    !options.skipSummarization
+  ) {
     await OpenAIQueue.enqueue(
       {
         bookmarkId,
@@ -863,10 +867,16 @@ export const bookmarksAppRouter = router({
         )
       ).asZBookmark();
 
-      if (contentChanged && updatedBookmark.summaryProvenance !== "manual") {
-        await enqueueTextBookmarkEnrichment(input.bookmarkId, {
-          groupId: ctx.user.id,
-        });
+      if (contentChanged) {
+        await enqueueTextBookmarkEnrichment(
+          input.bookmarkId,
+          {
+            groupId: ctx.user.id,
+          },
+          {
+            skipSummarization: updatedBookmark.summaryProvenance === "manual",
+          },
+        );
       }
 
       if (input.archived !== undefined) {
@@ -1029,11 +1039,13 @@ export const bookmarksAppRouter = router({
         );
         savedTextVersion = await getBookmarkTextVersion(tx, input.bookmarkId);
       });
-      if (!existingSummaryIsManual) {
-        await enqueueTextBookmarkEnrichment(input.bookmarkId, {
+      await enqueueTextBookmarkEnrichment(
+        input.bookmarkId,
+        {
           groupId: ctx.user.id,
-        });
-      }
+        },
+        { skipSummarization: existingSummaryIsManual },
+      );
       await Promise.all([
         triggerSearchReindex(input.bookmarkId, {
           groupId: ctx.user.id,

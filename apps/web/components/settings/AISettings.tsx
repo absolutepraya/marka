@@ -165,7 +165,7 @@ export function AIPreferences() {
                     )
                   }
                   aria-invalid={fieldState.invalid}
-                  placeholder={`Default (${clientConfig.inference.inferredTagLang})`}
+                  placeholder={`Default (${settings?.inferredTagLang ?? clientConfig.inference.inferredTagLang})`}
                   type="text"
                 />
                 {fieldState.invalid && (

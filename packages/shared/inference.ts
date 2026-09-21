@@ -116,7 +116,7 @@ const defaultInferenceOptions: InferenceOptions = {
   imageDetail: "low",
 };
 
-export interface InferenceClient extends TranscriptionClient {
+export interface InferenceClient {
   inferFromText(
     prompt: string,
     opts: Partial<InferenceOptions>,
@@ -167,9 +167,18 @@ export class InferenceClientFactory {
     }
     return null;
   }
+
+  static buildTranscriptionClient(): TranscriptionClient | null {
+    if (serverConfig.inference.openAIApiKey) {
+      return OpenAIInferenceClient.fromConfig();
+    }
+    return null;
+  }
 }
 
-export class OpenAIInferenceClient implements InferenceClient {
+export class OpenAIInferenceClient
+  implements InferenceClient, TranscriptionClient
+{
   openAI: OpenAI;
   private config: OpenAIInferenceConfig;
 
@@ -489,10 +498,6 @@ class OllamaInferenceClient implements InferenceClient {
       optsWithDefaults,
       image,
     );
-  }
-
-  async transcribeAudio(): Promise<TranscriptionResponse> {
-    throw new Error("Audio transcription is not supported by Ollama");
   }
 
   async generateEmbeddingFromText(

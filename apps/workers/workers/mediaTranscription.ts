@@ -160,7 +160,7 @@ async function transcribeAudioChunks(
 function buildTranscriptionClient(): TranscriptionClient | null {
   return (
     AzureSpeechTranscriptionClient.fromConfig() ??
-    InferenceClientFactory.build()
+    InferenceClientFactory.buildTranscriptionClient()
   );
 }
 

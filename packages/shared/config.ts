@@ -75,7 +75,13 @@ const allEnv = z.object({
   INFERENCE_IMAGE_MODEL: z.string().default("gpt-4o-mini"),
   TRANSCRIPTION_ENABLED: stringBool("false"),
   TRANSCRIPTION_MODEL: z.string().default("whisper-1"),
-  AZURE_SPEECH_ENDPOINT: z.string().url().optional(),
+  AZURE_SPEECH_ENDPOINT: z
+    .string()
+    .url()
+    .refine((value) => new URL(value).protocol === "https:", {
+      message: "AZURE_SPEECH_ENDPOINT must use HTTPS",
+    })
+    .optional(),
   AZURE_SPEECH_REGION: z.string().optional(),
   AZURE_SPEECH_KEY: z.string().optional(),
   AZURE_SPEECH_MODEL: z.string().default("MAI-Transcribe-2"),
