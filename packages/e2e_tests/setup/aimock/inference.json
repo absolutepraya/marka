@@ -409,7 +409,7 @@
         "userMessage": "Summarize the following content responding ONLY with the summary."
       },
       "response": {
-        "content": "This page contains a short Hello World test document used to verify Karakeep's inference worker end-to-end."
+        "content": "This page contains a short Hello World test document. It is used to verify Karakeep's inference worker end-to-end.\n\nThe fixture provides deterministic content for the crawler and inference worker. It keeps the end-to-end assertions stable."
       }
     }
   ]

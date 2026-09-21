@@ -37,7 +37,9 @@ import { WebhooksService } from "@karakeep/trpc/models/webhooks.service";
  * The maximum length of the relevant tag names to avoid bloating the inference context.
  */
 const RELEVANT_TAG_TRUNCATE_LENGTH = 1000;
-const MAX_NEW_AI_TAGS_PER_RUN = 2;
+// Keep taxonomy growth bounded without dropping the minimum useful tag set
+// requested by the text tagging prompt.
+const MAX_NEW_AI_TAGS_PER_RUN = 3;
 
 const openAIResponseSchema = z.object({
   tags: z.array(z.string()),
