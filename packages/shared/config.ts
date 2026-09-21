@@ -73,6 +73,12 @@ const allEnv = z.object({
   INFERENCE_IMAGE_MODEL: z.string().default("gpt-4o-mini"),
   TRANSCRIPTION_ENABLED: stringBool("false"),
   TRANSCRIPTION_MODEL: z.string().default("whisper-1"),
+  AZURE_SPEECH_ENDPOINT: z.string().url().optional(),
+  AZURE_SPEECH_REGION: z.string().optional(),
+  AZURE_SPEECH_KEY: z.string().optional(),
+  AZURE_SPEECH_MODEL: z.string().default("MAI-Transcribe-2"),
+  AZURE_SPEECH_API_VERSION: z.string().default("2025-10-15"),
+  AZURE_SPEECH_LOCALES: z.string().optional(),
   TRANSCRIPTION_CHUNK_SECONDS: z.coerce.number().int().positive().default(600),
   TRANSCRIPTION_JOB_TIMEOUT_SEC: z.coerce
     .number()
@@ -345,6 +351,16 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
       model: val.TRANSCRIPTION_MODEL,
       chunkSeconds: val.TRANSCRIPTION_CHUNK_SECONDS,
       jobTimeoutSec: val.TRANSCRIPTION_JOB_TIMEOUT_SEC,
+      azureSpeech: {
+        endpoint: val.AZURE_SPEECH_ENDPOINT,
+        region: val.AZURE_SPEECH_REGION,
+        key: val.AZURE_SPEECH_KEY,
+        model: val.AZURE_SPEECH_MODEL,
+        apiVersion: val.AZURE_SPEECH_API_VERSION,
+        locales: val.AZURE_SPEECH_LOCALES?.split(",")
+          .map((locale) => locale.trim())
+          .filter((locale) => locale.length > 0),
+      },
     },
     embedding: {
       enableAutoIndexing: val.EMBEDDING_ENABLE_AUTO_INDEXING,
@@ -544,6 +560,22 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "BROWSERLESS_URL is required when BROWSERLESS_TOKEN is set",
+      fatal: true,
+    });
+    return z.NEVER;
+  }
+  if (val.AZURE_SPEECH_ENDPOINT && !val.AZURE_SPEECH_KEY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "AZURE_SPEECH_KEY is required when AZURE_SPEECH_ENDPOINT is set",
+      fatal: true,
+    });
+    return z.NEVER;
+  }
+  if (val.AZURE_SPEECH_KEY && !val.AZURE_SPEECH_ENDPOINT) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "AZURE_SPEECH_ENDPOINT is required when AZURE_SPEECH_KEY is set",
       fatal: true,
     });
     return z.NEVER;

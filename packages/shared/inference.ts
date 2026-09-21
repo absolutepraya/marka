@@ -4,6 +4,8 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import * as undici from "undici";
 import { z } from "zod";
 
+import type { TranscriptionClient, TranscriptionResponse } from "./azureSpeech";
+export type { TranscriptionClient, TranscriptionResponse } from "./azureSpeech";
 import serverConfig from "./config";
 import { customFetch } from "./customFetch";
 import logger from "./logger";
@@ -17,11 +19,6 @@ export interface EmbeddingResponse {
   embeddings: number[][];
   totalTokens: number | undefined;
   promptTokens: number | undefined;
-}
-
-export interface TranscriptionResponse {
-  text: string;
-  language?: string;
 }
 
 function isNumberArray(value: unknown): value is number[] {
@@ -119,7 +116,7 @@ const defaultInferenceOptions: InferenceOptions = {
   imageDetail: "low",
 };
 
-export interface InferenceClient {
+export interface InferenceClient extends TranscriptionClient {
   inferFromText(
     prompt: string,
     opts: Partial<InferenceOptions>,
@@ -130,12 +127,6 @@ export interface InferenceClient {
     image: string,
     opts: Partial<InferenceOptions>,
   ): Promise<InferenceResponse>;
-  transcribeAudio(
-    audio: Buffer,
-    fileName: string,
-    contentType: string,
-    abortSignal?: AbortSignal,
-  ): Promise<TranscriptionResponse>;
   generateEmbeddingFromText(inputs: string[]): Promise<EmbeddingResponse>;
 }
 

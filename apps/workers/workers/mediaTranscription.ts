@@ -4,9 +4,10 @@ import path from "path";
 import { execa } from "execa";
 
 import { readAsset } from "@karakeep/shared/assetdb";
+import { AzureSpeechTranscriptionClient } from "@karakeep/shared/azureSpeech";
+import type { TranscriptionClient } from "@karakeep/shared/azureSpeech";
 import serverConfig from "@karakeep/shared/config";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
-import type { InferenceClient } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
 
 import {
@@ -53,7 +54,7 @@ async function transcribeAudioChunks(
   inputPath: string,
   sourceName: string,
   abortSignal: AbortSignal,
-  inferenceClient: InferenceClient,
+  transcriptionClient: TranscriptionClient,
 ): Promise<MediaTranscriptionResult> {
   const chunkDirectory = await fs.promises.mkdtemp(
     path.join(TRANSCRIPTION_TMP_FOLDER, "chunks-"),
@@ -130,7 +131,7 @@ async function transcribeAudioChunks(
       abortSignal.throwIfAborted();
       const chunkPath = path.join(chunkDirectory, chunkFile);
       const chunk = await fs.promises.readFile(chunkPath);
-      const response = await inferenceClient.transcribeAudio(
+      const response = await transcriptionClient.transcribeAudio(
         chunk,
         chunkFile,
         "audio/mpeg",
@@ -156,16 +157,23 @@ async function transcribeAudioChunks(
   }
 }
 
+function buildTranscriptionClient(): TranscriptionClient | null {
+  return (
+    AzureSpeechTranscriptionClient.fromConfig() ??
+    InferenceClientFactory.build()
+  );
+}
+
 async function transcribeBuffer(
   buffer: Buffer,
   fileName: string | null | undefined,
   contentType: string,
   abortSignal: AbortSignal,
 ): Promise<MediaTranscriptionResult> {
-  const inferenceClient = InferenceClientFactory.build();
-  if (!inferenceClient) {
+  const transcriptionClient = buildTranscriptionClient();
+  if (!transcriptionClient) {
     throw new Error(
-      "Audio transcription requires a configured OpenAI-compatible inference client",
+      "Audio transcription requires Azure Speech or an OpenAI-compatible inference client",
     );
   }
 
@@ -186,7 +194,7 @@ async function transcribeBuffer(
       inputPath,
       sourceName,
       abortSignal,
-      inferenceClient,
+      transcriptionClient,
     );
   } finally {
     await fs.promises.rm(directory, { recursive: true, force: true });
@@ -221,10 +229,10 @@ export async function transcribeRemoteUrl(
   url: string,
   abortSignal: AbortSignal,
 ): Promise<MediaTranscriptionResult> {
-  const inferenceClient = InferenceClientFactory.build();
-  if (!inferenceClient) {
+  const transcriptionClient = buildTranscriptionClient();
+  if (!transcriptionClient) {
     throw new Error(
-      "Audio transcription requires a configured OpenAI-compatible inference client",
+      "Audio transcription requires Azure Speech or an OpenAI-compatible inference client",
     );
   }
 
@@ -294,7 +302,7 @@ export async function transcribeRemoteUrl(
       path.join(directory, sourceFile),
       sourceFile,
       abortSignal,
-      inferenceClient,
+      transcriptionClient,
     );
   } finally {
     await fs.promises.rm(directory, { recursive: true, force: true });
