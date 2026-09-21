@@ -28,10 +28,13 @@ export function buildImagePrompt(
   return `
 You are an expert whose responsibility is to help with automatic text tagging for a read-it-later/bookmarking app.
 Analyze the attached image and suggest relevant tags that describe its key themes, topics, and main ideas. The rules are:
-- Aim for a variety of tags, including broad categories, specific keywords, and potential sub-genres.
+- Prefer existing candidate tags when they describe the same concept. Do not invent a synonym for an existing tag.
+- Create a new tag only when it describes a durable, specific concept that is central to the image and no existing tag fits.
+- Tags should help retrieve this bookmark later, not merely describe its format, source, mood, or generic existence.
+- Do not emit tags such as "image", "photo", "screenshot", "article", "content", or "web" unless the concept is genuinely central to the subject.
 - The tags must be in ${lang}.
-- If the tag is not generic enough, don't include it.
-- Aim for 10-15 tags.
+- Aim for 5-10 tags, but return fewer when only fewer tags are useful.
+- Return the most relevant tags first. Never emit duplicate tags or hashtag prefixes.
 - If there are no good tags, don't emit any.
 ${curatedInstruction}
 ${potentialRelevantTagsInstruction}
@@ -60,13 +63,16 @@ export function constructTextTaggingPrompt(
   return `
 You are an expert whose responsibility is to help with automatic tagging for a read-it-later/bookmarking app.
 Analyze the TEXT_CONTENT below and suggest relevant tags that describe its key themes, topics, and main ideas. The rules are:
-- Aim for a variety of tags, including broad categories, specific keywords, and potential sub-genres.
+- Prefer existing candidate tags when they describe the same concept. Do not invent a synonym for an existing tag.
+- Create a new tag only when it describes a durable, specific concept that is central to the content and no existing tag fits.
+- Tags should help retrieve this bookmark later, not merely describe its format, source, mood, or generic existence.
+- Do not emit tags such as "article", "content", "web", "reading", or a publisher/domain unless the concept is genuinely central to the content.
 - The tags must be in ${lang}.
-- If the tag is not generic enough, don't include it.
 - Do NOT generate tags related to:
     - An error page (404, 403, blocked, not found, dns errors)
     - Boilerplate content (cookie consent, login walls, GDPR notices)
-- Aim for 3-5 tags.
+- Aim for 3-6 tags, but return fewer when only fewer tags are useful.
+- Return the most relevant tags first. Never emit duplicate tags or hashtag prefixes.
 - If there are no good tags, leave the array empty.
 ${curatedInstruction}
 ${potentialRelevantTagsInstruction}
@@ -89,10 +95,51 @@ export function constructSummaryPrompt(
 ): string {
   return `
 Summarize the following content responding ONLY with the summary. You MUST follow the following rules:
-- Summary must be in 3-4 sentences.
+- Summary must contain exactly two paragraphs separated by one blank line.
+- Each paragraph should contain two or three concise sentences.
+- The first paragraph should explain the main idea and scope. The second should capture the most useful details, implications, or practical meaning.
+- Do not include a title, headings, bullets, labels, markdown, or commentary.
 - The summary must be in ${lang}.
 ${customPrompts && customPrompts.map((p) => `- ${p}`).join("\n")}
     ${content}`;
+}
+
+/**
+ * Keep stored summaries in the two-paragraph shape requested by the prompt.
+ * Models occasionally return extra paragraph breaks or a single paragraph,
+ * so this performs a conservative cleanup without inventing content.
+ */
+export function normalizeSummary(summary: string): string {
+  const paragraphs = summary
+    .replace(/\r\n?/g, "\n")
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  if (paragraphs.length >= 2) {
+    return [paragraphs[0], paragraphs.slice(1).join(" ")].join("\n\n");
+  }
+
+  const onlyParagraph = paragraphs[0] ?? "";
+  const sentences = onlyParagraph.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length >= 2) {
+    const splitAt = Math.ceil(sentences.length / 2);
+    return [
+      sentences.slice(0, splitAt).join(" "),
+      sentences.slice(splitAt).join(" "),
+    ].join("\n\n");
+  }
+
+  const words = onlyParagraph.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    const splitAt = Math.ceil(words.length / 2);
+    return [
+      words.slice(0, splitAt).join(" "),
+      words.slice(splitAt).join(" "),
+    ].join("\n\n");
+  }
+
+  return onlyParagraph;
 }
 
 /**
@@ -143,4 +190,21 @@ Rules:
 - Do not add any commentary, explanations, or descriptions of non-text elements.
 - If there is no text in the image, respond with an empty string.
 - Output ONLY the extracted text, nothing else.`;
+}
+
+/**
+ * Build a summary prompt for an image when OCR did not produce usable text.
+ * Keep the image at low detail in the caller unless a higher-detail pass is
+ * explicitly justified, so visual summaries do not spend tokens on pixels
+ * that OCR has already covered.
+ */
+export function buildImageSummaryPrompt(
+  lang: string,
+  customPrompts: string[],
+): string {
+  return constructSummaryPrompt(
+    lang,
+    customPrompts,
+    "Describe the image's main subject, important visual details, and practical meaning. Treat the image itself as the source.",
+  );
 }

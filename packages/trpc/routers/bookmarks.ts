@@ -27,12 +27,14 @@ import {
   OpenAIQueue,
   QueuePriority,
   QuotaService,
+  TranscriptQueue,
   triggerSearchReindex,
 } from "@karakeep/shared-server";
 import serverConfig from "@karakeep/shared/config";
 import { getBookmarkAssetTypeForMimeType } from "@karakeep/shared/content-support";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
 import { buildSummaryPrompt } from "@karakeep/shared/prompts.server";
+import { normalizeSummary } from "@karakeep/shared/prompts";
 import { EnqueueOptions } from "@karakeep/shared/queueing";
 import { getRateLimitClient } from "@karakeep/shared/ratelimiting";
 import { FilterQuery, getSearchClient } from "@karakeep/shared/search";
@@ -82,6 +84,53 @@ import {
 } from "../models/offlineSync";
 
 const bookmarksProcedure = createScopedAuthedProcedure("bookmarks");
+
+async function enqueueTextBookmarkEnrichment(
+  bookmarkId: string,
+  enqueueOpts: EnqueueOptions,
+  options: { skipSummarization?: boolean } = {},
+) {
+  if (serverConfig.embedding.enableAutoIndexing) {
+    await EmbeddingsQueue.enqueue(
+      {
+        bookmarkId,
+        type: "embed",
+        runTaggingOnComplete: true,
+      },
+      {
+        ...enqueueOpts,
+        idempotencyKey: `bookmark:${bookmarkId}:embed`,
+      },
+    );
+  } else {
+    await OpenAIQueue.enqueue(
+      {
+        bookmarkId,
+        type: "tag",
+      },
+      {
+        ...enqueueOpts,
+        idempotencyKey: `bookmark:${bookmarkId}:tag`,
+      },
+    );
+  }
+
+  if (
+    serverConfig.inference.enableAutoSummarization &&
+    !options.skipSummarization
+  ) {
+    await OpenAIQueue.enqueue(
+      {
+        bookmarkId,
+        type: "summarize",
+      },
+      {
+        ...enqueueOpts,
+        idempotencyKey: `bookmark:${bookmarkId}:summary`,
+      },
+    );
+  }
+}
 
 const zBookmarkContentUser = z.object({
   id: z.string(),
@@ -336,7 +385,6 @@ export const bookmarksAppRouter = router({
                 createdAt: input.createdAt,
                 source: input.source,
                 summarizationStatus:
-                  input.type === BookmarkTypes.LINK &&
                   serverConfig.inference.enableAutoSummarization &&
                   input.summary === undefined
                     ? "pending"
@@ -526,24 +574,7 @@ export const bookmarksAppRouter = router({
           break;
         }
         case BookmarkTypes.TEXT: {
-          if (serverConfig.embedding.enableAutoIndexing) {
-            await EmbeddingsQueue.enqueue(
-              {
-                bookmarkId: bookmark.id,
-                type: "embed",
-                runTaggingOnComplete: true,
-              },
-              enqueueOpts,
-            );
-          } else {
-            await OpenAIQueue.enqueue(
-              {
-                bookmarkId: bookmark.id,
-                type: "tag",
-              },
-              enqueueOpts,
-            );
-          }
+          await enqueueTextBookmarkEnrichment(bookmark.id, enqueueOpts);
           break;
         }
         case BookmarkTypes.ASSET: {
@@ -554,6 +585,16 @@ export const bookmarksAppRouter = router({
             },
             enqueueOpts,
           );
+          if (
+            serverConfig.transcription.enabled &&
+            (bookmark.content.assetType === "video" ||
+              bookmark.content.assetType === "audio")
+          ) {
+            await TranscriptQueue.enqueue(
+              { bookmarkId: bookmark.id },
+              enqueueOpts,
+            );
+          }
           break;
         }
       }
@@ -608,6 +649,9 @@ export const bookmarksAppRouter = router({
         });
       }
 
+      const contentChanged =
+        input.text !== undefined || input.assetContent !== undefined;
+      let existingSummaryIsManual = false;
       let savedTextVersion: number | undefined;
       await ctx.db.transaction(async (tx) => {
         const transactionContext = {
@@ -637,6 +681,14 @@ export const bookmarksAppRouter = router({
                 "The bookmark content changed after this draft was opened",
             });
           }
+        }
+        if (contentChanged) {
+          const currentBookmark = await tx.query.bookmarks.findFirst({
+            where: eq(bookmarks.id, input.bookmarkId),
+            columns: { summaryProvenance: true },
+          });
+          existingSummaryIsManual =
+            currentBookmark?.summaryProvenance === "manual";
         }
         const offlineChangedFields = [
           ...(input.title !== undefined ? ["title"] : []),
@@ -741,6 +793,7 @@ export const bookmarksAppRouter = router({
           summary: string | null;
           summaryProvenance: "web" | "transcript" | "manual" | null;
           summaryStale: boolean;
+          summarizationStatus: "pending" | null;
           createdAt: Date;
           modifiedAt: Date; // Always update modifiedAt
         }> = {
@@ -762,6 +815,17 @@ export const bookmarksAppRouter = router({
           commonUpdateData.summary = input.summary;
           commonUpdateData.summaryProvenance = "manual";
           commonUpdateData.summaryStale = false;
+        }
+        if (
+          contentChanged &&
+          input.summary === undefined &&
+          !existingSummaryIsManual
+        ) {
+          commonUpdateData.summaryStale = true;
+          commonUpdateData.summarizationStatus = serverConfig.inference
+            .enableAutoSummarization
+            ? "pending"
+            : null;
         }
         if (input.createdAt !== undefined) {
           commonUpdateData.createdAt = input.createdAt;
@@ -802,6 +866,18 @@ export const bookmarksAppRouter = router({
           /* includeContent: */ false,
         )
       ).asZBookmark();
+
+      if (contentChanged) {
+        await enqueueTextBookmarkEnrichment(
+          input.bookmarkId,
+          {
+            groupId: ctx.user.id,
+          },
+          {
+            skipSummarization: updatedBookmark.summaryProvenance === "manual",
+          },
+        );
+      }
 
       if (input.archived !== undefined) {
         logEvent({
@@ -883,6 +959,7 @@ export const bookmarksAppRouter = router({
         });
       }
       let savedTextVersion: number | undefined;
+      let existingSummaryIsManual = false;
       await ctx.db.transaction(async (tx) => {
         const transactionContext = {
           ...ctx,
@@ -912,6 +989,12 @@ export const bookmarksAppRouter = router({
             });
           }
         }
+        const currentBookmark = await tx.query.bookmarks.findFirst({
+          where: eq(bookmarks.id, input.bookmarkId),
+          columns: { summaryProvenance: true },
+        });
+        existingSummaryIsManual =
+          currentBookmark?.summaryProvenance === "manual";
         const res = await tx
           .update(bookmarkTexts)
           .set({
@@ -927,7 +1010,18 @@ export const bookmarksAppRouter = router({
         }
         await tx
           .update(bookmarks)
-          .set({ modifiedAt: new Date() })
+          .set({
+            modifiedAt: new Date(),
+            ...(!existingSummaryIsManual
+              ? {
+                  summaryStale: true,
+                  summarizationStatus: serverConfig.inference
+                    .enableAutoSummarization
+                    ? "pending"
+                    : null,
+                }
+              : {}),
+          })
           .where(eq(bookmarks.id, input.bookmarkId));
         await recordOfflineSyncEvents(
           tx,
@@ -945,6 +1039,13 @@ export const bookmarksAppRouter = router({
         );
         savedTextVersion = await getBookmarkTextVersion(tx, input.bookmarkId);
       });
+      await enqueueTextBookmarkEnrichment(
+        input.bookmarkId,
+        {
+          groupId: ctx.user.id,
+        },
+        { skipSummarization: existingSummaryIsManual },
+      );
       await Promise.all([
         triggerSearchReindex(input.bookmarkId, {
           groupId: ctx.user.id,
@@ -1698,11 +1799,14 @@ Author: ${bookmark.author ?? ""}
         where: eq(users.id, ctx.user.id),
         columns: {
           inferredTagLang: true,
+          summaryLanguage: true,
         },
       });
 
       const summaryPrompt = await buildSummaryPrompt(
-        userSettings?.inferredTagLang ?? serverConfig.inference.inferredTagLang,
+        userSettings?.summaryLanguage ??
+          userSettings?.inferredTagLang ??
+          serverConfig.inference.inferredTagLang,
         prompts.map((p) => p.text),
         bookmarkDetails,
         serverConfig.inference.contextLength,
@@ -1723,15 +1827,17 @@ Author: ${bookmark.author ?? ""}
         });
       }
 
+      const normalizedSummary = normalizeSummary(summary.response);
+
       addLogFields<"bookmark.summarize">({
-        "inference.summary.size": Buffer.byteLength(summary.response, "utf8"),
+        "inference.summary.size": Buffer.byteLength(normalizedSummary, "utf8"),
         "inference.total_tokens": summary.totalTokens,
       });
 
       await ctx.db
         .update(bookmarks)
         .set({
-          summary: summary.response,
+          summary: normalizedSummary,
           summaryProvenance: "manual",
           summaryStale: false,
         })
@@ -1752,7 +1858,7 @@ Author: ${bookmark.author ?? ""}
 
       return {
         bookmarkId: input.bookmarkId,
-        summary: summary.response,
+        summary: normalizedSummary,
       };
     }),
 });

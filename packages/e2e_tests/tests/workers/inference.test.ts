@@ -124,7 +124,7 @@ describe("Inference Worker Tests", () => {
     expect(bookmark.taggingStatus).toBe("success");
     expect(bookmark.summarizationStatus).toBe("success");
     expect(bookmark.summary).toBe(
-      "This page contains a short Hello World test document used to verify Karakeep's inference worker end-to-end.",
+      "This page contains a short Hello World test document. It is used to verify Karakeep's inference worker end-to-end.\n\nThe fixture provides deterministic content for the crawler and inference worker. It keeps the end-to-end assertions stable.",
     );
     expect(bookmark.tags.map((tag) => tag.name)).toEqual(
       expect.arrayContaining(["ai-generated", "karakeep", "worker-test"]),

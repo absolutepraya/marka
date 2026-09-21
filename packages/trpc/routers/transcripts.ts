@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import {
   AssetTypes,
-  bookmarkLinks,
   bookmarkTranscripts,
   bookmarks,
   users,
@@ -293,15 +292,41 @@ export const transcriptsAppRouter = router({
     .output(z.object({ queued: z.literal(true) }))
     .use(ensureBookmarkOwnership)
     .mutation(async ({ input, ctx }) => {
-      const link = await ctx.db.query.bookmarkLinks.findFirst({
-        where: eq(bookmarkLinks.id, input.bookmarkId),
-        columns: { url: true },
+      const bookmark = await ctx.db.query.bookmarks.findFirst({
+        where: eq(bookmarks.id, input.bookmarkId),
+        columns: { type: true },
+        with: {
+          link: { columns: { url: true } },
+          asset: { columns: { assetType: true, assetId: true } },
+        },
       });
-      const videoId = link ? getYouTubeVideoId(link.url) : null;
-      if (!videoId) {
+      const videoId = bookmark?.link
+        ? getYouTubeVideoId(bookmark.link.url)
+        : null;
+      const isMediaBookmark =
+        bookmark?.type === "asset" &&
+        (bookmark.asset?.assetType === "video" ||
+          bookmark.asset?.assetType === "audio");
+      if (!videoId && !isMediaBookmark) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Transcript retry is only available for YouTube links",
+          message:
+            "Transcript retry is only available for YouTube links or audio/video bookmarks",
+        });
+      }
+      if (isMediaBookmark && !serverConfig.transcription.enabled) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Audio/video transcription is disabled",
+        });
+      }
+
+      const provider = videoId ? "youtube" : "azure-whisper";
+      const providerItemId = videoId ?? bookmark?.asset?.assetId;
+      if (!providerItemId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Transcript source is missing",
         });
       }
 
@@ -309,8 +334,8 @@ export const transcriptsAppRouter = router({
         .insert(bookmarkTranscripts)
         .values({
           bookmarkId: input.bookmarkId,
-          provider: "youtube",
-          providerItemId: videoId,
+          provider,
+          providerItemId,
           status: "pending",
           sourceAttachmentsStatus: "pending",
         })
@@ -320,7 +345,7 @@ export const transcriptsAppRouter = router({
             bookmarkTranscripts.provider,
           ],
           set: {
-            providerItemId: videoId,
+            providerItemId,
             status: "pending",
             statusMessage: null,
             sourceAttachmentsStatus: "pending",

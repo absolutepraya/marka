@@ -253,7 +253,7 @@ Expected service shape:
 
 ### Worker-only secrets and Browserless
 
-Create `.workers.env` beside the production compose file. It is mounted only into `workers`, never `web`, and must contain `BROWSERLESS_TOKEN`, proxy credentials, and `OPENAI_API_KEY`. Keep the token and all credential values out of source control. `BROWSERLESS_URL` targets the Browserless service through `karakeep-renderer`.
+Create `.workers.env` beside the production compose file. It is mounted only into `workers`, never `web`, and must contain `BROWSERLESS_TOKEN`, proxy credentials, and `OPENAI_API_KEY`. For the full enrichment rollout, configure the same worker-only file with `OPENAI_BASE_URL`, `INFERENCE_TEXT_MODEL`, `INFERENCE_IMAGE_MODEL`, `INFERENCE_ENABLE_AUTO_TAGGING`, `INFERENCE_ENABLE_AUTO_SUMMARIZATION`, `OCR_USE_LLM`, `TRANSCRIPTION_ENABLED`, `TRANSCRIPTION_MODEL`, `AZURE_SPEECH_ENDPOINT`, `AZURE_SPEECH_REGION`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_MODEL`, `AZURE_SPEECH_API_VERSION`, `EMBEDDING_ENABLE_AUTO_INDEXING`, `EMBEDDING_TEXT_MODEL`, and `EMBEDDING_DIMENSIONS` as applicable. When the Azure Speech pair is configured, Marka uses MAI-Transcribe-2 for media transcription. For YouTube links, `yt-dlp` captions remain preferred and Azure Speech is used only when no usable captions are available. Keep the token and all credential values out of source control. `BROWSERLESS_URL` targets the Browserless service through `karakeep-renderer`.
 
 Configure Browserless on its private host with:
 

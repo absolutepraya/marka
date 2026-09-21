@@ -37,6 +37,9 @@ import { WebhooksService } from "@karakeep/trpc/models/webhooks.service";
  * The maximum length of the relevant tag names to avoid bloating the inference context.
  */
 const RELEVANT_TAG_TRUNCATE_LENGTH = 1000;
+// Keep taxonomy growth bounded without dropping the minimum useful tag set
+// requested by the text tagging prompt.
+const MAX_NEW_AI_TAGS_PER_RUN = 3;
 
 const openAIResponseSchema = z.object({
   tags: z.array(z.string()),
@@ -102,8 +105,12 @@ async function buildPrompt(
         bookmark.link,
         bookmark.userId,
       )) ?? "";
+    const transcript =
+      bookmark.transcript?.status === "ready"
+        ? (bookmark.transcript.text ?? "")
+        : "";
 
-    if (!bookmark.link.description && !content) {
+    if (!bookmark.link.description && !content && !transcript) {
       // No content to infer from; signal skip to avoid marking job as failed
       logger.info(
         `[inference] No content found for link "${bookmark.id}". Skipping tagging.`,
@@ -116,7 +123,8 @@ async function buildPrompt(
       `URL: ${bookmark.link.url}
 Title: ${bookmark.link.title ?? ""}
 Description: ${bookmark.link.description ?? ""}
-Content: ${content ?? ""}`,
+Content: ${content ?? ""}
+Transcript: ${transcript}`,
       serverConfig.inference.contextLength,
       tagStyle,
       curatedTags,
@@ -129,6 +137,30 @@ Content: ${content ?? ""}`,
       inferredTagLang,
       prompts,
       bookmark.text.text ?? "",
+      serverConfig.inference.contextLength,
+      tagStyle,
+      curatedTags,
+      potentialRelevantTags,
+    );
+  }
+
+  if (
+    bookmark.asset &&
+    (bookmark.asset.assetType === "video" ||
+      bookmark.asset.assetType === "audio")
+  ) {
+    const transcript =
+      bookmark.transcript?.status === "ready"
+        ? (bookmark.transcript.text ?? "")
+        : "";
+    if (!transcript.trim()) {
+      return null;
+    }
+    return await buildTextPrompt(
+      inferredTagLang,
+      prompts,
+      `File name: ${bookmark.asset.fileName ?? ""}
+Transcript: ${transcript}`,
       serverConfig.inference.contextLength,
       tagStyle,
       curatedTags,
@@ -331,7 +363,13 @@ async function inferTags(
   });
 
   let response: InferenceResponse | null;
-  if (bookmark.link || bookmark.text) {
+  if (
+    bookmark.link ||
+    bookmark.text ||
+    (bookmark.asset &&
+      (bookmark.asset.assetType === "video" ||
+        bookmark.asset.assetType === "audio"))
+  ) {
     response = await inferTagsFromText(
       bookmark,
       inferenceClient,
@@ -423,10 +461,19 @@ async function connectTags(
     // Attempt to match exiting tags with the new ones
     const { matchedTagIds, notFoundTagNames } = await (async () => {
       const { normalizeTag } = tagNormalizer();
-      const normalizedInferredTags = inferredTags.map((t) => ({
-        originalTag: t,
-        normalizedTag: normalizeTag(t),
-      }));
+      const seenNormalizedTags = new Set<string>();
+      const normalizedInferredTags = inferredTags
+        .map((t) => ({
+          originalTag: t.trim(),
+          normalizedTag: normalizeTag(t),
+        }))
+        .filter((t) => {
+          if (!t.originalTag || seenNormalizedTags.has(t.normalizedTag)) {
+            return false;
+          }
+          seenNormalizedTags.add(t.normalizedTag);
+          return true;
+        });
 
       const matchedTags = await tx.query.bookmarkTags.findMany({
         where: and(
@@ -448,7 +495,14 @@ async function connectTags(
         )
         .map((t) => t.originalTag);
 
-      return { matchedTagIds, notFoundTagNames };
+      const newTagNames = notFoundTagNames.slice(0, MAX_NEW_AI_TAGS_PER_RUN);
+      if (notFoundTagNames.length > newTagNames.length) {
+        logger.debug(
+          `[inference] Discarding ${notFoundTagNames.length - newTagNames.length} novel AI tag(s) because the per-run limit is ${MAX_NEW_AI_TAGS_PER_RUN}.`,
+        );
+      }
+
+      return { matchedTagIds, notFoundTagNames: newTagNames };
     })();
 
     // Create tags that didn't exist previously
@@ -519,6 +573,7 @@ async function fetchBookmark(linkId: string) {
       link: true,
       text: true,
       asset: true,
+      transcript: true,
     },
   });
 }
@@ -532,7 +587,7 @@ const RELEVANT_TAG_SCORE_THRESHOLD = 0.75;
  * bookmarks and fetching their tags.
  *
  * When a freshly generated `embedding` is supplied, similarity is resolved via
- * search({vector}) — which does not require the bookmark to be indexed yet — so
+ * search({vector}), which does not require the bookmark to be indexed yet, so
  * tagging does not have to wait for the (slow) vector index build. Otherwise it
  * falls back to findSimilar({id}), which requires the bookmark to already be
  * indexed (e.g. a manual re-tag).
@@ -544,51 +599,68 @@ async function getPotentiallyRelevantTags(
   embedding?: number[],
 ): Promise<string[] | null> {
   const client = await getVectorStoreClient();
-  if (!client) {
-    return null;
-  }
-  const userFilter = [
-    {
-      type: "eq" as const,
-      field: "userId" as const,
-      value: userId,
-    },
-  ];
-  const similarBookmarkIds =
-    embedding && embedding.length > 0
-      ? await client
-          .search({
-            vector: embedding,
-            // Fetch one extra so we can drop the bookmark itself if it happens
-            // to already be indexed, and still keep up to 10 neighbors.
-            limit: 11,
-            filter: userFilter,
-            rankingScoreThreshold: RELEVANT_TAG_SCORE_THRESHOLD,
-          })
-          .then((r) =>
-            r.hits
-              .filter((h) => h.id !== bookmarkId)
-              .map((h) => h.id)
-              .slice(0, 10),
-          )
-      : await client
-          .findSimilar({
-            id: bookmarkId,
-            limit: 10,
-            filter: userFilter,
-          })
-          .then((r) => r.hits.map((r) => r.id));
-
-  if (similarBookmarkIds.length === 0) {
-    return null;
+  let similarBookmarkIds: string[] = [];
+  if (client) {
+    const userFilter = [
+      {
+        type: "eq" as const,
+        field: "userId" as const,
+        value: userId,
+      },
+    ];
+    similarBookmarkIds =
+      embedding && embedding.length > 0
+        ? await client
+            .search({
+              vector: embedding,
+              // Fetch one extra so we can drop the bookmark itself if it happens
+              // to already be indexed, and still keep up to 10 neighbors.
+              limit: 11,
+              filter: userFilter,
+              rankingScoreThreshold: RELEVANT_TAG_SCORE_THRESHOLD,
+            })
+            .then((r) =>
+              r.hits
+                .filter((h) => h.id !== bookmarkId)
+                .map((h) => h.id)
+                .slice(0, 10),
+            )
+        : await client
+            .findSimilar({
+              id: bookmarkId,
+              limit: 10,
+              filter: userFilter,
+            })
+            .then((r) => r.hits.map((r) => r.id));
   }
 
-  const tags = await db
-    .selectDistinct({ name: bookmarkTags.name })
+  const similarTags =
+    similarBookmarkIds.length > 0
+      ? await db
+          .selectDistinct({ name: bookmarkTags.name })
+          .from(bookmarkTags)
+          .leftJoin(tagsOnBookmarks, eq(bookmarkTags.id, tagsOnBookmarks.tagId))
+          .where(inArray(tagsOnBookmarks.bookmarkId, similarBookmarkIds))
+          .limit(100)
+      : [];
+  const allUserTags = await db
+    .select({ name: bookmarkTags.name })
     .from(bookmarkTags)
-    .leftJoin(tagsOnBookmarks, eq(bookmarkTags.id, tagsOnBookmarks.tagId))
-    .where(inArray(tagsOnBookmarks.bookmarkId, similarBookmarkIds))
-    .limit(100);
+    .where(eq(bookmarkTags.userId, userId))
+    .limit(200);
+  const seenTagNames = new Set<string>();
+  const tags = [...similarTags, ...allUserTags].filter((tag) => {
+    const normalizedName = tag.name.toLowerCase();
+    if (seenTagNames.has(normalizedName)) {
+      return false;
+    }
+    seenTagNames.add(normalizedName);
+    return true;
+  });
+
+  if (tags.length === 0) {
+    return null;
+  }
 
   // Let's try to use shorter tags first
   tags.sort((a, b) => a.name.length - b.name.length);

@@ -482,6 +482,7 @@ export class User {
         tagStyle: true,
         curatedTagIds: true,
         inferredTagLang: true,
+        summaryLanguage: true,
       },
     });
 
@@ -507,6 +508,7 @@ export class User {
       tagStyle: settings.tagStyle ?? "as-generated",
       curatedTagIds: settings.curatedTagIds ?? null,
       inferredTagLang: settings.inferredTagLang,
+      summaryLanguage: settings.summaryLanguage,
     };
   }
 
@@ -537,6 +539,7 @@ export class User {
         tagStyle: input.tagStyle,
         curatedTagIds: input.curatedTagIds,
         inferredTagLang: input.inferredTagLang,
+        summaryLanguage: input.summaryLanguage,
       })
       .where(eq(users.id, this.user.id));
   }

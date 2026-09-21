@@ -14,10 +14,15 @@ import {
   triggerSearchReindex,
   ZOpenAIRequest,
 } from "@karakeep/shared-server";
+import { readAsset } from "@karakeep/shared/assetdb";
 import serverConfig from "@karakeep/shared/config";
 import { InferenceClient } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
 import { buildSummaryPrompt } from "@karakeep/shared/prompts.server";
+import {
+  buildImageSummaryPrompt,
+  normalizeSummary,
+} from "@karakeep/shared/prompts";
 import { DequeuedJob } from "@karakeep/shared/queueing";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import { Bookmark } from "@karakeep/trpc/models/bookmarks";
@@ -28,6 +33,7 @@ async function fetchBookmarkDetailsForSummary(bookmarkId: string) {
     columns: {
       id: true,
       userId: true,
+      title: true,
       type: true,
       summaryProvenance: true,
     },
@@ -52,7 +58,22 @@ async function fetchBookmarkDetailsForSummary(bookmarkId: string) {
           text: true,
         },
       },
-      // If assets (like PDFs with extracted text) should be summarized, extend here
+      text: {
+        columns: {
+          text: true,
+          sourceUrl: true,
+          format: true,
+        },
+      },
+      asset: {
+        columns: {
+          assetType: true,
+          assetId: true,
+          content: true,
+          fileName: true,
+          sourceUrl: true,
+        },
+      },
     },
   });
 
@@ -105,6 +126,7 @@ export async function runSummarization(
     columns: {
       autoSummarizationEnabled: true,
       inferredTagLang: true,
+      summaryLanguage: true,
     },
   });
 
@@ -113,13 +135,17 @@ export async function runSummarization(
     "bookmark.id": bookmarkData.id,
     "inference.type": "summarization",
   });
+  let imageToSummarize: {
+    contentType: string;
+    base64: string;
+  } | null = null;
+
   addLogFields<"inferenceWorker.run">({
     "user.id": bookmarkData.userId,
     "bookmark.url": bookmarkData.link?.url,
     "bookmark.domain": getBookmarkDomain(bookmarkData.link?.url),
     "bookmark.content_type": bookmarkData.type,
     "crawler.status_code": bookmarkData.link?.crawlStatusCode ?? undefined,
-    "inference.model": serverConfig.inference.textModel,
   });
 
   if (userSettings?.autoSummarizationEnabled === false) {
@@ -130,45 +156,41 @@ export async function runSummarization(
   }
 
   let textToSummarize = "";
-  if (bookmarkData.type === BookmarkTypes.LINK && bookmarkData.link) {
+  if (summarySource === "transcript") {
+    if (
+      bookmarkData.transcript?.status !== "ready" ||
+      !bookmarkData.transcript.text?.trim()
+    ) {
+      logger.info(
+        `[inference][${jobId}] Transcript is not ready for bookmark ${bookmarkId}. Skipping summary.`,
+      );
+      return false;
+    }
+
     const link = bookmarkData.link;
-
-    if (summarySource === "transcript") {
-      if (
-        bookmarkData.transcript?.status !== "ready" ||
-        !bookmarkData.transcript.text?.trim()
-      ) {
-        logger.info(
-          `[inference][${jobId}] Transcript is not ready for bookmark ${bookmarkId}. Skipping summary.`,
-        );
-        return false;
-      }
-
-      textToSummarize = `
-Title: ${link.title ?? ""}
-Description: ${link.description ?? ""}
+    const asset = bookmarkData.asset;
+    textToSummarize = `
+Title: ${link?.title ?? asset?.fileName ?? ""}
+Description: ${link?.description ?? ""}
 Transcript${bookmarkData.transcript.sourceLanguage ? ` (${bookmarkData.transcript.sourceLanguage})` : ""}: ${bookmarkData.transcript.text}
-Publisher: ${link.publisher ?? ""}
-Author: ${link.author ?? ""}
-URL: ${link.url ?? ""}
+Publisher: ${link?.publisher ?? ""}
+Author: ${link?.author ?? ""}
+URL: ${link?.url ?? asset?.sourceUrl ?? ""}
 `;
-    } else {
-      // Extract plain text content from HTML for summarization
-      const content =
-        (await Bookmark.getBookmarkPlainTextContent(
-          link,
-          bookmarkData.userId,
-        )) ?? "";
+  } else if (bookmarkData.type === BookmarkTypes.LINK && bookmarkData.link) {
+    const link = bookmarkData.link;
+    const content =
+      (await Bookmark.getBookmarkPlainTextContent(link, bookmarkData.userId)) ??
+      "";
 
-      if (!link.description && !content) {
-        // No content to infer from; skip summarization
-        logger.info(
-          `[inference] No content found for link "${bookmarkId}". Skipping summary.`,
-        );
-        return false;
-      }
+    if (!link.description && !content) {
+      logger.info(
+        `[inference] No content found for link "${bookmarkId}". Skipping summary.`,
+      );
+      return false;
+    }
 
-      textToSummarize = `
+    textToSummarize = `
 Title: ${link.title ?? ""}
 Description: ${link.description ?? ""}
 Content: ${content}
@@ -176,15 +198,69 @@ Publisher: ${link.publisher ?? ""}
 Author: ${link.author ?? ""}
 URL: ${link.url ?? ""}
 `;
+  } else if (bookmarkData.type === BookmarkTypes.TEXT && bookmarkData.text) {
+    const content = bookmarkData.text.text?.trim() ?? "";
+    if (!content) {
+      logger.info(
+        `[inference][${jobId}] No content found for text bookmark "${bookmarkId}". Skipping summary.`,
+      );
+      return false;
+    }
+
+    textToSummarize = `
+Title: ${bookmarkData.title ?? ""}
+Format: ${bookmarkData.text.format}
+Source URL: ${bookmarkData.text.sourceUrl ?? ""}
+Content: ${content}
+`;
+  } else if (bookmarkData.type === BookmarkTypes.ASSET && bookmarkData.asset) {
+    const asset = bookmarkData.asset;
+    const content = asset.content?.trim() ?? "";
+    if (asset.assetType === "image" && !content) {
+      const { asset: image, metadata } = await readAsset({
+        userId: bookmarkData.userId,
+        assetId: asset.assetId,
+      });
+      if (metadata.contentType === "image/gif") {
+        logger.info(
+          `[inference][${jobId}] GIF bookmark "${bookmarkId}" has no OCR text. Skipping summary.`,
+        );
+        return false;
+      }
+      imageToSummarize = {
+        contentType: metadata.contentType,
+        base64: image.toString("base64"),
+      };
+      textToSummarize = `
+Title: ${bookmarkData.title ?? asset.fileName ?? ""}
+File name: ${asset.fileName ?? ""}
+`;
+    } else if (asset.assetType === "image" || asset.assetType === "pdf") {
+      if (!content) {
+        logger.info(
+          `[inference][${jobId}] No extracted content found for asset bookmark "${bookmarkId}". Skipping summary.`,
+        );
+        return false;
+      }
+      textToSummarize = `
+Title: ${bookmarkData.title ?? asset.fileName ?? ""}
+File name: ${asset.fileName ?? ""}
+Content: ${content}
+`;
+    } else {
+      logger.info(
+        `[inference][${jobId}] Asset bookmark "${bookmarkId}" has no ready transcript or summarizable text. Skipping summary.`,
+      );
+      return false;
     }
   } else {
     logger.warn(
-      `[inference][${jobId}] Bookmark ${bookmarkId} (type: ${bookmarkData.type}) is not a LINK or TEXT type with content, or content is missing. Skipping summary.`,
+      `[inference][${jobId}] Bookmark ${bookmarkId} (type: ${bookmarkData.type}) has no supported summary source. Skipping summary.`,
     );
     return false;
   }
 
-  if (!textToSummarize.trim()) {
+  if (!imageToSummarize && !textToSummarize.trim()) {
     logger.info(
       `[inference][${jobId}] No content to summarize for bookmark ${bookmarkId}.`,
     );
@@ -205,21 +281,44 @@ URL: ${link.url ?? ""}
     "inference.prompt.custom_count": prompts.length,
   });
 
-  const summaryPrompt = await buildSummaryPrompt(
-    userSettings?.inferredTagLang ?? serverConfig.inference.inferredTagLang,
-    prompts.map((p) => p.text),
-    textToSummarize,
-    serverConfig.inference.contextLength,
-  );
+  const summaryLanguage =
+    userSettings?.summaryLanguage ??
+    userSettings?.inferredTagLang ??
+    serverConfig.inference.inferredTagLang;
+  const summaryPrompt = imageToSummarize
+    ? buildImageSummaryPrompt(
+        summaryLanguage,
+        prompts.map((p) => p.text),
+      )
+    : await buildSummaryPrompt(
+        summaryLanguage,
+        prompts.map((p) => p.text),
+        textToSummarize,
+        serverConfig.inference.contextLength,
+      );
 
   addLogFields<"inferenceWorker.run">({
+    "inference.model": imageToSummarize
+      ? serverConfig.inference.imageModel
+      : serverConfig.inference.textModel,
     "inference.prompt.size": Buffer.byteLength(summaryPrompt, "utf8"),
   });
 
-  const summaryResult = await inferenceClient.inferFromText(summaryPrompt, {
-    schema: null, // Summaries are typically free-form text
-    abortSignal: job.abortSignal,
-  });
+  const summaryResult = imageToSummarize
+    ? await inferenceClient.inferFromImage(
+        summaryPrompt,
+        imageToSummarize.contentType,
+        imageToSummarize.base64,
+        {
+          schema: null,
+          abortSignal: job.abortSignal,
+          imageDetail: "low",
+        },
+      )
+    : await inferenceClient.inferFromText(summaryPrompt, {
+        schema: null, // Summaries are typically free-form text
+        abortSignal: job.abortSignal,
+      });
 
   if (!summaryResult.response) {
     throw new Error(
@@ -227,8 +326,10 @@ URL: ${link.url ?? ""}
     );
   }
 
+  const summary = normalizeSummary(summaryResult.response);
+
   addLogFields<"inferenceWorker.run">({
-    "inference.summary.size": Buffer.byteLength(summaryResult.response, "utf8"),
+    "inference.summary.size": Buffer.byteLength(summary, "utf8"),
     "inference.total_tokens": summaryResult.totalTokens,
   });
 
@@ -263,7 +364,7 @@ URL: ${link.url ?? ""}
   await db
     .update(bookmarks)
     .set({
-      summary: summaryResult.response,
+      summary,
       summaryProvenance: summarySource,
       summaryStale: false,
       modifiedAt: new Date(),

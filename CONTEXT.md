@@ -82,6 +82,40 @@ _Avoid_: treating saved or crawled HTML as trusted markup.
 Office ingestion, provider-backed viewing, and editing are canceled from Marka's active product scope. Generic raw attachments, if accepted by a separate path, do not imply document support.
 _Avoid_: reopening the retired Office proposals by referring to them as an available or planned viewer.
 
+## AI enrichment and media
+
+**AI tag**:
+A tag attached automatically by Marka's enrichment process. AI tags may be replaced when a bookmark is re-tagged, while the underlying tag and any human attachment remain intact.
+_Avoid_: treating an AI tag as a human-authored classification.
+
+**Human tag**:
+A tag attached or maintained by a user. Automatic re-tagging must not remove or rewrite a human tag.
+_Avoid_: using manual tag to mean a tag that was merely created by a user but later attached by automation.
+
+**Canonical tag**:
+An existing user tag that represents a reusable concept in the user's tag vocabulary. Enrichment should reuse a canonical tag when it fits instead of creating a synonym.
+_Avoid_: treating a similar-bookmark suggestion as an authoritative tag.
+
+**Source transcript**:
+The provider-derived transcript or caption content preserved for provenance and recovery. It is not the same as the user's editable transcript.
+_Avoid_: calling the generated summary a transcript.
+
+**Working transcript**:
+The transcript text currently used for reading, highlights, and transcript-based summaries. It may be edited by the user without destroying the source transcript.
+_Avoid_: overwriting the source transcript when editing the working transcript.
+
+**Canonical summary**:
+The one user-facing summary for a bookmark, regardless of whether its input is webpage content or a transcript.
+_Avoid_: creating separate webpage and transcript summaries for the same bookmark.
+
+**Summary language**:
+The requested output language for a canonical summary. It may differ from the language used for AI tags and does not require translating the working transcript.
+_Avoid_: assuming the summary must use the source language.
+
+**Semantic embedding**:
+A vector representation used to compare bookmark meaning for related-tag suggestions and semantic retrieval. It is distinct from generated text, tags, and summaries.
+_Avoid_: calling an embedding an AI summary or a chat response.
+
 ## Release and deployment model
 
 **Release**:

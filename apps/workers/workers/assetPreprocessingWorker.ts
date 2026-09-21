@@ -37,6 +37,8 @@ import {
   getQueueClient,
 } from "@karakeep/shared/queueing";
 
+type TesseractWorker = Awaited<ReturnType<typeof createWorker>>;
+
 export class AssetPreprocessingWorker {
   static async build() {
     logger.info("Starting asset preprocessing worker ...");
@@ -120,6 +122,14 @@ export class AssetPreprocessingWorker {
   }
 }
 
+async function recognizeImageText(worker: TesseractWorker, buffer: Buffer) {
+  const ret = await worker.recognize(buffer);
+  if (ret.data.confidence <= serverConfig.ocr.confidenceThreshold) {
+    return null;
+  }
+  return ret.data.text;
+}
+
 async function readImageText(buffer: Buffer) {
   if (serverConfig.ocr.langs.length == 1 && serverConfig.ocr.langs[0] == "") {
     return null;
@@ -128,11 +138,7 @@ async function readImageText(buffer: Buffer) {
     cachePath: serverConfig.ocr.cacheDir ?? os.tmpdir(),
   });
   try {
-    const ret = await worker.recognize(buffer);
-    if (ret.data.confidence <= serverConfig.ocr.confidenceThreshold) {
-      return null;
-    }
-    return ret.data.text;
+    return await recognizeImageText(worker, buffer);
   } finally {
     await worker.terminate();
   }
@@ -159,12 +165,16 @@ async function readImageTextWithLLM(
     base64,
     {
       schema: null,
+      imageDetail: "high",
     },
   );
 
   const extractedText = response.response.trim();
   if (!extractedText) {
-    return null;
+    logger.info(
+      "[assetPreprocessing] LLM OCR returned no text. Falling back to Tesseract.",
+    );
+    return readImageText(buffer);
   }
 
   return extractedText;
@@ -173,6 +183,7 @@ async function readImageTextWithLLM(
 async function readPDFText(buffer: Buffer): Promise<{
   text: string;
   metadata: Record<string, object>;
+  pageCount: number;
 }> {
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser(null, true);
@@ -181,10 +192,52 @@ async function readPDFText(buffer: Buffer): Promise<{
       resolve({
         text: pdfParser.getRawTextContent(),
         metadata: pdfData.Meta,
+        pageCount: pdfData.Pages.length,
       });
     });
     pdfParser.parseBuffer(buffer);
   });
+}
+
+async function readPDFTextWithOCR(
+  buffer: Buffer,
+  pageCount: number,
+): Promise<string | null> {
+  if (serverConfig.ocr.langs.length == 1 && serverConfig.ocr.langs[0] == "") {
+    return null;
+  }
+
+  const pagesToRead = Math.min(pageCount, serverConfig.ocr.pdfMaxPages);
+  if (pagesToRead === 0) {
+    return null;
+  }
+
+  const convertPage = fromBuffer(buffer, {
+    density: 150,
+    format: "png",
+    preserveAspectRatio: true,
+  });
+  const worker = await createWorker(serverConfig.ocr.langs, undefined, {
+    cachePath: serverConfig.ocr.cacheDir ?? os.tmpdir(),
+  });
+  const pageTexts: string[] = [];
+
+  try {
+    for (let page = 1; page <= pagesToRead; page += 1) {
+      const rendered = await convertPage(page, { responseType: "buffer" });
+      if (!rendered.buffer) {
+        continue;
+      }
+      const text = await recognizeImageText(worker, rendered.buffer);
+      if (text?.trim()) {
+        pageTexts.push(`Page ${page}\n${text.trim()}`);
+      }
+    }
+  } finally {
+    await worker.terminate();
+  }
+
+  return pageTexts.length > 0 ? pageTexts.join("\n\n") : null;
 }
 
 export async function extractAndSavePDFScreenshot(
@@ -416,6 +469,13 @@ async function extractAndSaveImageText(
       logger.error(
         `[assetPreprocessing][${jobId}] Failed to read image text with LLM: ${e}`,
       );
+      try {
+        imageText = await readImageText(asset);
+      } catch (fallbackError) {
+        logger.error(
+          `[assetPreprocessing][${jobId}] Failed to read image text with Tesseract fallback: ${fallbackError}`,
+        );
+      }
     }
   } else {
     logger.info(
@@ -466,18 +526,25 @@ async function extractAndSavePDFText(
     `[assetPreprocessing][${jobId}] Attempting to extract text from pdf.`,
   );
   const pdfParse = await readPDFText(asset);
-  if (!pdfParse?.text) {
+  let extractedText = pdfParse.text.trim();
+  if (!extractedText) {
+    logger.info(
+      `[assetPreprocessing][${jobId}] PDF has no embedded text. Attempting local OCR on up to ${serverConfig.ocr.pdfMaxPages} pages.`,
+    );
+    extractedText = (await readPDFTextWithOCR(asset, pdfParse.pageCount)) ?? "";
+  }
+  if (!extractedText) {
     throw new Error(
-      `[assetPreprocessing][${jobId}] PDF text is empty. Please make sure that the PDF includes text and not just images.`,
+      `[assetPreprocessing][${jobId}] PDF text extraction and local OCR returned no text.`,
     );
   }
   logger.info(
-    `[assetPreprocessing][${jobId}] Extracted ${pdfParse.text.length} characters from pdf.`,
+    `[assetPreprocessing][${jobId}] Extracted ${extractedText.length} characters from pdf.`,
   );
   await db
     .update(bookmarkAssets)
     .set({
-      content: pdfParse.text,
+      content: extractedText,
       metadata: pdfParse.metadata ? JSON.stringify(pdfParse.metadata) : null,
     })
     .where(eq(bookmarkAssets.id, bookmark.id));
@@ -581,6 +648,10 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
       anythingChanged ||= extractedScreenshot;
       break;
     }
+    case "audio":
+      // Audio is transcribed by TranscriptWorker after the original asset is
+      // available. There is no preprocessing step required here.
+      break;
     default:
       throw new Error(
         `[assetPreprocessing][${jobId}] Unsupported bookmark type`,
@@ -596,7 +667,11 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
     priority: req.priority,
     groupId: bookmark.userId,
   };
-  if (!isFixMode || anythingChanged) {
+  const isTranscribedMedia =
+    (bookmark.asset.assetType === "video" ||
+      bookmark.asset.assetType === "audio") &&
+    serverConfig.transcription.enabled;
+  if ((!isFixMode || anythingChanged) && !isTranscribedMedia) {
     if (serverConfig.embedding.enableAutoIndexing) {
       await EmbeddingsQueue.enqueue(
         {
@@ -634,8 +709,11 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
           ),
         );
     }
+  }
 
-    // Update the search index
+  if (!isFixMode || anythingChanged) {
+    // Update the search index even when media enrichment is deferred to the
+    // transcript worker or transcription later fails.
     await triggerSearchReindex(bookmarkId, enqueueOpts);
   }
 }

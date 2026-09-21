@@ -15,6 +15,7 @@ import logger from "@karakeep/shared/logger";
 import { DequeuedJob, getQueueClient } from "@karakeep/shared/queueing";
 import {
   BookmarkSearchDocument,
+  combineSearchContent,
   getSearchClient,
   SearchIndexClient,
 } from "@karakeep/shared/search";
@@ -119,7 +120,12 @@ async function runIndex(
       : {}),
     ...(bookmark.asset
       ? {
-          content: bookmark.asset.content,
+          content: combineSearchContent(
+            bookmark.asset.content,
+            bookmark.transcript?.status === "ready"
+              ? bookmark.transcript.text
+              : null,
+          ),
           metadata: bookmark.asset.metadata,
         }
       : {}),
