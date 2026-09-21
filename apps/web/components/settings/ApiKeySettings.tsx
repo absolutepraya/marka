@@ -41,9 +41,9 @@ export default async function ApiKeys({ isAdmin }: { isAdmin: boolean }) {
         />
       ) : (
         <div className="shadow-xs overflow-hidden rounded-xl border border-border/70 bg-background/80">
-          <Table className="whitespace-nowrap">
+          <Table className="whitespace-nowrap [&_td]:px-3 [&_td]:py-2 [&_th]:h-10 [&_th]:px-3 [&_th]:py-2">
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>{t("common.name")}</TableHead>
                 <TableHead>{t("common.key")}</TableHead>
                 <TableHead>{t("settings.api_keys.scopes.scopes")}</TableHead>
@@ -58,7 +58,7 @@ export default async function ApiKeys({ isAdmin }: { isAdmin: boolean }) {
                   (scope) => isAdmin || !isAdminScope(scope),
                 );
                 return (
-                  <TableRow key={key.id}>
+                  <TableRow key={key.id} className="h-12">
                     <TableCell className="font-medium text-foreground">
                       {key.name}
                     </TableCell>
@@ -66,12 +66,12 @@ export default async function ApiKeys({ isAdmin }: { isAdmin: boolean }) {
                       **_{key.keyId}_**
                     </TableCell>
                     <TableCell>
-                      <div className="flex max-w-80 flex-wrap gap-1.5">
+                      <div className="flex max-w-80 flex-nowrap gap-1.5 overflow-x-auto">
                         {visibleScopes.map((scope) => (
                           <Badge
                             key={scope}
                             variant="outline"
-                            className="border-border/70 bg-background/70 text-muted-foreground"
+                            className="shrink-0 border-border/70 bg-background/70 text-muted-foreground"
                           >
                             {scopeLabel(t, scope)}
                           </Badge>

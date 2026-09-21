@@ -28,6 +28,7 @@ export default async function SubscriptionPage() {
   return (
     <SettingsPage
       title={t("settings.subscription.subscription")}
+      description={t("settings.subscription.page_description")}
       icon={<CreditCard className="size-6 shrink-0 text-muted-foreground" />}
     >
       <SubscriptionSettings />

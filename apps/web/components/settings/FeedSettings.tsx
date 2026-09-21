@@ -476,7 +476,8 @@ export default function FeedSettings() {
   const { data: feeds, isLoading } = useQuery(api.feeds.list.queryOptions());
   return (
     <SettingsPage
-      title="RSS"
+      title={t("settings.feeds.rss_subscriptions")}
+      description={t("settings.feeds.page_description")}
       icon={<Rss className="size-6 shrink-0 text-muted-foreground" />}
       action={<FeedsEditorDialog />}
     >

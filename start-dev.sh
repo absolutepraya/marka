@@ -94,11 +94,18 @@ if [ ! -d "node_modules" ]; then
     pnpm install
 fi
 
-if [ -z "${DATA_DIR:-}" ] && [ -f ".env" ]; then
+# Keep the database location absolute and shared across the package cwd
+# changes used by the migration, web, and worker commands.
+if [ -z "${DATA_DIR:-}" ]; then
     DATA_DIR="$(env_value DATA_DIR)"
 fi
+DATA_DIR="${DATA_DIR:-$SCRIPT_DIR/.data/local}"
+if [[ "$DATA_DIR" != /* ]]; then
+    DATA_DIR="$SCRIPT_DIR/$DATA_DIR"
+fi
+export DATA_DIR
 
-if [ -n "${DATA_DIR:-}" ] && [ ! -d "$DATA_DIR" ]; then
+if [ ! -d "$DATA_DIR" ]; then
     echo "Creating DATA_DIR at $DATA_DIR..."
     mkdir -p "$DATA_DIR"
 fi

@@ -116,7 +116,7 @@ function SurfacePanel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="shadow-xs rounded-xl border border-border/70 bg-background/80 p-4">
+    <div className="shadow-xs min-w-0 rounded-xl border border-border/70 bg-background/80 p-4">
       <div className="mb-4 space-y-1">
         <h3 className="text-sm font-semibold tracking-tight text-foreground">
           {title}
@@ -144,10 +144,12 @@ function InsightTile({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="shadow-xs rounded-xl border border-border/70 bg-background/80 p-4">
+    <div className="shadow-xs min-w-0 rounded-xl border border-border/70 bg-background/80 p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <div className="flex size-9 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground [&_svg]:size-4">
+        <p className="min-w-0 text-sm font-medium text-muted-foreground">
+          {title}
+        </p>
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground [&_svg]:size-4">
           {icon}
         </div>
       </div>
@@ -293,10 +295,12 @@ function ActivityBars({
 }
 
 function StatsSkeleton() {
+  const { t } = useTranslation();
+
   return (
     <SettingsPage
-      title="Usage Statistics"
-      description="Insights into your bookmarking habits and collection"
+      title={t("settings.stats.usage_statistics")}
+      description={t("settings.stats.insights_description")}
       icon={<BarChart3 className="size-6 shrink-0 text-muted-foreground" />}
     >
       <div className="grid gap-5">
@@ -399,15 +403,15 @@ export default function StatsPage() {
   return (
     <SettingsPage
       title={t("settings.stats.usage_statistics")}
-      description="Insights into your bookmarking habits, where your collection comes from, and how it is growing over time."
+      description={t("settings.stats.insights_description")}
       icon={<BarChart3 className="size-6 shrink-0 text-muted-foreground" />}
     >
       <SettingsSection
         title="At a glance"
         description="The primary signals that describe the shape of your library right now."
       >
-        <div className="grid gap-4 xl:grid-cols-[1.45fr_0.85fr]">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,0.85fr)]">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <InsightTile
               title={t("settings.stats.overview.total_bookmarks")}
               value={formatNumber(stats.numBookmarks)}

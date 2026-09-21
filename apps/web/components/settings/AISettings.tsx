@@ -915,6 +915,7 @@ export default function AISettings() {
   return (
     <SettingsPage
       title={t("settings.ai.ai_settings")}
+      description={t("settings.ai.page_description")}
       icon={<Sparkles className="size-6 shrink-0 text-muted-foreground" />}
     >
       <AIPreferences />
