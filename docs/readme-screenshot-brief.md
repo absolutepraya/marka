@@ -5,14 +5,14 @@ This brief defines the first product screenshot for the public Marka README. It 
 ## Deliverable
 
 - Filename: screenshots/marka-library-overview.png
-- Canvas: raw 2614 by 1726 pixel PNG, approved without cropping or redaction.
+- Canvas: 2614 by 1726 pixel PNG. The approved raw content is preserved with a 24 pixel transparent rounded-corner mask.
 - Surface: desktop web application in a wide library view.
 - Placement: immediately after the README product introduction and before “One place for the things you save everywhere”.
 - Alternative text: “Marka library showing visual cards for saved social posts, data visualizations, articles, products, movies, and UI references.”
 
 ## Approved frame
 
-1. A raw Marka Home library view with brand header, search, add-item field, card grid, tags, and lists.
+1. A Marka Home library view with brand header, search, add-item field, card grid, tags, and lists.
 2. A varied real library showing a social career post, data visualization, engineering article, product wishlist, movie watchlist, and UI reference.
 3. The owner explicitly approved the visible library names and top-right avatar for this README use on 2026-09-22.
 4. This raw image is for the repository README only. The future landing page uses a separately reviewed, curated asset set.
@@ -26,7 +26,7 @@ This brief defines the first product screenshot for the public Marka README. It 
 ## Capture checklist
 
 - [x] Capture a desktop viewport at 2614 by 1726 pixels.
-- [x] Keep the raw dark-theme library view intact.
+- [x] Keep the raw dark-theme library view intact, with only a 24 pixel transparent rounded-corner mask.
 - [x] Verify that the full library grid, search, add-item field, and side lists remain visible.
 - [x] Preserve the approved source PNG as the committed README image.
 - [x] Inspect the image at GitHub README width.
