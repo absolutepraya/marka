@@ -3,7 +3,7 @@ import fs from "fs";
 import * as os from "os";
 import path from "path";
 import { execa } from "execa";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { workerStatsCounter } from "metrics";
 import { withWorkerEventLog, withWorkerTracing } from "workerTracing";
 
@@ -453,12 +453,19 @@ async function runAssetTranscript(
   const shouldSummarize =
     serverConfig.inference.enableAutoSummarization &&
     user?.autoSummarizationEnabled !== false;
-  const existing = await db.query.bookmarkTranscripts.findFirst({
+  const mediaTranscripts = await db.query.bookmarkTranscripts.findMany({
     where: and(
       eq(bookmarkTranscripts.bookmarkId, bookmark.id),
-      eq(bookmarkTranscripts.provider, "azure-speech"),
+      inArray(bookmarkTranscripts.provider, ["azure-speech", "azure-whisper"]),
     ),
   });
+  const existing =
+    mediaTranscripts.find(
+      (transcript) => transcript.provider === "azure-speech",
+    ) ??
+    mediaTranscripts.find(
+      (transcript) => transcript.provider === "azure-whisper",
+    );
 
   await db
     .insert(bookmarkTranscripts)

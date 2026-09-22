@@ -1,4 +1,5 @@
 export const PDF_AI_SAMPLE_PAGE_COUNT = 6;
+const PDF_PAGE_MARKER_PATTERN = /^\[\[MARKA_PDF_PAGE:(\d+)\]\]$/;
 
 interface ParsedPdfMetadata {
   pageCount?: unknown;
@@ -54,10 +55,15 @@ export function selectRepresentativePageNumbers(
     Math.round(pageCount * 0.5),
     Math.round(pageCount * 0.75),
     pageCount,
-  ];
+  ].map((page) => Math.min(pageCount, Math.max(1, page)));
 
-  return [...new Set(candidates)]
-    .map((page) => Math.min(pageCount, Math.max(1, page)))
+  const selectedPages = new Set(candidates);
+  const targetPageCount = Math.min(pageCount, maxPages);
+  for (let page = 1; selectedPages.size < targetPageCount; page += 1) {
+    selectedPages.add(page);
+  }
+
+  return [...selectedPages]
     .sort((left, right) => left - right)
     .slice(0, maxPages);
 }
@@ -83,7 +89,7 @@ export function parsePdfPageText(content: string): PdfPageText[] {
   };
 
   for (const line of lines) {
-    const canonicalMarker = line.match(/^Page (\d+)$/);
+    const canonicalMarker = line.match(PDF_PAGE_MARKER_PATTERN);
     if (canonicalMarker) {
       sawPageMarker = true;
       flushPage();
@@ -117,7 +123,7 @@ export function formatPdfPageText(pages: Iterable<PdfPageText>): string {
   return [...pages]
     .filter((page) => page.text.trim().length > 0)
     .sort((left, right) => left.pageNumber - right.pageNumber)
-    .map((page) => `Page ${page.pageNumber}\n${page.text.trim()}`)
+    .map((page) => `[[MARKA_PDF_PAGE:${page.pageNumber}]]\n${page.text.trim()}`)
     .join("\n\n");
 }
 

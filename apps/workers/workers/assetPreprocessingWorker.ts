@@ -27,7 +27,12 @@ import {
   StorageQuotaError,
   triggerSearchReindex,
 } from "@karakeep/shared-server";
-import { newAssetId, readAsset, saveAsset } from "@karakeep/shared/assetdb";
+import {
+  newAssetId,
+  readAsset,
+  saveAsset,
+  silentDeleteAsset,
+} from "@karakeep/shared/assetdb";
 import serverConfig from "@karakeep/shared/config";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
@@ -339,11 +344,13 @@ export async function extractAndSavePDFScreenshot(
   jobId: string,
   asset: Buffer,
   bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
+  isFixMode: boolean,
+  force: boolean,
 ): Promise<boolean> {
-  const alreadyHasScreenshot =
-    bookmark.assets.find((r) => r.assetType === AssetTypes.ASSET_SCREENSHOT) !==
-    undefined;
-  if (alreadyHasScreenshot) {
+  const existingScreenshot = bookmark.assets.find(
+    (r) => r.assetType === AssetTypes.ASSET_SCREENSHOT,
+  );
+  if (existingScreenshot && !(isFixMode && force)) {
     logger.info(
       `[assetPreprocessing][${jobId}] Skipping PDF screenshot generation as it's already been generated.`,
     );
@@ -352,6 +359,7 @@ export async function extractAndSavePDFScreenshot(
   logger.info(
     `[assetPreprocessing][${jobId}] Attempting to generate PDF screenshot for bookmarkId: ${bookmark.id}`,
   );
+  let replacementAssetId: string | undefined;
   try {
     /**
      * If you encountered any issues with this library, make sure you have ghostscript and graphicsmagick installed following this URL
@@ -364,7 +372,8 @@ export async function extractAndSavePDFScreenshot(
       preserveAspectRatio: true,
     })(1, { responseType: "buffer" });
 
-    if (!screenshot.buffer) {
+    const screenshotBuffer = screenshot.buffer;
+    if (!screenshotBuffer) {
       logger.error(
         `[assetPreprocessing][${jobId}] Failed to generate PDF screenshot`,
       );
@@ -375,17 +384,18 @@ export async function extractAndSavePDFScreenshot(
     const quotaApproved = await QuotaService.checkStorageQuota(
       db,
       bookmark.userId,
-      screenshot.buffer.byteLength,
+      screenshotBuffer.byteLength,
     );
 
     // Store the screenshot
     const assetId = newAssetId();
+    replacementAssetId = assetId;
     const fileName = "screenshot.png";
     const contentType = "image/png";
     await saveAsset({
       userId: bookmark.userId,
       assetId,
-      asset: screenshot.buffer,
+      asset: screenshotBuffer,
       metadata: {
         contentType,
         fileName,
@@ -393,22 +403,34 @@ export async function extractAndSavePDFScreenshot(
       quotaApproved,
     });
 
-    // Insert into database
-    await db.insert(assets).values({
-      id: assetId,
-      bookmarkId: bookmark.id,
-      userId: bookmark.userId,
-      assetType: AssetTypes.ASSET_SCREENSHOT,
-      contentType,
-      size: screenshot.buffer.byteLength,
-      fileName,
+    // Replace the old row atomically after the new object is safely stored.
+    await db.transaction(async (tx) => {
+      await tx.insert(assets).values({
+        id: assetId,
+        bookmarkId: bookmark.id,
+        userId: bookmark.userId,
+        assetType: AssetTypes.ASSET_SCREENSHOT,
+        contentType,
+        size: screenshotBuffer.byteLength,
+        fileName,
+      });
+      if (existingScreenshot) {
+        await tx.delete(assets).where(eq(assets.id, existingScreenshot.id));
+      }
     });
+
+    if (existingScreenshot) {
+      await silentDeleteAsset(bookmark.userId, existingScreenshot.id);
+    }
 
     logger.info(
       `[assetPreprocessing][${jobId}] Successfully saved PDF screenshot to database`,
     );
     return true;
   } catch (error) {
+    if (replacementAssetId) {
+      await silentDeleteAsset(bookmark.userId, replacementAssetId);
+    }
     if (error instanceof StorageQuotaError) {
       logger.warn(
         `[assetPreprocessing][${jobId}] Skipping PDF screenshot due to quota exceeded: ${error.message}`,
@@ -754,6 +776,8 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
         jobId,
         asset,
         bookmark,
+        isFixMode,
+        force,
       );
       const extractedText = await extractAndSavePDFText(
         jobId,
