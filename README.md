@@ -17,6 +17,10 @@
 
 Marka is a self-hosted personal library for everything you want to remember or revisit, not just browser bookmarks. Keep the things that would otherwise be scattered across apps, tabs, and devices in one visual library you control.
 
+<p align="center">
+  <img src="./screenshots/marka-library-overview.png" alt="Marka library showing visual cards for saved social posts, data visualizations, articles, products, movies, and UI references." />
+</p>
+
 ## One place for the things you save everywhere
 
 Maybe it is a movie you want to watch, a product you might buy, a TikTok place or hotel, an Instagram career tip, an engineering article, a UI reference, or course material you will need again. Marka brings those saved things together so they do not become a pile of forgotten links.

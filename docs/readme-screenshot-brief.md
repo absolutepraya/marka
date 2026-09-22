@@ -4,42 +4,33 @@ This brief defines the first product screenshot for the public Marka README. It 
 
 ## Deliverable
 
-- Filename: screenshots/marka-library-overview.webp
-- Canvas: 1600 by 1000 pixels or larger, exported as a sharp WebP under 700 KB where practical.
+- Filename: screenshots/marka-library-overview.png
+- Canvas: raw 2614 by 1726 pixel PNG, approved without cropping or redaction.
 - Surface: desktop web application in a wide library view.
 - Placement: immediately after the README product introduction and before “One place for the things you save everywhere”.
-- Alternative text: “Marka library showing visual cards for saved places, products, articles, movies, course material, and UI references.”
+- Alternative text: “Marka library showing visual cards for saved social posts, data visualizations, articles, products, movies, and UI references.”
 
-## What the frame should show
+## Approved frame
 
-1. A recognizable Marka library view, without a personal greeting, account email, personal avatar, browser chrome, or operating-system notifications.
-2. Eight to twelve curated cards that make the cross-app problem believable:
-   - one movie or series watchlist item with a poster
-   - one e-commerce wishlist product
-   - one place or hotel saved from a short-form video collection
-   - one Instagram-style career tip
-   - one software-engineering article
-   - one UI reference image
-   - one course PDF or presentation
-   - one personal note or text snippet
-3. Visible preview imagery, titles, and a small number of useful tags. Keep the UI legible at GitHub’s normal README width.
-4. One visible affordance that shows people can save or search, but do not open a modal, menu, settings panel, or reader view over the library.
+1. A raw Marka Home library view with brand header, search, add-item field, card grid, tags, and lists.
+2. A varied real library showing a social career post, data visualization, engineering article, product wishlist, movie watchlist, and UI reference.
+3. The owner explicitly approved the visible library names and top-right avatar for this README use on 2026-09-22.
+4. This raw image is for the repository README only. The future landing page uses a separately reviewed, curated asset set.
 
 ## Content and privacy rules
 
-- Use curated or non-sensitive content only. Do not include a real person’s name, account, email address, private location, calendar item, password, token, or browser tab.
-- Prefer public, durable references and short neutral titles. Do not imply a direct Marka integration with Rotten Tomatoes, TikTok, Instagram, Shopee, eBay, or any other source service.
-- Review every card image, title, URL, tag, and metadata before export. Crop out browser UI and any notifications.
+- The owner reviewed and approved this exact raw capture. Do not make new uses or derivatives of the screenshot without a fresh review.
+- Do not imply a direct Marka integration with Rotten Tomatoes, TikTok, Instagram, Shopee, eBay, or any other source service.
 - Keep the visual mix broad. The purpose is to show one personal library, not one specific content category.
 
 ## Capture checklist
 
-- [ ] Use a desktop viewport at least 1600 pixels wide with the app at a comfortable 100 percent zoom.
-- [ ] Switch to the clearest stable light or dark theme, then keep it consistent with the final README visual direction.
-- [ ] Show a full library grid with the sidebar only if it reinforces lists or tags without reducing card readability.
-- [ ] Export a lossless source image first, then create the committed WebP derivative.
-- [ ] Inspect the source and final image at 100 percent, 50 percent, and GitHub README width.
-- [ ] Add the image to README.md only after a final privacy and claim review.
+- [x] Capture a desktop viewport at 2614 by 1726 pixels.
+- [x] Keep the raw dark-theme library view intact.
+- [x] Verify that the full library grid, search, add-item field, and side lists remain visible.
+- [x] Preserve the approved source PNG as the committed README image.
+- [x] Inspect the image at GitHub README width.
+- [x] Add the image to README.md after owner approval.
 
 ## Optional supporting screenshot
 
