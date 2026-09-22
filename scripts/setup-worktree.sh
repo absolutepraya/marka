@@ -93,7 +93,7 @@ case "$data_source" in
     ;;
   prod)
     echo "Refreshing worktree state from production..."
-    NO_COLOR=false pnpm prod:pull-state
+    NO_COLOR=false "$WT_ROOT_PATH/scripts/run-pnpm.sh" prod:pull-state
     ;;
   *)
     echo "error: WT_DATA_SOURCE must be main or prod" >&2

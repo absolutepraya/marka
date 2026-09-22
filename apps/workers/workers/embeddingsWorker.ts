@@ -14,6 +14,7 @@ import {
 import serverConfig from "@karakeep/shared/config";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
+import { truncateTextToTokenBudget } from "@karakeep/shared/prompts.server";
 import {
   DequeuedJob,
   DequeuedJobError,
@@ -25,7 +26,6 @@ import {
 } from "@karakeep/shared/vectorStore";
 import { Bookmark } from "@karakeep/trpc/models/bookmarks";
 
-const MAX_EMBEDDING_CONTENT_EXCERPT_LENGTH = 3000;
 const MAX_EMBEDDING_METADATA_LENGTH = 800;
 
 export class EmbeddingsWorker {
@@ -168,7 +168,7 @@ function normalizeEmbeddingText(text: string | null | undefined) {
   return normalized && normalized.length > 0 ? normalized : null;
 }
 
-function truncateText(text: string, maxLength: number) {
+function truncateTextByCharacters(text: string, maxLength: number) {
   if (text.length <= maxLength) {
     return text;
   }
@@ -220,14 +220,17 @@ function metadataForEmbedding(metadata: string | null | undefined) {
         }
       }
       if (fields.length > 0) {
-        return truncateText(fields.join("; "), MAX_EMBEDDING_METADATA_LENGTH);
+        return truncateTextByCharacters(
+          fields.join("; "),
+          MAX_EMBEDDING_METADATA_LENGTH,
+        );
       }
     }
   } catch {
     // Fall back to the raw metadata string.
   }
 
-  return truncateText(normalized, MAX_EMBEDDING_METADATA_LENGTH);
+  return truncateTextByCharacters(normalized, MAX_EMBEDDING_METADATA_LENGTH);
 }
 
 function appendProfileField(parts: string[], label: string, value: unknown) {
@@ -242,16 +245,6 @@ function appendProfileField(parts: string[], label: string, value: unknown) {
   if (normalized) {
     parts.push(`${label}: ${normalized}`);
   }
-}
-
-function contentBudget(maxTextLength: number) {
-  return Math.max(
-    500,
-    Math.min(
-      MAX_EMBEDDING_CONTENT_EXCERPT_LENGTH,
-      Math.floor(maxTextLength * 0.4),
-    ),
-  );
 }
 
 async function buildEmbeddingText(
@@ -324,24 +317,12 @@ async function buildEmbeddingText(
   }
 
   if (bookmark.transcript?.status === "ready") {
-    appendProfileField(
-      parts,
-      "Transcript",
-      truncateText(
-        bookmark.transcript.text ?? "",
-        contentBudget(serverConfig.embedding.contextLength),
-      ),
-    );
+    appendProfileField(parts, "Transcript", bookmark.transcript.text);
   }
 
   const normalizedContent = normalizeEmbeddingText(rawContent);
   if (normalizedContent) {
-    parts.push(
-      `Content excerpt: ${truncateText(
-        normalizedContent,
-        contentBudget(serverConfig.embedding.contextLength),
-      )}`,
-    );
+    parts.push(`Content: ${normalizedContent}`);
   }
 
   if (parts.length === 0) {
@@ -349,10 +330,15 @@ async function buildEmbeddingText(
   }
 
   const fullText = parts.join("\n\n");
-  const maxTextLength = serverConfig.embedding.contextLength;
-  return fullText.length > maxTextLength
-    ? fullText.substring(0, maxTextLength)
-    : fullText;
+  // EMBEDDING_CONTEXT_LENGTH is a token budget. Keep one vector per bookmark,
+  // but give the embedding model the complete assembled representation up to
+  // its configured context instead of applying a small character excerpt to
+  // each content source first.
+  return await truncateTextToTokenBudget(
+    fullText,
+    serverConfig.embedding.contextLength,
+    "cl100k_base",
+  );
 }
 
 type EmbedRequest = Extract<ZEmbeddingsRequest, { type: "embed" }>;

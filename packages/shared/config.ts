@@ -74,7 +74,6 @@ const allEnv = z.object({
   INFERENCE_TEXT_MODEL: z.string().default("gpt-4.1-mini"),
   INFERENCE_IMAGE_MODEL: z.string().default("gpt-4o-mini"),
   TRANSCRIPTION_ENABLED: stringBool("false"),
-  TRANSCRIPTION_MODEL: z.string().default("whisper-1"),
   AZURE_SPEECH_ENDPOINT: z
     .string()
     .url()
@@ -358,7 +357,6 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
     },
     transcription: {
       enabled: val.TRANSCRIPTION_ENABLED,
-      model: val.TRANSCRIPTION_MODEL,
       chunkSeconds: val.TRANSCRIPTION_CHUNK_SECONDS,
       jobTimeoutSec: val.TRANSCRIPTION_JOB_TIMEOUT_SEC,
       azureSpeech: {
@@ -588,6 +586,18 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "AZURE_SPEECH_ENDPOINT is required when AZURE_SPEECH_KEY is set",
+      fatal: true,
+    });
+    return z.NEVER;
+  }
+  if (
+    val.TRANSCRIPTION_ENABLED &&
+    (!val.AZURE_SPEECH_ENDPOINT || !val.AZURE_SPEECH_KEY)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        "TRANSCRIPTION_ENABLED requires AZURE_SPEECH_ENDPOINT and AZURE_SPEECH_KEY for MAI-Transcribe-2",
       fatal: true,
     });
     return z.NEVER;

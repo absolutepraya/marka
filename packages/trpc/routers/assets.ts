@@ -103,6 +103,7 @@ export const assetsAppRouter = router({
         {
           bookmarkId: input.bookmarkId,
           fixMode: true,
+          force: true,
         },
         {
           priority: QueuePriority.Low,

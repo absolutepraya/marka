@@ -324,7 +324,7 @@ export const bookmarkTranscripts = sqliteTable(
       .notNull()
       .references(() => bookmarks.id, { onDelete: "cascade" }),
     provider: text("provider", {
-      enum: ["youtube", "azure-whisper"],
+      enum: ["youtube", "azure-speech"],
     }).notNull(),
     providerItemId: text("providerItemId").notNull(),
     status: text("status", {

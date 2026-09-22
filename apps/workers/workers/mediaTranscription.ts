@@ -7,7 +7,6 @@ import { readAsset } from "@karakeep/shared/assetdb";
 import { AzureSpeechTranscriptionClient } from "@karakeep/shared/azureSpeech";
 import type { TranscriptionClient } from "@karakeep/shared/azureSpeech";
 import serverConfig from "@karakeep/shared/config";
-import { InferenceClientFactory } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
 
 import {
@@ -158,10 +157,7 @@ async function transcribeAudioChunks(
 }
 
 function buildTranscriptionClient(): TranscriptionClient | null {
-  return (
-    AzureSpeechTranscriptionClient.fromConfig() ??
-    InferenceClientFactory.buildTranscriptionClient()
-  );
+  return AzureSpeechTranscriptionClient.fromConfig();
 }
 
 async function transcribeBuffer(
@@ -173,7 +169,7 @@ async function transcribeBuffer(
   const transcriptionClient = buildTranscriptionClient();
   if (!transcriptionClient) {
     throw new Error(
-      "Audio transcription requires Azure Speech or an OpenAI-compatible inference client",
+      "Audio transcription requires Azure Speech configured for MAI-Transcribe-2",
     );
   }
 
@@ -232,7 +228,7 @@ export async function transcribeRemoteUrl(
   const transcriptionClient = buildTranscriptionClient();
   if (!transcriptionClient) {
     throw new Error(
-      "Audio transcription requires Azure Speech or an OpenAI-compatible inference client",
+      "Audio transcription requires Azure Speech configured for MAI-Transcribe-2",
     );
   }
 

@@ -298,6 +298,8 @@ export const FeedQueue = createDeferredQueue<ZFeedRequestSchema>("feed_queue", {
 export const zAssetPreprocessingRequestSchema = z.object({
   bookmarkId: z.string(),
   fixMode: z.boolean().optional().default(false),
+  // Rebuild derived PDF text even when an older extraction already exists.
+  force: z.boolean().optional(),
 });
 export type AssetPreprocessingRequest = z.infer<
   typeof zAssetPreprocessingRequestSchema

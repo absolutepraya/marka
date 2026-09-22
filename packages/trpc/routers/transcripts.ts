@@ -321,7 +321,7 @@ export const transcriptsAppRouter = router({
         });
       }
 
-      const provider = videoId ? "youtube" : "azure-whisper";
+      const provider = videoId ? "youtube" : "azure-speech";
       const providerItemId = videoId ?? bookmark?.asset?.assetId;
       if (!providerItemId) {
         throw new TRPCError({

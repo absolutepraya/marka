@@ -202,11 +202,7 @@ function fingerprintTranscript(
   providerItemId: string,
   text: string,
 ) {
-  const azureSpeech = serverConfig.transcription.azureSpeech;
-  const transcriptionModel =
-    azureSpeech.endpoint && azureSpeech.key
-      ? azureSpeech.model
-      : serverConfig.transcription.model;
+  const transcriptionModel = serverConfig.transcription.azureSpeech.model;
 
   return crypto
     .createHash("sha256")
@@ -228,7 +224,7 @@ async function saveGeneratedTranscript({
   shouldSummarize,
 }: {
   bookmark: TranscriptBookmark;
-  provider: "youtube" | "azure-whisper";
+  provider: "youtube" | "azure-speech";
   providerItemId: string;
   sourceTranscript: string;
   sourceLanguage?: string;
@@ -460,7 +456,7 @@ async function runAssetTranscript(
   const existing = await db.query.bookmarkTranscripts.findFirst({
     where: and(
       eq(bookmarkTranscripts.bookmarkId, bookmark.id),
-      eq(bookmarkTranscripts.provider, "azure-whisper"),
+      eq(bookmarkTranscripts.provider, "azure-speech"),
     ),
   });
 
@@ -468,7 +464,7 @@ async function runAssetTranscript(
     .insert(bookmarkTranscripts)
     .values({
       bookmarkId: bookmark.id,
-      provider: "azure-whisper",
+      provider: "azure-speech",
       providerItemId: bookmark.asset.assetId,
       status: "pending",
       sourceAttachmentsStatus: "pending",
@@ -506,7 +502,7 @@ async function runAssetTranscript(
       .where(
         and(
           eq(bookmarkTranscripts.bookmarkId, bookmark.id),
-          eq(bookmarkTranscripts.provider, "azure-whisper"),
+          eq(bookmarkTranscripts.provider, "azure-speech"),
         ),
       );
     await clearPendingSummaryIfEmpty(bookmark);
@@ -514,17 +510,17 @@ async function runAssetTranscript(
   }
 
   const sourceFingerprint = fingerprintTranscript(
-    "azure-whisper",
+    "azure-speech",
     bookmark.asset.assetId,
     result.text,
   );
   const saved = await saveGeneratedTranscript({
     bookmark,
-    provider: "azure-whisper",
+    provider: "azure-speech",
     providerItemId: bookmark.asset.assetId,
     sourceTranscript: result.text,
     sourceLanguage: result.language,
-    selectedTrackId: "azure-whisper",
+    selectedTrackId: "azure-speech",
     sourceFingerprint,
     shouldSummarize,
   });
@@ -545,7 +541,7 @@ async function runAssetTranscript(
 
   addLogFields<"transcriptWorker.run">({
     "bookmark.id": bookmark.id,
-    "transcript.provider": "azure-whisper",
+    "transcript.provider": "azure-speech",
     "transcript.source_language": result.language,
     "transcript.source_files": 1,
   });
@@ -697,7 +693,7 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
       providerItemId: videoId,
       sourceTranscript: result.text,
       sourceLanguage: result.language,
-      selectedTrackId: "azure-whisper",
+      selectedTrackId: "azure-speech",
       sourceFingerprint,
       shouldSummarize,
     });

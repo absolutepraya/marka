@@ -14,7 +14,6 @@ export function createInferenceClient(modelName: string): InferenceClient {
     serviceTier: config.OPENAI_SERVICE_TIER,
     textModel: modelName,
     imageModel: modelName, // Use same model for images if needed
-    transcriptionModel: "whisper-1",
     contextLength: config.INFERENCE_CONTEXT_LENGTH,
     maxOutputTokens: config.INFERENCE_MAX_OUTPUT_TOKENS,
     useMaxCompletionTokens: config.INFERENCE_USE_MAX_COMPLETION_TOKENS,
@@ -39,9 +38,7 @@ export async function inferTags(
 
   const parsed = tagsSchema.safeParse(JSON.parse(response.response));
   if (!parsed.success) {
-    throw new Error(
-      `Failed to parse model response: ${parsed.error.message}`,
-    );
+    throw new Error(`Failed to parse model response: ${parsed.error.message}`);
   }
 
   return parsed.data.tags;

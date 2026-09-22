@@ -130,7 +130,7 @@ export WT_ROOT_PATH="$T3CODE_PROJECT_ROOT"
 export WT_WORKSPACE_PATH="$T3CODE_WORKTREE_PATH"
 export WT_WORKSPACE_NAME="$worktree_name"
 
-mise exec node@24 -- corepack pnpm install --frozen-lockfile
+bash "$T3CODE_PROJECT_ROOT/scripts/run-pnpm.sh" install --frozen-lockfile
 
 t3_port="$(allocate_t3_port)"
 export WT_PORT_BASE=$((t3_port - 3000))
@@ -143,4 +143,4 @@ ln -sfn ../../.env apps/workers/.env
 ln -sfn ../../.env packages/db/.env
 
 WT_DATA_SOURCE=prod bash "$T3CODE_PROJECT_ROOT/scripts/setup-worktree.sh"
-pnpm dev:start -d
+NO_COLOR=false bash "$T3CODE_PROJECT_ROOT/scripts/run-pnpm.sh" dev:start -d

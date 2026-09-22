@@ -131,6 +131,10 @@ function VideoContentSection({ bookmark }: { bookmark: ZBookmark }) {
   const { t } = useTranslation();
   const assetUrl = getAssetUrl(bookmark.content.assetId);
   const fileName = bookmark.content.fileName || t("common.video");
+  const screenshotId = bookmark.assets.find(
+    (asset) => asset.assetType === "assetScreenshot",
+  )?.id;
+  const posterUrl = screenshotId ? getAssetUrl(screenshotId) : undefined;
   const isMatroska =
     bookmark.content.contentType === "video/x-matroska" ||
     bookmark.content.fileName?.toLowerCase().endsWith(".mkv") === true;
@@ -154,6 +158,18 @@ function VideoContentSection({ bookmark }: { bookmark: ZBookmark }) {
           role="alert"
           className="flex max-w-md flex-col items-center gap-3 text-center text-sm text-muted-foreground"
         >
+          {posterUrl ? (
+            <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
+              <Image
+                alt={bookmark.title || fileName}
+                src={posterUrl}
+                fill
+                sizes="(max-width: 768px) 100vw, 32rem"
+                unoptimized
+                className="object-contain"
+              />
+            </div>
+          ) : null}
           <p>{t("common.video_playback_unavailable")}</p>
         </div>
       ) : (
@@ -165,6 +181,7 @@ function VideoContentSection({ bookmark }: { bookmark: ZBookmark }) {
             controls
             preload="metadata"
             playsInline
+            poster={posterUrl}
             aria-label={bookmark.title || fileName}
             onError={() => setPlaybackError(true)}
           >
