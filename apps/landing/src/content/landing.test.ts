@@ -4,7 +4,7 @@ import { landing } from "./landing";
 describe("landing content contract", () => {
   it("explains Marka as a self-hosted library beyond browser bookmarks", () => {
     expect(landing.hero.title).toBe("Everything you want to come back to.");
-    expect(landing.hero.description).toMatch(/self-hosted personal library/i);
+    expect(landing.hero.description).toMatch(/self-hosted, searchable home/i);
     expect(landing.hero.description).toMatch(/not just bookmarks/i);
   });
 
@@ -31,6 +31,9 @@ describe("landing content contract", () => {
 
     expect(paths.every((path) => path.startsWith("/"))).toBe(true);
     expect(landing.preview.status).toBe("pending");
+    expect(landing.preview.illustrationCaption).toMatch(
+      /not product screen captures/i,
+    );
     expect(
       landing.demos.desktop.every(({ status }) => status === "pending"),
     ).toBe(true);

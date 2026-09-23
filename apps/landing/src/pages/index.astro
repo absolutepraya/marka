@@ -1,19 +1,110 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import MarkaHero from "../components/MarkaHero.astro";
+import ProductCanvas from "../components/ProductCanvas.astro";
+import OwnershipClose from "../components/OwnershipClose.astro";
 import { landing } from "../content/landing";
 ---
 
 <Layout>
   <main>
-    <section class="hero" aria-labelledby="hero-title">
-      <p class="eyebrow">{landing.hero.eyebrow}</p>
-      <h1 id="hero-title">{landing.hero.title}</h1>
-      <p>{landing.hero.description}</p>
-      <p>{landing.hero.supportingNote}</p>
-      <div class="hero__actions">
-        <a class="button" href={landing.primaryCta.href}>{landing.primaryCta.label}</a>
-        <a class="text-link" href={landing.secondaryCta.href}>{landing.secondaryCta.label}</a>
+    <MarkaHero />
+    <ProductCanvas />
+
+    <section
+      class="source-library section-shell"
+      id="library"
+      data-page-section="source-library"
+      aria-labelledby="source-library-title"
+    >
+      <div class="section-heading">
+        <p class="eyebrow">{landing.sourceLibrary.eyebrow}</p>
+        <h2 id="source-library-title">{landing.sourceLibrary.title}</h2>
+        <p class="section-heading__description">
+          {landing.sourceLibrary.description}
+        </p>
+      </div>
+      <div class="source-library__grid">
+        {landing.sourceCards.map((card) => (
+          <article class="source-card" data-source-card={card.id}>
+            <img
+              src={card.image}
+              alt={card.alt}
+              width="1120"
+              height="720"
+              loading="lazy"
+              decoding="async"
+            />
+            <div class="source-card__copy">
+              <p class="source-card__source">{card.sourceLabel}</p>
+              <h3>{card.title}</h3>
+              <p>{card.description}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+      <p class="section-note">{landing.sourceLibrary.note}</p>
+    </section>
+
+    <section
+      class="desktop-demos section-shell"
+      id="demos"
+      data-page-section="desktop-demos"
+      aria-labelledby="demos-title"
+    >
+      <div class="section-heading">
+        <p class="eyebrow">{landing.demos.eyebrow}</p>
+        <h2 id="demos-title">{landing.demos.title}</h2>
+      </div>
+      <div class="demo-grid">
+        {landing.demos.desktop.map((demo) => (
+          <article class="demo-card" data-demo-card={demo.id}>
+            <img
+              class="demo-card__poster"
+              src={demo.poster}
+              alt={`${landing.demos.placeholderAltPrefix} ${demo.title}`}
+              width="1120"
+              height="720"
+              loading="lazy"
+              decoding="async"
+            />
+            <div class="demo-card__copy">
+              <p class="demo-card__status">{landing.demos.pendingLabel}</p>
+              <h3>{demo.title}</h3>
+              <p>{demo.description}</p>
+              <p>{demo.caption}</p>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
+
+    <section
+      class="mobile-library section-shell"
+      data-page-section="mobile-library"
+      aria-labelledby="mobile-library-title"
+    >
+      <div class="mobile-library__copy">
+        <h2 id="mobile-library-title">{landing.demos.mobile.title}</h2>
+        <p>{landing.demos.mobile.description}</p>
+        <p class="demo-card__status">{landing.demos.pendingLabel}</p>
+      </div>
+      <div
+        class="mobile-library__visual"
+        role="img"
+        aria-label={landing.demos.mobile.illustrationAlt}
+      >
+        <img
+          src={landing.demos.mobile.poster}
+          alt=""
+          width="1120"
+          height="720"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+    </section>
+
+    <OwnershipClose />
   </main>
 </Layout>

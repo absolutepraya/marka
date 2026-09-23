@@ -31,6 +31,7 @@ export const landing = {
   },
   navigation: {
     logoAlt: "Marka home",
+    ariaLabel: "Main navigation",
     ctaLabel: "See Marka in action",
     ctaHref: "#demos",
   },
@@ -38,9 +39,9 @@ export const landing = {
     eyebrow: "YOUR PERSONAL LIBRARY",
     title: "Everything you want to come back to.",
     description:
-      "A self-hosted personal library for the links, places, ideas, images and files you want to find again. Not just bookmarks: keep the useful context close and searchable.",
+      "Not just bookmarks: a self-hosted, searchable home for your links, places, ideas, images, and files.",
     supportingNote:
-      "Movie watchlists, places to go, good reads, screenshots and course files can all live together.",
+      "Movie watchlists, places to go, useful reads, and course files can all live together.",
   },
   primaryCta: {
     label: "See Marka in action",
@@ -51,8 +52,13 @@ export const landing = {
     href: "https://marka.abhipraya.dev/",
   },
   preview: {
+    title: "A home for everything worth coming back to",
     image: "/marketing/previews/marka-desktop-library.webp" as LocalAssetPath,
     alt: "A full Marka library with saved items, previews, tags, and reading context",
+    illustrationAlt:
+      "Original illustrations of a movie watchlist, an e-commerce wishlist, and saved places",
+    illustrationCaption:
+      "Original illustrations of the kinds of content you can keep together in Marka, not product screen captures.",
     status: "pending" as AssetStatus,
     caption: "A sample of the things that can live together in Marka.",
   },
@@ -125,6 +131,8 @@ export const landing = {
   demos: {
     eyebrow: "THREE QUICK LOOKS",
     title: "See how it fits into your day.",
+    pendingLabel: "Recording pending review",
+    placeholderAltPrefix: "Illustration placeholder for",
     desktop: [
       {
         id: "save-from-anywhere",
@@ -158,6 +166,8 @@ export const landing = {
       },
     ] satisfies LandingDemo[],
     mobile: {
+      illustrationAlt:
+        "Illustrative mobile library poster, not a Marka screen capture",
       id: "mobile-library",
       title: "Your library, wherever you are.",
       description:
@@ -175,6 +185,7 @@ export const landing = {
       "Marka is self-hosted, so you choose where your personal library runs. Bring the things you want to revisit into one searchable place.",
   },
   footer: {
+    navigationLabel: "Footer navigation",
     description:
       "A self-hosted personal library for things worth coming back to.",
     githubLabel: "Marka on GitHub",
