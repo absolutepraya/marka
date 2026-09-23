@@ -48,13 +48,13 @@ import type {
 import {
   useAttachBookmarkAsset,
   useDeleteUnattachedAsset,
-  useRefreshBookmarkAssetPreview,
   useReplaceBookmarkAsset,
 } from "@karakeep/shared-react/hooks/assets";
 import { useBookmarkGridContext } from "@karakeep/shared-react/hooks/bookmark-grid-context";
 import { useBookmarkListContext } from "@karakeep/shared-react/hooks/bookmark-list-context";
 import {
   useBookmarkContentPermissions,
+  useRefreshBookmark,
   useRecrawlBookmark,
 } from "@karakeep/shared-react/hooks/bookmarks";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
@@ -114,10 +114,6 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
   const hasContentEditAccess =
     bookmark.content.type === BookmarkTypes.TEXT &&
     (isOwner || contentPermissions?.canEdit === true);
-  const isPdfAsset =
-    bookmark.content.type === BookmarkTypes.ASSET &&
-    bookmark.content.assetType === "pdf";
-
   const [isClipboardAvailable, setIsClipboardAvailable] = useState(false);
 
   useEffect(() => {
@@ -179,8 +175,8 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
     );
   };
 
-  const { mutate: refreshAssetPreview, isPending: isRefreshingAssetPreview } =
-    useRefreshBookmarkAssetPreview({
+  const { mutate: refreshBookmark, isPending: isRefreshingBookmark } =
+    useRefreshBookmark({
       onSuccess: () => {
         toast.success(t("toasts.bookmarks.refetch"));
       },
@@ -207,13 +203,6 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
       })
       .catch(onError);
   };
-
-  const crawlBookmarkMutator = useRecrawlBookmark({
-    onSuccess: () => {
-      toast.success(t("toasts.bookmarks.refetch"));
-    },
-    onError,
-  });
 
   const fullPageArchiveBookmarkMutator = useRecrawlBookmark({
     onSuccess: () => {
@@ -467,17 +456,13 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
           id: "refresh",
           title: t("actions.refresh"),
           icon: <RotateCw className="mr-2 size-4" />,
-          visible: bookmark.content.type === BookmarkTypes.LINK || isPdfAsset,
-          disabled: demoMode || requiresOnline || isRefreshingAssetPreview,
+          visible: true,
+          disabled: demoMode || requiresOnline || isRefreshingBookmark,
           disabledMessage: requiresOnline
             ? OFFLINE_ONLINE_REQUIRED_MESSAGE
             : undefined,
           onClick: () => {
-            if (bookmark.content.type === BookmarkTypes.LINK) {
-              crawlBookmarkMutator.mutate({ bookmarkId: bookmark.id });
-            } else if (isPdfAsset) {
-              refreshAssetPreview({ bookmarkId: bookmark.id });
-            }
+            refreshBookmark({ bookmarkId: bookmark.id });
           },
         },
         {

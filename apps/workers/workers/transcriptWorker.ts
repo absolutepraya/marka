@@ -301,6 +301,7 @@ async function enqueueTranscriptEnrichment(
   bookmark: TranscriptBookmark,
   job: DequeuedJob<ZTranscriptRequest>,
 ) {
+  const idempotencyPrefix = `transcript:${job.id}`;
   const enqueueOpts: EnqueueOptions = {
     priority: job.priority ?? QueuePriority.Default,
     groupId: bookmark.userId,
@@ -312,12 +313,12 @@ async function enqueueTranscriptEnrichment(
         type: "embed",
         runTaggingOnComplete: true,
       },
-      enqueueOpts,
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:embed` },
     );
   } else {
     await OpenAIQueue.enqueue(
       { bookmarkId: bookmark.id, type: "tag" },
-      enqueueOpts,
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:tag` },
     );
   }
 }
@@ -340,8 +341,49 @@ async function enqueueTranscriptSummary(
     {
       priority: job.priority ?? QueuePriority.Default,
       groupId: bookmark.userId,
+      idempotencyKey: `transcript:${job.id}:summary:${revision}`,
     },
   );
+}
+
+async function enqueueRefreshFallbackEnrichment(
+  bookmark: { id: string; userId: string },
+  jobId: string,
+  priority: number | undefined,
+  shouldSummarize: boolean,
+) {
+  const enqueueOpts: EnqueueOptions = {
+    priority: priority ?? QueuePriority.Default,
+    groupId: bookmark.userId,
+  };
+  const idempotencyPrefix = `transcript-refresh:${jobId}:fallback`;
+
+  if (serverConfig.embedding.enableAutoIndexing) {
+    await EmbeddingsQueue.enqueue(
+      {
+        bookmarkId: bookmark.id,
+        type: "embed",
+        runTaggingOnComplete: true,
+      },
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:embed` },
+    );
+  } else {
+    await OpenAIQueue.enqueue(
+      { bookmarkId: bookmark.id, type: "tag" },
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:tag` },
+    );
+  }
+
+  if (shouldSummarize && serverConfig.inference.enableAutoSummarization) {
+    await OpenAIQueue.enqueue(
+      {
+        bookmarkId: bookmark.id,
+        type: "summarize",
+        summarySource: "web",
+      },
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:summary` },
+    );
+  }
 }
 
 function isCaptionUnavailableError(error: unknown) {
@@ -512,7 +554,9 @@ async function runAssetTranscript(
           eq(bookmarkTranscripts.provider, "azure-speech"),
         ),
       );
-    await clearPendingSummaryIfEmpty(bookmark);
+    if (!job.data.forceEnrichment) {
+      await clearPendingSummaryIfEmpty(bookmark);
+    }
     throw error;
   }
 
@@ -532,7 +576,10 @@ async function runAssetTranscript(
     shouldSummarize,
   });
 
-  if (saved.sourceChanged && !saved.manualOverride) {
+  if (
+    (saved.sourceChanged && !saved.manualOverride) ||
+    job.data.forceEnrichment
+  ) {
     await enqueueTranscriptEnrichment(bookmark, job);
     if (shouldSummarize) {
       await enqueueTranscriptSummary(bookmark, job, saved.nextRevision);
@@ -661,7 +708,9 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
           eq(bookmarkTranscripts.provider, "youtube"),
         ),
       );
-    await clearPendingSummaryIfEmpty(bookmark);
+    if (!job.data.forceEnrichment) {
+      await clearPendingSummaryIfEmpty(bookmark);
+    }
     throw error;
   }
 
@@ -685,7 +734,9 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
             eq(bookmarkTranscripts.provider, "youtube"),
           ),
         );
-      await clearPendingSummaryIfEmpty(bookmark);
+      if (!job.data.forceEnrichment) {
+        await clearPendingSummaryIfEmpty(bookmark);
+      }
       throw error;
     }
 
@@ -729,7 +780,10 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
       );
     }
 
-    if (saved.sourceChanged && !saved.manualOverride) {
+    if (
+      (saved.sourceChanged && !saved.manualOverride) ||
+      job.data.forceEnrichment
+    ) {
       await enqueueTranscriptEnrichment(bookmark, job);
       if (shouldSummarize) {
         await enqueueTranscriptSummary(bookmark, job, saved.nextRevision);
@@ -768,7 +822,16 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
           eq(bookmarkTranscripts.provider, "youtube"),
         ),
       );
-    await clearPendingSummaryIfEmpty(bookmark);
+    if (job.data.forceEnrichment) {
+      await enqueueRefreshFallbackEnrichment(
+        bookmark,
+        job.id,
+        job.priority,
+        bookmark.summarizationStatus === "pending",
+      );
+    } else {
+      await clearPendingSummaryIfEmpty(bookmark);
+    }
     return;
   }
 
@@ -793,7 +856,16 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
           eq(bookmarkTranscripts.provider, "youtube"),
         ),
       );
-    await clearPendingSummaryIfEmpty(bookmark);
+    if (job.data.forceEnrichment) {
+      await enqueueRefreshFallbackEnrichment(
+        bookmark,
+        job.id,
+        job.priority,
+        bookmark.summarizationStatus === "pending",
+      );
+    } else {
+      await clearPendingSummaryIfEmpty(bookmark);
+    }
     return;
   }
 
@@ -946,7 +1018,7 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
     priority: job.priority ?? QueuePriority.Default,
     groupId: bookmark.userId,
   };
-  if (sourceChanged && !manualOverride) {
+  if ((sourceChanged && !manualOverride) || job.data.forceEnrichment) {
     await enqueueTranscriptEnrichment(bookmark, job);
     if (shouldSummarize) {
       await enqueueTranscriptSummary(bookmark, job, nextRevision);
@@ -979,12 +1051,69 @@ export class TranscriptWorker {
           workerStatsCounter.labels("transcript", "completed").inc();
           return Promise.resolve();
         },
-        onError: (job) => {
+        onError: async (job) => {
           workerStatsCounter.labels("transcript", "failed").inc();
           if (job.numRetriesLeft === 0) {
             workerStatsCounter.labels("transcript", "failed_permanent").inc();
+            if (job.data?.forceEnrichment) {
+              const bookmarkId = job.data.bookmarkId;
+              const bookmark = await db.query.bookmarks.findFirst({
+                where: eq(bookmarks.id, bookmarkId),
+                columns: {
+                  id: true,
+                  userId: true,
+                  summarizationStatus: true,
+                },
+              });
+              let fallbackQueued = false;
+              if (bookmark) {
+                try {
+                  await enqueueRefreshFallbackEnrichment(
+                    bookmark,
+                    job.id,
+                    job.priority,
+                    bookmark.summarizationStatus === "pending",
+                  );
+                  fallbackQueued = true;
+                } catch (error) {
+                  logger.error(
+                    `[transcript][${job.id}] Failed to enqueue refresh fallback enrichment: ${error instanceof Error ? error.message : String(error)}`,
+                  );
+                }
+              }
+              if (!fallbackQueued) {
+                await db.transaction(async (tx) => {
+                  await tx
+                    .update(bookmarks)
+                    .set({ taggingStatus: null })
+                    .where(
+                      and(
+                        eq(bookmarks.id, bookmarkId),
+                        eq(bookmarks.taggingStatus, "pending"),
+                      ),
+                    );
+                  await tx
+                    .update(bookmarks)
+                    .set({ summarizationStatus: null })
+                    .where(
+                      and(
+                        eq(bookmarks.id, bookmarkId),
+                        eq(bookmarks.summarizationStatus, "pending"),
+                      ),
+                    );
+                  await tx
+                    .update(bookmarks)
+                    .set({ embeddingStatus: null })
+                    .where(
+                      and(
+                        eq(bookmarks.id, bookmarkId),
+                        eq(bookmarks.embeddingStatus, "pending"),
+                      ),
+                    );
+                });
+              }
+            }
           }
-          return Promise.resolve();
         },
       },
       {

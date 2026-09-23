@@ -54,25 +54,31 @@ export function isBookmarkStillLoading(bookmark: ZBookmark) {
   return isBookmarkStillCrawling(bookmark);
 }
 
-function isAssetEnrichmentPending(bookmark: ZBookmark) {
+function isBookmarkEnrichmentPending(bookmark: ZBookmark) {
   return (
-    bookmark.content.type === BookmarkTypes.ASSET &&
-    (bookmark.taggingStatus === "pending" ||
-      bookmark.summarizationStatus === "pending")
+    bookmark.taggingStatus === "pending" ||
+    bookmark.summarizationStatus === "pending"
   );
 }
 
 export function getBookmarkRefreshInterval(
   bookmark: ZBookmark,
 ): number | false {
-  const assetEnrichmentPending = isAssetEnrichmentPending(bookmark);
-  if (!isBookmarkStillLoading(bookmark) && !assetEnrichmentPending) {
+  const crawlPending =
+    bookmark.content.type === BookmarkTypes.LINK &&
+    bookmark.content.crawlStatus === "pending";
+  const enrichmentPending = isBookmarkEnrichmentPending(bookmark);
+  if (
+    !isBookmarkStillLoading(bookmark) &&
+    !crawlPending &&
+    !enrichmentPending
+  ) {
     return false;
   }
 
-  if (assetEnrichmentPending) {
-    // Asset refreshes update modifiedAt immediately before queueing work. Use
-    // it as the bounded polling anchor so old PDFs still refresh promptly.
+  if (crawlPending || enrichmentPending) {
+    // Refreshes update modifiedAt before queueing work. Use it as the bounded
+    // polling anchor so old bookmarks refresh promptly too.
     const refreshStartedAt = bookmark.modifiedAt ?? bookmark.createdAt;
     const elapsed = Date.now().valueOf() - refreshStartedAt.valueOf();
 

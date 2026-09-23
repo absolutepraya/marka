@@ -79,6 +79,36 @@ describe("Bookmark Routes", () => {
     expect(res.content.type).toEqual(BookmarkTypes.LINK);
   });
 
+  test<CustomTestContext>("refreshes a link with a distinct crawl job on every request", async ({
+    apiCallers,
+  }) => {
+    const api = apiCallers[0].bookmarks;
+    const bookmark = await api.createBookmark({
+      url: "https://example.com/refresh",
+      type: BookmarkTypes.LINK,
+    });
+    const { LowPriorityCrawlerQueue } = await import("@karakeep/shared-server");
+    const enqueue = vi.mocked(LowPriorityCrawlerQueue.enqueue);
+    enqueue.mockResolvedValue("refresh-job");
+
+    await api.refreshBookmark({ bookmarkId: bookmark.id });
+    await api.refreshBookmark({ bookmarkId: bookmark.id });
+
+    const refreshCalls = enqueue.mock.calls;
+    expect(refreshCalls).toHaveLength(2);
+    expect(refreshCalls[0][0]).toEqual({
+      bookmarkId: bookmark.id,
+      runInference: true,
+      forceTranscriptEnrichment: true,
+    });
+    expect(refreshCalls[0][1]?.idempotencyKey).toMatch(
+      new RegExp(`^bookmark-refresh:${bookmark.id}:`),
+    );
+    expect(refreshCalls[1][1]?.idempotencyKey).not.toBe(
+      refreshCalls[0][1]?.idempotencyKey,
+    );
+  });
+
   test<CustomTestContext>("includes link content asset IDs in single bookmarks", async ({
     apiCallers,
     db,

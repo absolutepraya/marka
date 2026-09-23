@@ -1,4 +1,5 @@
 import { experimental_trpcMiddleware, TRPCError } from "@trpc/server";
+import { randomUUID } from "node:crypto";
 import { and, count, eq, gt, inArray, isNull, like, lt, or } from "drizzle-orm";
 import { z } from "zod";
 
@@ -88,8 +89,23 @@ const bookmarksProcedure = createScopedAuthedProcedure("bookmarks");
 async function enqueueTextBookmarkEnrichment(
   bookmarkId: string,
   enqueueOpts: EnqueueOptions,
-  options: { skipSummarization?: boolean } = {},
+  options: {
+    skipSummarization?: boolean;
+    idempotencyKeyPrefix?: string | null;
+  } = {},
 ) {
+  const idempotencyKeyPrefix =
+    options.idempotencyKeyPrefix === undefined
+      ? `bookmark:${bookmarkId}`
+      : options.idempotencyKeyPrefix;
+  const queueOptions = (kind: string): EnqueueOptions =>
+    idempotencyKeyPrefix === null
+      ? enqueueOpts
+      : {
+          ...enqueueOpts,
+          idempotencyKey: `${idempotencyKeyPrefix}:${kind}`,
+        };
+
   if (serverConfig.embedding.enableAutoIndexing) {
     await EmbeddingsQueue.enqueue(
       {
@@ -97,10 +113,7 @@ async function enqueueTextBookmarkEnrichment(
         type: "embed",
         runTaggingOnComplete: true,
       },
-      {
-        ...enqueueOpts,
-        idempotencyKey: `bookmark:${bookmarkId}:embed`,
-      },
+      queueOptions("embed"),
     );
   } else {
     await OpenAIQueue.enqueue(
@@ -108,10 +121,7 @@ async function enqueueTextBookmarkEnrichment(
         bookmarkId,
         type: "tag",
       },
-      {
-        ...enqueueOpts,
-        idempotencyKey: `bookmark:${bookmarkId}:tag`,
-      },
+      queueOptions("tag"),
     );
   }
 
@@ -124,10 +134,7 @@ async function enqueueTextBookmarkEnrichment(
         bookmarkId,
         type: "summarize",
       },
-      {
-        ...enqueueOpts,
-        idempotencyKey: `bookmark:${bookmarkId}:summary`,
-      },
+      queueOptions("summary"),
     );
   }
 }
@@ -1089,6 +1096,132 @@ export const bookmarksAppRouter = router({
           [],
         );
       });
+    }),
+  refreshBookmark: bookmarksProcedure
+    .use(
+      createRateLimitMiddleware({
+        name: "bookmarks.refreshBookmark",
+        windowMs: 30 * 60 * 1000,
+        maxRequests: 200,
+      }),
+    )
+    .input(z.object({ bookmarkId: z.string() }))
+    .use(ensureBookmarkOwnership)
+    .mutation(async ({ input, ctx }) => {
+      const bookmark = await ctx.db.query.bookmarks.findFirst({
+        where: eq(bookmarks.id, input.bookmarkId),
+        columns: {
+          id: true,
+          type: true,
+          taggingStatus: true,
+          summarizationStatus: true,
+          embeddingStatus: true,
+          summaryProvenance: true,
+          summaryStale: true,
+          modifiedAt: true,
+        },
+        with: {
+          link: { columns: { crawlStatus: true } },
+        },
+      });
+
+      if (!bookmark) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      const userSettings = await ctx.db.query.users.findFirst({
+        where: eq(users.id, ctx.user.id),
+        columns: { autoSummarizationEnabled: true },
+      });
+      const shouldSummarize =
+        serverConfig.inference.enableAutoSummarization &&
+        userSettings?.autoSummarizationEnabled !== false &&
+        bookmark.summaryProvenance !== "manual";
+      const refreshStartedAt = new Date();
+
+      await ctx.db.transaction(async (tx) => {
+        await tx
+          .update(bookmarks)
+          .set({
+            taggingStatus: "pending",
+            summarizationStatus: shouldSummarize ? "pending" : null,
+            embeddingStatus: serverConfig.embedding.enableAutoIndexing
+              ? "pending"
+              : null,
+            ...(shouldSummarize ? { summaryStale: true } : {}),
+            modifiedAt: refreshStartedAt,
+          })
+          .where(eq(bookmarks.id, input.bookmarkId));
+
+        if (bookmark.type === BookmarkTypes.LINK) {
+          await tx
+            .update(bookmarkLinks)
+            .set({ crawlStatus: "pending" })
+            .where(eq(bookmarkLinks.id, input.bookmarkId));
+        }
+      });
+
+      const enqueueOpts: EnqueueOptions = {
+        groupId: ctx.user.id,
+        priority: QueuePriority.Low,
+      };
+
+      try {
+        switch (bookmark.type) {
+          case BookmarkTypes.LINK: {
+            const payload = {
+              bookmarkId: input.bookmarkId,
+              runInference: true,
+              forceTranscriptEnrichment: true,
+            };
+            await LowPriorityCrawlerQueue.enqueue(payload, {
+              ...enqueueOpts,
+              // A refresh is an explicit request to re-run this crawl, even
+              // when an identical refresh was already completed.
+              idempotencyKey: `bookmark-refresh:${input.bookmarkId}:${randomUUID()}`,
+            });
+            break;
+          }
+          case BookmarkTypes.TEXT:
+            await enqueueTextBookmarkEnrichment(input.bookmarkId, enqueueOpts, {
+              skipSummarization: !shouldSummarize,
+              idempotencyKeyPrefix: null,
+            });
+            await triggerSearchReindex(input.bookmarkId, enqueueOpts);
+            break;
+          case BookmarkTypes.ASSET:
+            await AssetPreprocessingQueue.enqueue(
+              {
+                bookmarkId: input.bookmarkId,
+                fixMode: true,
+                force: true,
+              },
+              enqueueOpts,
+            );
+            break;
+        }
+      } catch (error) {
+        await ctx.db.transaction(async (tx) => {
+          await tx
+            .update(bookmarks)
+            .set({
+              taggingStatus: bookmark.taggingStatus,
+              summarizationStatus: bookmark.summarizationStatus,
+              embeddingStatus: bookmark.embeddingStatus,
+              summaryStale: bookmark.summaryStale,
+              modifiedAt: bookmark.modifiedAt,
+            })
+            .where(eq(bookmarks.id, input.bookmarkId));
+
+          if (bookmark.type === BookmarkTypes.LINK) {
+            await tx
+              .update(bookmarkLinks)
+              .set({ crawlStatus: bookmark.link?.crawlStatus ?? null })
+              .where(eq(bookmarkLinks.id, input.bookmarkId));
+          }
+        });
+        throw error;
+      }
     }),
   recrawlBookmark: bookmarksProcedure
     .use(

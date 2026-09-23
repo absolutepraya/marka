@@ -7,6 +7,7 @@ import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
 import type { ZBookmarkList } from "@karakeep/shared/types/lists";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import {
+  useRefreshBookmark,
   useRecrawlBookmark,
   useUpdateBookmark,
 } from "@karakeep/shared-react/hooks/bookmarks";
@@ -37,6 +38,10 @@ export function useBookmarkBulkMutations({
     onError,
   });
   const recrawlBookmarkMutator = useRecrawlBookmark({
+    onSuccess: onBulkEditDone,
+    onError,
+  });
+  const refreshBookmarkMutator = useRefreshBookmark({
     onSuccess: onBulkEditDone,
     onError,
   });
@@ -112,6 +117,20 @@ export function useBookmarkBulkMutations({
     [recrawlBookmarkMutator, selectedLinkBookmarks],
   );
 
+  const refreshSelectedBookmarks = useCallback(async () => {
+    const selected = selectedActionableBookmarks();
+    await Promise.all(
+      limitConcurrency(
+        selected.map(
+          (bookmark) => () =>
+            refreshBookmarkMutator.mutateAsync({ bookmarkId: bookmark.id }),
+        ),
+        MAX_CONCURRENT_BULK_ACTIONS,
+      ),
+    );
+    return selected;
+  }, [refreshBookmarkMutator, selectedActionableBookmarks]);
+
   const removeSelectedBookmarksFromList = useCallback(async () => {
     if (!listContext) {
       return [];
@@ -145,10 +164,12 @@ export function useBookmarkBulkMutations({
   return {
     updateBookmarkMutator,
     recrawlBookmarkMutator,
+    refreshBookmarkMutator,
     removeBookmarkFromListMutator,
     updateSelectedBookmarks,
     setSelectedBookmarksToNextState,
     recrawlSelectedLinkBookmarks,
+    refreshSelectedBookmarks,
     removeSelectedBookmarksFromList,
     selectedBookmarkLinksText,
   };

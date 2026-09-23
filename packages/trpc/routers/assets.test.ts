@@ -61,7 +61,7 @@ describe("Asset Routes", () => {
       .spyOn(AssetPreprocessingQueue, "enqueue")
       .mockResolvedValue("refresh-job");
 
-    await api.assets.refreshAssetPreview({ bookmarkId });
+    await api.bookmarks.refreshBookmark({ bookmarkId });
 
     const refreshedBookmark = await db.query.bookmarks.findFirst({
       where: eq(bookmarks.id, bookmarkId),
@@ -74,7 +74,6 @@ describe("Asset Routes", () => {
 
     expect(refreshedBookmark).toMatchObject({
       taggingStatus: "pending",
-      summarizationStatus: "pending",
     });
     expect(refreshedBookmark?.modifiedAt?.getTime()).toBeGreaterThan(
       oldModifiedAt.getTime(),

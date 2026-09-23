@@ -62,8 +62,10 @@ export default function BulkBookmarksAction() {
     updateBookmarkMutator,
     updateSelectedBookmarks,
     recrawlBookmarkMutator,
+    refreshBookmarkMutator,
     removeSelectedBookmarksFromList,
     recrawlSelectedLinkBookmarks,
+    refreshSelectedBookmarks,
     removeBookmarkFromListMutator,
     selectedBookmarkLinksText,
   } = useBookmarkBulkMutations({
@@ -83,10 +85,17 @@ export default function BulkBookmarksAction() {
     }
   }, [pathname, setIsBulkEditEnabled]);
 
-  const recrawlBookmarks = async (archiveFullPage: boolean) => {
-    const links = await recrawlSelectedLinkBookmarks(archiveFullPage);
+  const preserveOfflineArchives = async () => {
+    const links = await recrawlSelectedLinkBookmarks(true);
     toast({
-      description: `${links.length} bookmarks will be ${archiveFullPage ? "re-crawled and archived!" : "refreshed!"}`,
+      description: `${links.length} bookmarks will be re-crawled and archived!`,
+    });
+  };
+
+  const refreshBookmarks = async () => {
+    const bookmarks = await refreshSelectedBookmarks();
+    toast({
+      description: `${bookmarks.length} bookmarks will be refreshed!`,
     });
   };
 
@@ -203,15 +212,15 @@ export default function BulkBookmarksAction() {
     {
       name: t("actions.preserve_offline_archive"),
       icon: <FileDown size={18} />,
-      action: () => recrawlBookmarks(true),
+      action: () => preserveOfflineArchives(),
       isPending: recrawlBookmarkMutator.isPending,
       hidden: !isBulkEditEnabled,
     },
     {
       name: t("actions.refresh"),
       icon: <RotateCw size={18} />,
-      action: () => recrawlBookmarks(false),
-      isPending: recrawlBookmarkMutator.isPending,
+      action: () => refreshBookmarks(),
+      isPending: refreshBookmarkMutator.isPending,
       hidden: !isBulkEditEnabled,
     },
     {

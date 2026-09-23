@@ -93,7 +93,7 @@ describe("bookmark loading semantics", () => {
     });
 
     expect(isBookmarkStillLoading(bookmark)).toBe(false);
-    expect(getBookmarkRefreshInterval(bookmark)).toBe(false);
+    expect(getBookmarkRefreshInterval(bookmark)).toBe(1000);
   });
 
   test("persisted core content is ready before the crawler job fully completes", () => {
@@ -105,7 +105,7 @@ describe("bookmark loading semantics", () => {
     });
 
     expect(isBookmarkStillLoading(bookmark)).toBe(false);
-    expect(getBookmarkRefreshInterval(bookmark)).toBe(false);
+    expect(getBookmarkRefreshInterval(bookmark)).toBe(1000);
   });
 
   test("a link is still loading while its core crawl is pending", () => {

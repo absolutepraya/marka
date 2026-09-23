@@ -25,6 +25,7 @@ import {
   OpenAIQueue,
   QuotaService,
   StorageQuotaError,
+  TranscriptQueue,
   triggerSearchReindex,
 } from "@karakeep/shared-server";
 import {
@@ -449,11 +450,12 @@ async function extractAndSaveVideoScreenshot(
   asset: Buffer,
   bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
   abortSignal: AbortSignal,
+  force: boolean,
 ): Promise<boolean> {
-  const alreadyHasScreenshot =
-    bookmark.assets.find((r) => r.assetType === AssetTypes.ASSET_SCREENSHOT) !==
-    undefined;
-  if (alreadyHasScreenshot) {
+  const existingScreenshot = bookmark.assets.find(
+    (r) => r.assetType === AssetTypes.ASSET_SCREENSHOT,
+  );
+  if (existingScreenshot && !force) {
     logger.info(
       `[assetPreprocessing][${jobId}] Skipping video screenshot generation as it's already been generated.`,
     );
@@ -465,6 +467,7 @@ async function extractAndSaveVideoScreenshot(
   );
 
   let tempDir: string | undefined;
+  let replacementAssetId: string | undefined;
   try {
     tempDir = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), "video-screenshot-"),
@@ -505,6 +508,7 @@ async function extractAndSaveVideoScreenshot(
     );
 
     const assetId = newAssetId();
+    replacementAssetId = assetId;
     const fileName = "screenshot.jpg";
     const contentType = "image/jpeg";
     await saveAsset({
@@ -518,21 +522,33 @@ async function extractAndSaveVideoScreenshot(
       quotaApproved,
     });
 
-    await db.insert(assets).values({
-      id: assetId,
-      bookmarkId: bookmark.id,
-      userId: bookmark.userId,
-      assetType: AssetTypes.ASSET_SCREENSHOT,
-      contentType,
-      size: screenshot.byteLength,
-      fileName,
+    await db.transaction(async (tx) => {
+      await tx.insert(assets).values({
+        id: assetId,
+        bookmarkId: bookmark.id,
+        userId: bookmark.userId,
+        assetType: AssetTypes.ASSET_SCREENSHOT,
+        contentType,
+        size: screenshot.byteLength,
+        fileName,
+      });
+      if (existingScreenshot) {
+        await tx.delete(assets).where(eq(assets.id, existingScreenshot.id));
+      }
     });
+
+    if (existingScreenshot) {
+      await silentDeleteAsset(bookmark.userId, existingScreenshot.id);
+    }
 
     logger.info(
       `[assetPreprocessing][${jobId}] Successfully saved video first-frame screenshot to database`,
     );
     return true;
   } catch (error) {
+    if (replacementAssetId) {
+      await silentDeleteAsset(bookmark.userId, replacementAssetId);
+    }
     if (error instanceof StorageQuotaError) {
       logger.warn(
         `[assetPreprocessing][${jobId}] Skipping video screenshot due to quota exceeded: ${error.message}`,
@@ -556,10 +572,11 @@ async function extractAndSaveImageText(
   contentType: string,
   bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
   isFixMode: boolean,
+  force: boolean,
 ): Promise<boolean> {
   {
     const alreadyHasText = !!bookmark.asset.content;
-    if (alreadyHasText && isFixMode) {
+    if (alreadyHasText && isFixMode && !force) {
       logger.info(
         `[assetPreprocessing][${jobId}] Skipping image text extraction as it's already been extracted.`,
       );
@@ -767,6 +784,7 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
         metadata.contentType,
         bookmark,
         isFixMode,
+        force,
       );
       anythingChanged ||= extractedText;
       break;
@@ -795,6 +813,7 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
         asset,
         bookmark,
         req.abortSignal,
+        force,
       );
       anythingChanged ||= extractedScreenshot;
       break;
@@ -822,7 +841,13 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
     (bookmark.asset.assetType === "video" ||
       bookmark.asset.assetType === "audio") &&
     serverConfig.transcription.enabled;
-  if ((!isFixMode || anythingChanged) && !isTranscribedMedia) {
+  if (force && isTranscribedMedia) {
+    await TranscriptQueue.enqueue(
+      { bookmarkId, forceEnrichment: true },
+      enqueueOpts,
+    );
+  }
+  if ((!isFixMode || anythingChanged || force) && !isTranscribedMedia) {
     if (serverConfig.embedding.enableAutoIndexing) {
       await EmbeddingsQueue.enqueue(
         {
@@ -862,7 +887,7 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
     }
   }
 
-  if (!isFixMode || anythingChanged) {
+  if (!isFixMode || anythingChanged || force) {
     // Update the search index even when media enrichment is deferred to the
     // transcript worker or transcription later fails.
     await triggerSearchReindex(bookmarkId, enqueueOpts);

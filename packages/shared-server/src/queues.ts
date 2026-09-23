@@ -81,6 +81,7 @@ export async function startQueue() {
 export const zCrawlLinkRequestSchema = z.object({
   bookmarkId: z.string(),
   runInference: z.boolean().optional(),
+  forceTranscriptEnrichment: z.boolean().optional(),
   archiveFullPage: z.boolean().optional().default(false),
   storePdf: z.boolean().optional().default(false),
 });
@@ -110,8 +111,8 @@ export const LowPriorityCrawlerQueue = createDeferredQueue<ZCrawlLinkRequest>(
 
 // Builds a stable, payload-derived idempotency key for crawler queue jobs.
 // Keys sort before serialization so `{a, b}` and `{b, a}` produce the same
-// key, and differing flags (archiveFullPage, runInference, storePdf) yield
-// distinct keys so non-equivalent crawls are not deduped together.
+// key, and differing crawl flags yield distinct keys so non-equivalent jobs
+// are not deduped together.
 export function buildCrawlIdempotencyKey(payload: ZCrawlLinkRequest): string {
   return `crawl:${JSON.stringify(payload, Object.keys(payload).sort())}`;
 }
@@ -267,6 +268,7 @@ export const VideoWorkerQueue = createDeferredQueue<ZVideoRequest>(
 // media providers can share the same persistence and retry contract.
 export const zTranscriptRequestSchema = z.object({
   bookmarkId: z.string(),
+  forceEnrichment: z.boolean().optional(),
 });
 export type ZTranscriptRequest = z.infer<typeof zTranscriptRequestSchema>;
 

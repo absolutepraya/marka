@@ -199,6 +199,33 @@ export function useRecrawlBookmark(
   );
 }
 
+export function useRefreshBookmark(
+  opts?: Parameters<
+    TRPCApi["bookmarks"]["refreshBookmark"]["mutationOptions"]
+  >[0],
+) {
+  const api = useTRPC();
+  const queryClient = useQueryClient();
+  return useMutation(
+    api.bookmarks.refreshBookmark.mutationOptions({
+      ...opts,
+      onSuccess: (res, req, meta, context) => {
+        queryClient.invalidateQueries(api.bookmarks.getBookmarks.pathFilter());
+        queryClient.invalidateQueries(
+          api.bookmarks.searchBookmarks.pathFilter(),
+        );
+        queryClient.invalidateQueries(
+          api.bookmarks.getBookmark.queryFilter({ bookmarkId: req.bookmarkId }),
+        );
+        queryClient.invalidateQueries(
+          api.bookmarks.getProcessingStatus.pathFilter(),
+        );
+        return opts?.onSuccess?.(res, req, meta, context);
+      },
+    }),
+  );
+}
+
 export function useUpdateBookmarkTags(
   opts?: Parameters<TRPCApi["bookmarks"]["updateTags"]["mutationOptions"]>[0],
 ) {
