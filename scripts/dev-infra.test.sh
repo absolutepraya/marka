@@ -310,6 +310,7 @@ set -Eeuo pipefail
 [[ "$(command -v node)" == "${FAKE_NODE_ROOT:?}/bin/node" ]] || exit 2
 shift
 printf 'pnpm:%s|%s\n' "$*" "$PWD" >>"${LIFECYCLE_LOG:?}"
+printf 'pnpm-env:NO_COLOR=%s|%s\n' "${NO_COLOR:-<unset>}" "$PWD" >>"${LIFECYCLE_LOG:?}"
 EOF_COREPACK
 fake_node_root="$root/node24"
 mkdir -p "$fake_node_root/bin"
@@ -368,7 +369,17 @@ t3_registry="$root/t3-ports.tsv"
 t3_log="$root/t3-lifecycle.log"
 make_fake_project "$t3_project"
 make_fake_workspace "$t3_workspace"
-T3CODE_PROJECT_ROOT="$t3_project" \
+mkdir -p "$t3_workspace/scripts"
+cp "$DEV_WORKTREE" "$t3_workspace/scripts/dev-worktree.sh"
+cp "$SCRIPT_DIR/run-pnpm.sh" "$t3_workspace/scripts/run-pnpm.sh"
+cat >"$t3_project/scripts/dev-worktree.sh" <<'EOF_STALE_LIFECYCLE'
+#!/usr/bin/env bash
+echo "T3 setup used the project-root lifecycle script" >&2
+exit 99
+EOF_STALE_LIFECYCLE
+chmod +x "$t3_project/scripts/dev-worktree.sh"
+NO_COLOR=1 \
+  T3CODE_PROJECT_ROOT="$t3_project" \
   T3CODE_WORKTREE_PATH="$t3_workspace" \
   T3_PORT_REGISTRY_FILE="$t3_registry" \
   LIFECYCLE_LOG="$t3_log" \
@@ -377,6 +388,7 @@ assert_contains "$t3_log" "mise:where node@24|$t3_workspace"
 assert_contains "$t3_log" "pnpm:install --frozen-lockfile|$t3_workspace"
 assert_contains "$t3_log" "state:prod|$t3_project|$t3_workspace|1000"
 assert_contains "$t3_log" "pnpm:dev:start -d|$t3_workspace"
+assert_contains "$t3_log" "pnpm-env:NO_COLOR=false|$t3_workspace"
 assert_contains "$t3_registry" "4000$(printf '\t')$t3_workspace"
 
 # T3 actions select the thread worktree even when the action terminal starts

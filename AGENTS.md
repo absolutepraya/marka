@@ -22,8 +22,9 @@
 - This repository supports [`wt`](https://github.com/absolutepraya/wt) for worktree creation and lifecycle. Use `wt new <name>` and `wt ls`; `.wt/config.toml` owns the setup, slot, and port-offset rules.
 - T3 Code can import the root `t3.json`; import its project actions in T3 settings.
   T3 and WT use `scripts/dev-worktree.sh` for shared dependency, environment,
-  production-state, and dev-server setup. `.wt/config.toml` still owns WT-specific
-  paths, slots, branches, and teardown timing.
+  production-state, and dev-server setup. T3 runs the target worktree's copy;
+  `.wt/config.toml` still owns WT-specific paths, slots, branches, and teardown
+  timing.
 - `pnpm dev:start` defaults the main workspace namespace to `main_`. An unset `MEILI_INDEX_PREFIX` is a compatibility fallback for the original `bookmarks` and `bookmarks_vectors` names; manual `web` or `workers` starts outside `pnpm dev:start` must set an explicit unique prefix.
 - Run focused checks before broad checks when practical. Standard checks are `pnpm format:fix`, `pnpm lint`, `pnpm typecheck`, and `pnpm test`.
 - Validate shared-dev shell behavior with `bash scripts/dev-infra.test.sh`.

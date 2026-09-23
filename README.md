@@ -109,9 +109,9 @@ wt ls
 
 The project configuration in [`.wt/config.toml`](.wt/config.toml) prepares isolated
 dependencies, data, ports, and Meilisearch namespaces for each worktree. WT and T3
-delegate their shared setup and dev-server commands to
-[`scripts/dev-worktree.sh`](scripts/dev-worktree.sh), while each tool keeps its own
-worktree allocation rules.
+share lifecycle logic in [`scripts/dev-worktree.sh`](scripts/dev-worktree.sh). WT
+runs the project-root copy, while T3 runs the target worktree's copy so setup
+tracks that worktree's checkout. Each tool keeps its own allocation rules.
 
 T3 Code can import the project actions in [`t3.json`](t3.json) through Project
 settings. Its automatic `Setup worktree` action imports production state, prepares
