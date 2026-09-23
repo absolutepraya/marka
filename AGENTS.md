@@ -20,7 +20,10 @@
 - Shared local infrastructure is machine-level: one Meilisearch at `http://127.0.0.1:7700` and one Chrome/CDP at `http://127.0.0.1:9250` by default. Override the Chrome host port with `MARKA_DEV_CHROME_PORT`.
 - Parallel worktrees keep separate SQLite/assets data and unique web ports. `scripts/setup-worktree.sh` assigns each worktree a unique `MEILI_INDEX_PREFIX`; both `bookmarks` and `bookmarks_vectors` use that namespace on the shared Meilisearch server.
 - This repository supports [`wt`](https://github.com/absolutepraya/wt) for worktree creation and lifecycle. Use `wt new <name>` and `wt ls`; `.wt/config.toml` owns the setup, slot, and port-offset rules.
-- T3 Code can import the root `t3.json`; its automatic setup pulls production state and starts the detached dev server for each new T3 worktree.
+- T3 Code can import the root `t3.json`; import its project actions in T3 settings.
+  T3 and WT use `scripts/dev-worktree.sh` for shared dependency, environment,
+  production-state, and dev-server setup. `.wt/config.toml` still owns WT-specific
+  paths, slots, branches, and teardown timing.
 - `pnpm dev:start` defaults the main workspace namespace to `main_`. An unset `MEILI_INDEX_PREFIX` is a compatibility fallback for the original `bookmarks` and `bookmarks_vectors` names; manual `web` or `workers` starts outside `pnpm dev:start` must set an explicit unique prefix.
 - Run focused checks before broad checks when practical. Standard checks are `pnpm format:fix`, `pnpm lint`, `pnpm typecheck`, and `pnpm test`.
 - Validate shared-dev shell behavior with `bash scripts/dev-infra.test.sh`.

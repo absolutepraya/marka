@@ -130,17 +130,9 @@ export WT_ROOT_PATH="$T3CODE_PROJECT_ROOT"
 export WT_WORKSPACE_PATH="$T3CODE_WORKTREE_PATH"
 export WT_WORKSPACE_NAME="$worktree_name"
 
-bash "$T3CODE_PROJECT_ROOT/scripts/run-pnpm.sh" install --frozen-lockfile
-
 t3_port="$(allocate_t3_port)"
 export WT_PORT_BASE=$((t3_port - 3000))
 
-# The setup helper runs migrations during the production-state pull, so create
-# the package environment links before invoking it. The root .env is written by
-# setup-worktree.sh and the links resolve once that file exists.
-ln -sfn ../../.env apps/web/.env
-ln -sfn ../../.env apps/workers/.env
-ln -sfn ../../.env packages/db/.env
-
-WT_DATA_SOURCE=prod bash "$T3CODE_PROJECT_ROOT/scripts/setup-worktree.sh"
-NO_COLOR=false bash "$T3CODE_PROJECT_ROOT/scripts/run-pnpm.sh" dev:start -d
+# Keep dependency, environment, production-state, and dev-server setup aligned
+# with WT through the shared repository lifecycle script.
+bash "$T3CODE_PROJECT_ROOT/scripts/dev-worktree.sh" setup
