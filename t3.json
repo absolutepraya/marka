@@ -11,12 +11,12 @@
     },
     {
       "name": "Start dev",
-      "command": "pnpm dev:start -d",
+      "command": "bash scripts/dev-worktree.sh start",
       "icon": "play"
     },
     {
       "name": "Stop dev",
-      "command": "pnpm dev:stop",
+      "command": "bash scripts/dev-worktree.sh stop",
       "icon": "debug"
     }
   ]

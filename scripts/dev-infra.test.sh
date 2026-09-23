@@ -5,6 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INFRA="$SCRIPT_DIR/dev-infra.sh"
 SETUP_WORKTREE="$SCRIPT_DIR/setup-worktree.sh"
+DEV_WORKTREE="$SCRIPT_DIR/dev-worktree.sh"
+WT_CONFIG="$REPO_ROOT/.wt/config.toml"
+T3_JSON="$REPO_ROOT/t3.json"
 START_DEV="$REPO_ROOT/start-dev.sh"
 STOP_DEV="$REPO_ROOT/stop-dev.sh"
 PACKAGE_JSON="$REPO_ROOT/package.json"
@@ -31,6 +34,12 @@ assert_not_contains() {
   else
     ! grep -Fq -- "$unexpected" <<<"$file_or_text" || fail "Did not expect '$unexpected' in output"
   fi
+}
+
+assert_symlink_target() {
+  local link="$1" expected="$2"
+  [[ -L "$link" ]] || fail "Expected a symlink at $link"
+  [[ "$(readlink "$link")" == "$expected" ]] || fail "Expected $link to target $expected"
 }
 
 root="$(mktemp -d)"
@@ -139,9 +148,14 @@ export FAKE_DOCKER_LOG="$root/docker.log"
 : >"$FAKE_DOCKER_LOG"
 
 [[ -f "$INFRA" ]] || fail "Missing scripts/dev-infra.sh"
-for script in "$INFRA" "$SETUP_WORKTREE" "$START_DEV" "$STOP_DEV"; do
+for script in "$INFRA" "$SETUP_WORKTREE" "$DEV_WORKTREE" "$START_DEV" "$STOP_DEV"; do
   bash -n "$script"
 done
+assert_contains "$WT_CONFIG" 'scripts/dev-worktree.sh\" setup'
+assert_contains "$WT_CONFIG" 'scripts/dev-worktree.sh\" stop'
+assert_contains "$T3_JSON" 'bash scripts/dev-worktree.sh start'
+assert_contains "$T3_JSON" 'bash scripts/dev-worktree.sh stop'
+assert_contains "$SCRIPT_DIR/setup-t3-worktree.sh" 'scripts/dev-worktree.sh" setup'
 
 # Invalid Chrome ports are rejected before Docker startup.
 for invalid_port in 0 65536 abc; do
@@ -276,6 +290,77 @@ assert_contains "$PACKAGE_JSON" '"dev:infra:up": "bash scripts/dev-infra.sh up"'
 assert_contains "$PACKAGE_JSON" '"dev:infra:status": "bash scripts/dev-infra.sh status"'
 assert_contains "$PACKAGE_JSON" '"dev:infra:down": "bash scripts/dev-infra.sh down"'
 
+# WT and T3 delegate dependency, environment, production-state, and server
+# setup to the same repository-owned lifecycle script.
+cat >"$fake_bin/mise" <<'EOF_MISE'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf 'mise:%s|%s\n' "$*" "$PWD" >>"${LIFECYCLE_LOG:?}"
+EOF_MISE
+cat >"$fake_bin/pnpm" <<'EOF_PNPM'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf 'pnpm:%s|%s\n' "$*" "$PWD" >>"${LIFECYCLE_LOG:?}"
+EOF_PNPM
+chmod +x "$fake_bin/mise" "$fake_bin/pnpm"
+
+make_fake_project() {
+  local project_root="$1"
+  mkdir -p "$project_root/scripts"
+  cat >"$project_root/scripts/setup-worktree.sh" <<'EOF_SETUP'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf 'state:%s|%s|%s|%s\n' "$WT_DATA_SOURCE" "$WT_ROOT_PATH" "$WT_WORKSPACE_PATH" "$WT_PORT_BASE" >>"${LIFECYCLE_LOG:?}"
+EOF_SETUP
+  cp "$DEV_WORKTREE" "$project_root/scripts/dev-worktree.sh"
+}
+
+make_fake_workspace() {
+  mkdir -p "$1/apps/web" "$1/apps/workers" "$1/packages/db"
+}
+
+wt_project="$root/wt-project"
+wt_workspace="$root/wt-worktree"
+wt_log="$root/wt-lifecycle.log"
+make_fake_project "$wt_project"
+make_fake_workspace "$wt_workspace"
+WT_ROOT_PATH="$wt_project" \
+  WT_WORKSPACE_PATH="$wt_workspace" \
+  WT_WORKSPACE_NAME='wt-fixture' \
+  WT_PORT_BASE=500 \
+  LIFECYCLE_LOG="$wt_log" \
+  bash "$DEV_WORKTREE" setup
+assert_contains "$wt_log" "mise:exec node@24 -- corepack pnpm install --frozen-lockfile|$wt_workspace"
+assert_contains "$wt_log" "state:prod|$wt_project|$wt_workspace|500"
+assert_contains "$wt_log" "pnpm:dev:start -d|$wt_workspace"
+assert_symlink_target "$wt_workspace/apps/web/.env" "../../.env"
+assert_symlink_target "$wt_workspace/apps/workers/.env" "../../.env"
+assert_symlink_target "$wt_workspace/packages/db/.env" "../../.env"
+
+t3_project="$root/t3-project"
+t3_workspace="$root/t3-worktree"
+t3_registry="$root/t3-ports.tsv"
+t3_log="$root/t3-lifecycle.log"
+make_fake_project "$t3_project"
+make_fake_workspace "$t3_workspace"
+T3CODE_PROJECT_ROOT="$t3_project" \
+  T3CODE_WORKTREE_PATH="$t3_workspace" \
+  T3_PORT_REGISTRY_FILE="$t3_registry" \
+  LIFECYCLE_LOG="$t3_log" \
+  bash "$SCRIPT_DIR/setup-t3-worktree.sh"
+assert_contains "$t3_log" "mise:exec node@24 -- corepack pnpm install --frozen-lockfile|$t3_workspace"
+assert_contains "$t3_log" "state:prod|$t3_project|$t3_workspace|1000"
+assert_contains "$t3_log" "pnpm:dev:start -d|$t3_workspace"
+assert_contains "$t3_registry" "4000$(printf '\t')$t3_workspace"
+
+# T3 actions select the thread worktree even when the action terminal starts
+# at the project root.
+action_log="$root/t3-actions.log"
+T3CODE_WORKTREE_PATH="$t3_workspace" LIFECYCLE_LOG="$action_log" bash "$DEV_WORKTREE" start
+T3CODE_WORKTREE_PATH="$t3_workspace" LIFECYCLE_LOG="$action_log" bash "$DEV_WORKTREE" stop
+assert_contains "$action_log" "pnpm:dev:start -d|$t3_workspace"
+assert_contains "$action_log" "pnpm:dev:stop|$t3_workspace"
+
 # Explicit down owns only the shared infra containers.
 : >"$FAKE_DOCKER_LOG"
 printf 'true\n' >"$state_dir/marka-dev-meilisearch"
@@ -284,4 +369,4 @@ bash "$INFRA" down >/dev/null
 assert_contains "$FAKE_DOCKER_LOG" "rm -f marka-dev-meilisearch"
 assert_contains "$FAKE_DOCKER_LOG" "rm -f marka-dev-chrome"
 
-printf 'Shared dev infrastructure tests passed.\n'
+printf 'Shared dev infrastructure and worktree lifecycle tests passed.\n'

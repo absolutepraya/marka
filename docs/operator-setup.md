@@ -105,9 +105,23 @@ Do not share a worktree's `.data/local` directory with another worktree. SQLite 
 
 ### T3 Code worktrees
 
-T3 Code can import the project actions from the root [`t3.json`](../t3.json). The `Setup worktree` action runs automatically for new T3 worktrees. It installs dependencies, creates the package `.env` links, pulls the full production state into the worktree, runs migrations, and starts `pnpm dev:start -d`.
+Import the project actions from the root [`t3.json`](../t3.json) in T3 Project
+settings. The `Setup worktree` action runs automatically for new T3 worktrees
+after import. Its adapter reserves a T3-specific port, then calls
+[`scripts/dev-worktree.sh`](../scripts/dev-worktree.sh), which is also used by WT.
+The shared script installs dependencies, creates the package `.env` links, pulls
+the full production state into the worktree, runs migrations, and starts
+`pnpm dev:start -d`.
 
-The T3 setup assigns web ports in the `4000` to `4999` range, keeping them separate from the main workspace and WT slots. Assignments are kept in the ignored `.dev/t3-ports.tsv` registry and reserved under a filesystem lock, so concurrent worktree creation cannot choose the same port. Set `T3_PORT_REGISTRY_FILE` only when a different local registry location is needed. Existing T3 worktrees need the setup action run once manually because the automatic hook only runs during creation.
+The T3 setup assigns web ports in the `4000` to `4999` range, keeping them
+separate from the main workspace and WT slots. Assignments are kept in the
+ignored `.dev/t3-ports.tsv` registry and reserved under a filesystem lock, so
+concurrent worktree creation cannot choose the same port. Set
+`T3_PORT_REGISTRY_FILE` only when a different local registry location is needed.
+Existing T3 worktrees need the setup action run once manually because the
+automatic hook only runs during creation. The T3 `Start dev` and `Stop dev`
+actions call the same script; T3 currently exposes Stop as a manual action, while
+WT invokes it during `wt rm`.
 
 ### Direct/manual start
 
