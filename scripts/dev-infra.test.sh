@@ -307,6 +307,7 @@ cat >"$fake_bin/corepack" <<'EOF_COREPACK'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 [[ "${1:-}" == pnpm ]] || exit 2
+[[ "$(command -v node)" == "${FAKE_NODE_ROOT:?}/bin/node" ]] || exit 2
 shift
 printf 'pnpm:%s|%s\n' "$*" "$PWD" >>"${LIFECYCLE_LOG:?}"
 EOF_COREPACK
