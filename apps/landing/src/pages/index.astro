@@ -1,53 +1,75 @@
 ---
-import Hero from "../components/Hero.astro";
-import Homepage from "../Homepage";
 import Layout from "../layouts/Layout.astro";
+import MarkaHero from "../components/MarkaHero.astro";
+import ProductCanvas from "../components/ProductCanvas.astro";
+import OwnershipClose from "../components/OwnershipClose.astro";
+import { SourceLibraryAnimation } from "../components/SourceLibraryAnimation";
+import { DemoGallery } from "../components/DemoGallery";
+import { MobileLibraryDemo } from "../components/MobileLibraryDemo";
+import { landing } from "../content/landing";
 ---
 
-<Layout path="/">
-  <Fragment slot="head">
-    <script is:inline type="application/ld+json" set:html={JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Karakeep",
-      "url": "https://karakeep.app",
-      "description": "Karakeep is the open-source bookmark manager for links, notes, and images. Automatically organize and tag your bookmarks with AI.",
-      "applicationCategory": "Productivity",
-      "operatingSystem": "Web, iOS, Android",
-      "offers": [
-        {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD",
-          "description": "Free plan with 10 bookmarks and 20MB storage"
-        },
-        {
-          "@type": "Offer",
-          "price": "4",
-          "priceCurrency": "USD",
-          "billingIncrement": "P1M",
-          "description": "Pro plan with 50,000 bookmarks, 50GB storage, and AI-powered tagging"
-        }
-      ],
-      "featureList": [
-        "AI-powered bookmark tagging",
-        "Full text search",
-        "Collaborative lists",
-        "RSS feed integration",
-        "Browser extensions",
-        "Self-hosting support",
-        "REST API and webhooks",
-        "Dark mode"
-      ],
-      "screenshot": "https://karakeep.app/hero.webp",
-      "softwareVersion": "latest",
-      "author": {
-        "@type": "Organization",
-        "name": "Localhost Labs Ltd",
-        "url": "https://localhostlabs.co.uk"
-      }
-    })} />
-  </Fragment>
-  <Hero />
-  <Homepage />
+<Layout>
+  <main>
+    <MarkaHero />
+    <ProductCanvas />
+
+    <section
+      class="source-library section-shell"
+      id="library"
+      data-page-section="source-library"
+      aria-labelledby="source-library-title"
+    >
+      <div class="section-heading">
+        <p class="eyebrow">{landing.sourceLibrary.eyebrow}</p>
+        <h2 id="source-library-title">{landing.sourceLibrary.title}</h2>
+        <p class="section-heading__description">
+          {landing.sourceLibrary.description}
+        </p>
+      </div>
+      <SourceLibraryAnimation
+        cards={landing.sourceCards}
+        label={landing.sourceLibrary.regionLabel}
+        client:visible
+      />
+      <p class="section-note">{landing.sourceLibrary.note}</p>
+    </section>
+
+    <section
+      class="desktop-demos section-shell"
+      id="demos"
+      data-page-section="desktop-demos"
+      aria-labelledby="demos-title"
+    >
+      <div class="section-heading">
+        <p class="eyebrow">{landing.demos.eyebrow}</p>
+        <h2 id="demos-title">{landing.demos.title}</h2>
+      </div>
+      <DemoGallery
+        demos={landing.demos.desktop}
+        pendingLabel={landing.demos.pendingLabel}
+        placeholderAltPrefix={landing.demos.placeholderAltPrefix}
+        client:visible
+      />
+    </section>
+
+    <section
+      class="mobile-library section-shell"
+      data-page-section="mobile-library"
+      aria-labelledby="mobile-library-title"
+    >
+      <div class="mobile-library__copy">
+          <h2 id="mobile-library-title">{landing.demos.mobile.title}</h2>
+          <p>{landing.demos.mobile.description}</p>
+          {
+            landing.demos.mobile.status === "pending" && (
+              <p class="demo-card__status">{landing.demos.pendingLabel}</p>
+            )
+          }
+      </div>
+      <MobileLibraryDemo demo={landing.demos.mobile} client:visible />
+    </section>
+
+    <OwnershipClose />
+  </main>
 </Layout>
