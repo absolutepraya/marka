@@ -9,11 +9,13 @@
     "dev:portless": "portless run --name karakeep-landing --lan astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "test": "vitest run",
     "lint": "oxlint --ignore-path=../../.gitignore .",
     "lint:fix": "oxlint --ignore-path=../../.gitignore . --fix",
     "format": "oxfmt --ignore-path=../../.gitignore --check .",
     "format:fix": "oxfmt --ignore-path=../../.gitignore .",
-    "typecheck": "astro check && tsc --noEmit"
+    "typecheck": "astro check && tsc --noEmit",
+    "verify": "node scripts/verify-public-site.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
@@ -33,12 +35,17 @@
     "@karakeep/tailwind-config": "workspace:^0.1.0",
     "@karakeep/tsconfig": "workspace:^0.1.0",
     "@tailwindcss/typography": "^0.5.10",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.7",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "autoprefixer": "^10.4.17",
+    "jsdom": "^24.0.0",
     "portless": "^0.10.3",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
-    "vite-plugin-svgr": "^4.3.0"
+    "vite-plugin-svgr": "^4.3.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^3.2.4"
   }
 }
