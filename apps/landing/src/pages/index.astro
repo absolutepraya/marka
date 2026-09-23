@@ -4,6 +4,7 @@ import MarkaHero from "../components/MarkaHero.astro";
 import ProductCanvas from "../components/ProductCanvas.astro";
 import OwnershipClose from "../components/OwnershipClose.astro";
 import { SourceLibraryAnimation } from "../components/SourceLibraryAnimation";
+import { DemoGallery } from "../components/DemoGallery";
 import { landing } from "../content/landing";
 ---
 
@@ -43,27 +44,12 @@ import { landing } from "../content/landing";
         <p class="eyebrow">{landing.demos.eyebrow}</p>
         <h2 id="demos-title">{landing.demos.title}</h2>
       </div>
-      <div class="demo-grid">
-        {landing.demos.desktop.map((demo) => (
-          <article class="demo-card" data-demo-card={demo.id}>
-            <img
-              class="demo-card__poster"
-              src={demo.poster}
-              alt={`${landing.demos.placeholderAltPrefix} ${demo.title}`}
-              width="1120"
-              height="720"
-              loading="lazy"
-              decoding="async"
-            />
-            <div class="demo-card__copy">
-              <p class="demo-card__status">{landing.demos.pendingLabel}</p>
-              <h3>{demo.title}</h3>
-              <p>{demo.description}</p>
-              <p>{demo.caption}</p>
-            </div>
-          </article>
-        ))}
-      </div>
+      <DemoGallery
+        demos={landing.demos.desktop}
+        pendingLabel={landing.demos.pendingLabel}
+        placeholderAltPrefix={landing.demos.placeholderAltPrefix}
+        client:visible
+      />
     </section>
 
     <section

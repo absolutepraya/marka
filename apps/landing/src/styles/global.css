@@ -404,6 +404,61 @@ a {
   object-fit: cover;
 }
 
+.demo-player {
+  position: relative;
+  overflow: hidden;
+  background: #111c2b;
+}
+
+.demo-player__video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 14 / 9;
+  background: #111c2b;
+  object-fit: cover;
+}
+
+.demo-player__toggle {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgb(255 255 255 / 68%);
+  border-radius: 999px;
+  padding: 10px 16px;
+  color: #fffefa;
+  background: rgb(19 29 43 / 88%);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  backdrop-filter: blur(12px);
+}
+
+.demo-player__toggle:hover {
+  background: #24364b;
+}
+
+.demo-player__toggle:focus-visible {
+  outline-color: #fffefa;
+}
+
+.demo-player__error {
+  position: absolute;
+  right: 14px;
+  bottom: 72px;
+  left: 14px;
+  margin: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #fffefa;
+  background: rgb(19 29 43 / 88%);
+  font-size: 0.85rem;
+}
+
 .demo-card__copy {
   padding: 22px 22px 24px;
 }
