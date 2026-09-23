@@ -3,6 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import MarkaHero from "../components/MarkaHero.astro";
 import ProductCanvas from "../components/ProductCanvas.astro";
 import OwnershipClose from "../components/OwnershipClose.astro";
+import { SourceLibraryAnimation } from "../components/SourceLibraryAnimation";
 import { landing } from "../content/landing";
 ---
 
@@ -24,25 +25,11 @@ import { landing } from "../content/landing";
           {landing.sourceLibrary.description}
         </p>
       </div>
-      <div class="source-library__grid">
-        {landing.sourceCards.map((card) => (
-          <article class="source-card" data-source-card={card.id}>
-            <img
-              src={card.image}
-              alt={card.alt}
-              width="1120"
-              height="720"
-              loading="lazy"
-              decoding="async"
-            />
-            <div class="source-card__copy">
-              <p class="source-card__source">{card.sourceLabel}</p>
-              <h3>{card.title}</h3>
-              <p>{card.description}</p>
-            </div>
-          </article>
-        ))}
-      </div>
+      <SourceLibraryAnimation
+        cards={landing.sourceCards}
+        label={landing.sourceLibrary.regionLabel}
+        client:visible
+      />
       <p class="section-note">{landing.sourceLibrary.note}</p>
     </section>
 
