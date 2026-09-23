@@ -54,10 +54,37 @@ export function isBookmarkStillLoading(bookmark: ZBookmark) {
   return isBookmarkStillCrawling(bookmark);
 }
 
+function isAssetEnrichmentPending(bookmark: ZBookmark) {
+  return (
+    bookmark.content.type === BookmarkTypes.ASSET &&
+    (bookmark.taggingStatus === "pending" ||
+      bookmark.summarizationStatus === "pending")
+  );
+}
+
 export function getBookmarkRefreshInterval(
   bookmark: ZBookmark,
 ): number | false {
-  if (!isBookmarkStillLoading(bookmark)) {
+  const assetEnrichmentPending = isAssetEnrichmentPending(bookmark);
+  if (!isBookmarkStillLoading(bookmark) && !assetEnrichmentPending) {
+    return false;
+  }
+
+  if (assetEnrichmentPending) {
+    // Asset refreshes update modifiedAt immediately before queueing work. Use
+    // it as the bounded polling anchor so old PDFs still refresh promptly.
+    const refreshStartedAt = bookmark.modifiedAt ?? bookmark.createdAt;
+    const elapsed = Date.now().valueOf() - refreshStartedAt.valueOf();
+
+    if (elapsed < 30 * 1000) {
+      return 1000;
+    }
+    if (elapsed < 10 * 60 * 1000) {
+      return 10_000;
+    }
+    if (elapsed < 6 * 60 * 60 * 1000) {
+      return 60_000;
+    }
     return false;
   }
 

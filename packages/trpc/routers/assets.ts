@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { bookmarkAssets } from "@karakeep/db/schema";
+import { bookmarkAssets, bookmarks } from "@karakeep/db/schema";
 import {
   AssetPreprocessingQueue,
   QueuePriority,
@@ -99,17 +99,46 @@ export const assetsAppRouter = router({
         });
       }
 
-      await AssetPreprocessingQueue.enqueue(
-        {
-          bookmarkId: input.bookmarkId,
-          fixMode: true,
-          force: true,
+      const previousState = await ctx.db.query.bookmarks.findFirst({
+        where: eq(bookmarks.id, input.bookmarkId),
+        columns: {
+          taggingStatus: true,
+          summarizationStatus: true,
+          modifiedAt: true,
         },
-        {
-          priority: QueuePriority.Low,
-          groupId: ctx.user.id,
-        },
-      );
+      });
+      const refreshStartedAt = new Date();
+
+      await ctx.db
+        .update(bookmarks)
+        .set({
+          taggingStatus: "pending",
+          summarizationStatus: "pending",
+          modifiedAt: refreshStartedAt,
+        })
+        .where(eq(bookmarks.id, input.bookmarkId));
+
+      try {
+        await AssetPreprocessingQueue.enqueue(
+          {
+            bookmarkId: input.bookmarkId,
+            fixMode: true,
+            force: true,
+          },
+          {
+            priority: QueuePriority.Low,
+            groupId: ctx.user.id,
+          },
+        );
+      } catch (error) {
+        if (previousState) {
+          await ctx.db
+            .update(bookmarks)
+            .set(previousState)
+            .where(eq(bookmarks.id, input.bookmarkId));
+        }
+        throw error;
+      }
     }),
   detachAsset: assetsProcedure
     .input(
