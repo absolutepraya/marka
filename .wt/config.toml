@@ -5,16 +5,10 @@ name_strategy = "cities"
 branch_template = "{user}/{name}"
 default_base = "origin/main"
 
-# Setup prepares isolated dependencies, imports production state, and starts
-# this worktree's detached development server.
+# WT and T3 share the repository-owned development worktree lifecycle.
 setup = [
-  "mise exec node@24 -- corepack pnpm install --frozen-lockfile",
-  "ln -sfn ../../.env apps/web/.env",
-  "ln -sfn ../../.env apps/workers/.env",
-  "ln -sfn ../../.env packages/db/.env",
-  "WT_DATA_SOURCE=prod bash \"$WT_ROOT_PATH/scripts/setup-worktree.sh\"",
-  "pnpm dev:start -d",
+  "bash \"$WT_ROOT_PATH/scripts/dev-worktree.sh\" setup",
 ]
 teardown = [
-  "pnpm dev:stop",
+  "bash \"$WT_ROOT_PATH/scripts/dev-worktree.sh\" stop",
 ]

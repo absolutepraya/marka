@@ -107,11 +107,15 @@ wt new ui-polish
 wt ls
 ```
 
-The project configuration in [`.wt/config.toml`](.wt/config.toml) prepares isolated dependencies, data, ports, and Meilisearch namespaces for each worktree.
+The project configuration in [`.wt/config.toml`](.wt/config.toml) prepares isolated
+dependencies, data, ports, and Meilisearch namespaces for each worktree. WT and T3
+delegate their shared setup and dev-server commands to
+[`scripts/dev-worktree.sh`](scripts/dev-worktree.sh), while each tool keeps its own
+worktree allocation rules.
 
-T3 Code can import the project actions in [`t3.json`](t3.json). Its automatic
-`Setup worktree` action imports production state, prepares the isolated
-environment, and starts the detached development server.
+T3 Code can import the project actions in [`t3.json`](t3.json) through Project
+settings. Its automatic `Setup worktree` action imports production state, prepares
+the isolated environment, and starts the detached development server.
 
 ### Pull production state into local development
 
