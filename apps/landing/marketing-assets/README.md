@@ -46,3 +46,9 @@ The repository does not contain an approved full-resolution Marka product screen
 | `/public/marketing/demos/mobile-library.mp4` | Show the mixed library in Marka's mobile PWA view. | Owner recording from a reviewed library; ownership remains with the recording owner. | Same frame-by-frame, metadata, audio, and redaction review as above. Export silent and muted. | 8 to 15 seconds; `MobileLibraryDemo` |
 
 Replace each placeholder poster with a reviewed frame or owner-approved derivative from its final recording. The desktop clips and mobile loop should total 45 to 75 seconds. Until then, playback remains unavailable and the illustrations must be labeled as placeholders.
+
+## Public output verification
+
+Run `pnpm --filter @karakeep/landing build` followed by `pnpm --filter @karakeep/landing verify` for local verification. Without `MARKA_LANDING_SITE_ORIGIN`, the build uses `http://localhost:4321/`, marks itself `noindex`, and the verifier allows the documented pending screenshot and recordings.
+
+A release build must provide the approved public origin explicitly and set `MARKA_LANDING_RELEASE=1` for both build and verification. Release verification requires HTTPS, the reviewed desktop product capture, all four reviewed silent videos, their local posters, and a matching canonical URL, social metadata, robots file, and sitemap. It fails while any capture is still pending.

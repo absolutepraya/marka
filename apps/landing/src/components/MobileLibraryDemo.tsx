@@ -71,6 +71,8 @@ export function MobileLibraryDemo({ demo }: MobileLibraryDemoProps) {
   return (
     <div
       className={`mobile-library__visual ${canPlay ? "mobile-library__visual--video" : "mobile-library__visual--poster"}`}
+      data-mobile-demo={demo.id}
+      data-mobile-demo-status={demo.status}
     >
       {canPlay ? (
         <video

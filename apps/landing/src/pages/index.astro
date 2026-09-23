@@ -59,9 +59,13 @@ import { landing } from "../content/landing";
       aria-labelledby="mobile-library-title"
     >
       <div class="mobile-library__copy">
-        <h2 id="mobile-library-title">{landing.demos.mobile.title}</h2>
-        <p>{landing.demos.mobile.description}</p>
-        <p class="demo-card__status">{landing.demos.pendingLabel}</p>
+          <h2 id="mobile-library-title">{landing.demos.mobile.title}</h2>
+          <p>{landing.demos.mobile.description}</p>
+          {
+            landing.demos.mobile.status === "pending" && (
+              <p class="demo-card__status">{landing.demos.pendingLabel}</p>
+            )
+          }
       </div>
       <MobileLibraryDemo demo={landing.demos.mobile} client:visible />
     </section>
