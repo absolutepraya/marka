@@ -3,8 +3,8 @@
 </div>
 
 <p align="center">
-  <strong>A private library for everything worth keeping.</strong><br />
-  Save links, notes, images, PDFs, and web pages, then find them again when they matter.
+  <strong>Everything you want to come back to.</strong><br />
+  Your self-hosted personal library for the links, watchlists, wishlists, notes, and files worth remembering.
 </p>
 
 <p align="center">
@@ -15,17 +15,38 @@
   <a href="./package.json"><img src="https://img.shields.io/badge/pnpm-11.2.1-F69220?logo=pnpm&logoColor=white" alt="pnpm 11.2.1" /></a>
 </p>
 
-Marka is a self-hostable bookmark library built for people who want their saved knowledge close, searchable, and under their control.
+Marka is a self-hosted personal library for everything you want to remember or revisit, not just browser bookmarks. Keep the things that would otherwise be scattered across apps, tabs, and devices in one visual library you control.
 
-## What you can do
+<p align="center">
+  <img src="./screenshots/marka-library-overview.png" alt="Marka library showing visual cards for saved social posts, data visualizations, articles, products, movies, and UI references." />
+</p>
 
-- Save links, notes, images, PDFs, and web pages in one place
-- Fetch titles, descriptions, previews, screenshots, and archived content automatically
-- Organize everything with lists, tags, rules, and collaborative sharing
-- Search across your saved content with full-text search
-- Add highlights while reading and find them again later
-- Use optional AI tagging and summarization, including local-model setups
-- Capture content through browser extensions, RSS, CLI, API, and MCP tooling
+## One place for the things you save everywhere
+
+Maybe it is a movie you want to watch, a product you might buy, a TikTok place or hotel, an Instagram career tip, an engineering article, a UI reference, or course material you will need again. Marka brings those saved things together so they do not become a pile of forgotten links.
+
+### Save it
+
+Save links, notes, images, PDFs, and web pages in one library. Bring material in through the browser extension, RSS, CLI, API, and MCP tooling.
+
+### Keep the context
+
+Marka can retain titles, descriptions, previews, screenshots, archived content, tags, highlights, and readable page content. Later, you can recognize why something mattered without reopening every source.
+
+### Rediscover it
+
+Browse visual cards, organize with lists, tags, rules, and sharing, then search across your saved material when you need it. Optional AI tagging and summaries can help you get the point before reading the whole thing again.
+
+### Keep it yours
+
+Run Marka on your own infrastructure and use the library through the web app and PWA. Your saved material stays in the setup you control.
+
+## Start here
+
+- [Open Marka](https://marka.abhipraya.dev/)
+- [Self-host Marka](#self-host-marka)
+- [Read the documentation](docs/README.md)
+- [Contribute to Marka](CONTRIBUTING.md)
 
 ## Self-host Marka
 
