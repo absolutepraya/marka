@@ -2309,22 +2309,34 @@ async function runCrawler(
       groupId: userId,
     };
 
+    const isYouTubeBookmark = getYouTubeVideoId(url) !== null;
+    const transcriptRefresh =
+      isYouTubeBookmark &&
+      job.data.forceTranscriptEnrichment === true &&
+      isTranscriptWorkerConfigured();
     if (job.data.runInference !== false) {
-      if (serverConfig.embedding.enableAutoIndexing) {
-        await EmbeddingsQueue.enqueue(
+      if (!transcriptRefresh) {
+        if (serverConfig.embedding.enableAutoIndexing) {
+          await EmbeddingsQueue.enqueue(
+            {
+              bookmarkId,
+              type: "embed",
+              runTaggingOnComplete: true,
+            },
+            enqueueOpts,
+          );
+        } else {
+          await OpenAIQueue.enqueue({ bookmarkId, type: "tag" }, enqueueOpts);
+        }
+      }
+      if (isYouTubeBookmark) {
+        await TranscriptQueue.enqueue(
           {
             bookmarkId,
-            type: "embed",
-            runTaggingOnComplete: true,
+            forceEnrichment: job.data.forceTranscriptEnrichment,
           },
           enqueueOpts,
         );
-      } else {
-        await OpenAIQueue.enqueue({ bookmarkId, type: "tag" }, enqueueOpts);
-      }
-      const isYouTubeBookmark = getYouTubeVideoId(url) !== null;
-      if (isYouTubeBookmark) {
-        await TranscriptQueue.enqueue({ bookmarkId }, enqueueOpts);
         if (
           !serverConfig.inference.enableAutoSummarization ||
           !isTranscriptWorkerConfigured()

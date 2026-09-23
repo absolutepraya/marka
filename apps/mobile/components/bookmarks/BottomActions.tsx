@@ -19,6 +19,7 @@ import {
   Ellipsis,
   Globe,
   Info,
+  RefreshCw,
   ShareIcon,
   Star,
   Tag,
@@ -27,6 +28,7 @@ import {
 
 import {
   useDeleteBookmark,
+  useRefreshBookmark,
   useUpdateBookmark,
 } from "@karakeep/shared-react/hooks/bookmarks";
 import { useWhoAmI } from "@karakeep/shared-react/hooks/users";
@@ -63,6 +65,12 @@ export const TOOLBAR_ACTION_REGISTRY: Record<
     render: () => "Info",
     Icon: Info,
     sfSymbol: "info.circle",
+  },
+  refresh: {
+    label: "Refresh",
+    render: () => "Refresh",
+    Icon: RefreshCw,
+    sfSymbol: "arrow.clockwise",
   },
   favourite: {
     label: "Favourite",
@@ -111,6 +119,20 @@ function useToolbarActions(bookmark: ZBookmark) {
   const { data: currentUser } = useWhoAmI();
 
   const isOwner = currentUser?.id === bookmark.userId;
+
+  const { mutate: refreshBookmark, isPending: isRefreshPending } =
+    useRefreshBookmark({
+      onSuccess: () => {
+        toast({ message: "Refresh started", showProgress: false });
+      },
+      onError: () => {
+        toast({
+          message: "Something went wrong",
+          variant: "destructive",
+          showProgress: false,
+        });
+      },
+    });
 
   const { mutate: deleteBookmark, isPending: isDeletionPending } =
     useDeleteBookmark({
@@ -215,6 +237,13 @@ function useToolbarActions(bookmark: ZBookmark) {
       shouldRender: true,
       onClick: () => router.push(`/dashboard/bookmarks/${bookmark.id}/info`),
       disabled: false,
+    },
+    refresh: {
+      id: "refresh",
+      icon: makeIcon(RefreshCw),
+      shouldRender: isOwner,
+      onClick: () => refreshBookmark({ bookmarkId: bookmark.id }),
+      disabled: isRefreshPending,
     },
     favourite: {
       id: "favourite",
@@ -425,6 +454,10 @@ export default function BottomActions({ bookmark }: BottomActionsProps) {
           (a) =>
             a.shouldRender && (
               <Pressable
+                accessibilityLabel={TOOLBAR_ACTION_REGISTRY[a.id].render(
+                  bookmark,
+                )}
+                accessibilityRole="button"
                 disabled={a.disabled}
                 key={a.id}
                 onPress={a.onClick}

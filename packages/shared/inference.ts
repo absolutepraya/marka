@@ -1,11 +1,9 @@
 import { Ollama } from "ollama";
-import OpenAI, { toFile } from "openai";
+import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import * as undici from "undici";
 import { z } from "zod";
 
-import type { TranscriptionClient, TranscriptionResponse } from "./azureSpeech";
-export type { TranscriptionClient, TranscriptionResponse } from "./azureSpeech";
 import serverConfig from "./config";
 import { customFetch } from "./customFetch";
 import logger from "./logger";
@@ -148,7 +146,6 @@ export interface OpenAIInferenceConfig {
   serviceTier?: typeof serverConfig.inference.openAIServiceTier;
   textModel: string;
   imageModel: string;
-  transcriptionModel: string;
   contextLength: number;
   maxOutputTokens: number;
   useMaxCompletionTokens: boolean;
@@ -167,18 +164,9 @@ export class InferenceClientFactory {
     }
     return null;
   }
-
-  static buildTranscriptionClient(): TranscriptionClient | null {
-    if (serverConfig.inference.openAIApiKey) {
-      return OpenAIInferenceClient.fromConfig();
-    }
-    return null;
-  }
 }
 
-export class OpenAIInferenceClient
-  implements InferenceClient, TranscriptionClient
-{
+export class OpenAIInferenceClient implements InferenceClient {
   openAI: OpenAI;
   private config: OpenAIInferenceConfig;
 
@@ -209,7 +197,6 @@ export class OpenAIInferenceClient
       serviceTier: serverConfig.inference.openAIServiceTier,
       textModel: serverConfig.inference.textModel,
       imageModel: serverConfig.inference.imageModel,
-      transcriptionModel: serverConfig.transcription.model,
       contextLength: serverConfig.inference.contextLength,
       maxOutputTokens: serverConfig.inference.maxOutputTokens,
       useMaxCompletionTokens: serverConfig.inference.useMaxCompletionTokens,
@@ -328,34 +315,6 @@ export class OpenAIInferenceClient
     const embedding2D = parseEmbeddingResponse(embedResponse);
     const usage = parseEmbeddingUsage(embedResponse);
     return { embeddings: embedding2D, ...usage };
-  }
-
-  async transcribeAudio(
-    audio: Buffer,
-    fileName: string,
-    contentType: string,
-    abortSignal?: AbortSignal,
-  ): Promise<TranscriptionResponse> {
-    const file = await toFile(audio, fileName, { type: contentType });
-    const response = await this.openAI.audio.transcriptions.create(
-      {
-        file,
-        model: this.config.transcriptionModel,
-        response_format: "json",
-      },
-      { signal: abortSignal },
-    );
-
-    if (typeof response === "string") {
-      return { text: response };
-    }
-    return {
-      text: response.text,
-      language:
-        "language" in response && typeof response.language === "string"
-          ? response.language
-          : undefined,
-    };
   }
 }
 

@@ -156,6 +156,9 @@ assert_contains "$WT_CONFIG" 'scripts/dev-worktree.sh\" stop'
 assert_contains "$T3_JSON" 'bash scripts/dev-worktree.sh start'
 assert_contains "$T3_JSON" 'bash scripts/dev-worktree.sh stop'
 assert_contains "$SCRIPT_DIR/setup-t3-worktree.sh" 'scripts/dev-worktree.sh" setup'
+assert_contains "$DEV_WORKTREE" 'run-pnpm.sh" install --frozen-lockfile'
+assert_contains "$DEV_WORKTREE" 'run-pnpm.sh" dev:start -d'
+assert_contains "$DEV_WORKTREE" 'run-pnpm.sh" dev:stop'
 
 # Invalid Chrome ports are rejected before Docker startup.
 for invalid_port in 0 65536 abc; do
@@ -296,13 +299,33 @@ cat >"$fake_bin/mise" <<'EOF_MISE'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 printf 'mise:%s|%s\n' "$*" "$PWD" >>"${LIFECYCLE_LOG:?}"
+if [[ "${1:-}" == where && "${2:-}" == node@24 ]]; then
+  printf '%s\n' "${FAKE_NODE_ROOT:?}"
+fi
 EOF_MISE
-cat >"$fake_bin/pnpm" <<'EOF_PNPM'
+cat >"$fake_bin/corepack" <<'EOF_COREPACK'
 #!/usr/bin/env bash
 set -Eeuo pipefail
+[[ "${1:-}" == pnpm ]] || exit 2
+[[ "$(command -v node)" == "${FAKE_NODE_ROOT:?}/bin/node" ]] || exit 2
+shift
 printf 'pnpm:%s|%s\n' "$*" "$PWD" >>"${LIFECYCLE_LOG:?}"
-EOF_PNPM
-chmod +x "$fake_bin/mise" "$fake_bin/pnpm"
+EOF_COREPACK
+fake_node_root="$root/node24"
+mkdir -p "$fake_node_root/bin"
+cat >"$fake_node_root/bin/node" <<'EOF_NODE'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+if [[ "${1:-}" == -p ]]; then
+  printf '24\n'
+elif [[ "${1:-}" == --version ]]; then
+  printf 'v24.18.1\n'
+else
+  exit 2
+fi
+EOF_NODE
+chmod +x "$fake_bin/mise" "$fake_bin/corepack" "$fake_node_root/bin/node"
+export FAKE_NODE_ROOT="$fake_node_root"
 
 make_fake_project() {
   local project_root="$1"
@@ -313,6 +336,7 @@ set -Eeuo pipefail
 printf 'state:%s|%s|%s|%s\n' "$WT_DATA_SOURCE" "$WT_ROOT_PATH" "$WT_WORKSPACE_PATH" "$WT_PORT_BASE" >>"${LIFECYCLE_LOG:?}"
 EOF_SETUP
   cp "$DEV_WORKTREE" "$project_root/scripts/dev-worktree.sh"
+  cp "$SCRIPT_DIR/run-pnpm.sh" "$project_root/scripts/run-pnpm.sh"
 }
 
 make_fake_workspace() {
@@ -330,7 +354,8 @@ WT_ROOT_PATH="$wt_project" \
   WT_PORT_BASE=500 \
   LIFECYCLE_LOG="$wt_log" \
   bash "$DEV_WORKTREE" setup
-assert_contains "$wt_log" "mise:exec node@24 -- corepack pnpm install --frozen-lockfile|$wt_workspace"
+assert_contains "$wt_log" "mise:where node@24|$wt_workspace"
+assert_contains "$wt_log" "pnpm:install --frozen-lockfile|$wt_workspace"
 assert_contains "$wt_log" "state:prod|$wt_project|$wt_workspace|500"
 assert_contains "$wt_log" "pnpm:dev:start -d|$wt_workspace"
 assert_symlink_target "$wt_workspace/apps/web/.env" "../../.env"
@@ -348,7 +373,8 @@ T3CODE_PROJECT_ROOT="$t3_project" \
   T3_PORT_REGISTRY_FILE="$t3_registry" \
   LIFECYCLE_LOG="$t3_log" \
   bash "$SCRIPT_DIR/setup-t3-worktree.sh"
-assert_contains "$t3_log" "mise:exec node@24 -- corepack pnpm install --frozen-lockfile|$t3_workspace"
+assert_contains "$t3_log" "mise:where node@24|$t3_workspace"
+assert_contains "$t3_log" "pnpm:install --frozen-lockfile|$t3_workspace"
 assert_contains "$t3_log" "state:prod|$t3_project|$t3_workspace|1000"
 assert_contains "$t3_log" "pnpm:dev:start -d|$t3_workspace"
 assert_contains "$t3_registry" "4000$(printf '\t')$t3_workspace"

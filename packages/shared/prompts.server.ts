@@ -3,19 +3,27 @@ import type { Tiktoken } from "js-tiktoken";
 import type { ZTagStyle } from "./types/users";
 import { constructSummaryPrompt, constructTextTaggingPrompt } from "./prompts";
 
-let encoding: Tiktoken | null = null;
+type EncodingName = "o200k_base" | "cl100k_base";
+
+const encodings = new Map<EncodingName, Tiktoken>();
 
 /**
  * Lazy load the encoding to avoid loading the tiktoken data into memory
  * until it's actually needed
  */
-async function getEncodingInstance(): Promise<Tiktoken> {
-  if (!encoding) {
-    // Dynamic import to lazy load the tiktoken module
-    const { getEncoding } = await import("js-tiktoken");
-    encoding = getEncoding("o200k_base");
+async function getEncodingInstance(
+  encodingName: EncodingName = "o200k_base",
+): Promise<Tiktoken> {
+  const cached = encodings.get(encodingName);
+  if (cached) {
+    return cached;
   }
-  return encoding;
+
+  // Dynamic import to lazy load the tiktoken module
+  const { getEncoding } = await import("js-tiktoken");
+  const loaded = getEncoding(encodingName);
+  encodings.set(encodingName, loaded);
+  return loaded;
 }
 
 async function calculateNumTokens(text: string): Promise<number> {
@@ -23,11 +31,15 @@ async function calculateNumTokens(text: string): Promise<number> {
   return enc.encode(text).length;
 }
 
-async function truncateContent(
+export async function truncateTextToTokenBudget(
   content: string,
   length: number,
+  encodingName: EncodingName = "o200k_base",
 ): Promise<string> {
-  const enc = await getEncodingInstance();
+  if (length <= 0) {
+    return "";
+  }
+  const enc = await getEncodingInstance(encodingName);
   const tokens = enc.encode(content);
   if (tokens.length <= length) {
     return content;
@@ -64,7 +76,7 @@ export async function buildTextPrompt(
   const promptSize = await calculateNumTokens(promptTemplate);
   const available = Math.max(0, contextLength - promptSize);
   const truncatedContent =
-    available === 0 ? "" : await truncateContent(content, available);
+    available === 0 ? "" : await truncateTextToTokenBudget(content, available);
   return constructTextTaggingPrompt(
     lang,
     customPrompts,
@@ -86,6 +98,6 @@ export async function buildSummaryPrompt(
   const promptSize = await calculateNumTokens(promptTemplate);
   const available = Math.max(0, contextLength - promptSize);
   const truncatedContent =
-    available === 0 ? "" : await truncateContent(content, available);
+    available === 0 ? "" : await truncateTextToTokenBudget(content, available);
   return constructSummaryPrompt(lang, customPrompts, truncatedContent);
 }

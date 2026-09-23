@@ -18,6 +18,7 @@ import { readAsset } from "@karakeep/shared/assetdb";
 import serverConfig from "@karakeep/shared/config";
 import { InferenceClient } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
+import { getPdfPageCount, samplePdfText } from "@karakeep/shared/pdf";
 import { buildSummaryPrompt } from "@karakeep/shared/prompts.server";
 import {
   buildImageSummaryPrompt,
@@ -70,6 +71,7 @@ async function fetchBookmarkDetailsForSummary(bookmarkId: string) {
           assetType: true,
           assetId: true,
           content: true,
+          metadata: true,
           fileName: true,
           sourceUrl: true,
         },
@@ -236,7 +238,11 @@ Title: ${bookmarkData.title ?? asset.fileName ?? ""}
 File name: ${asset.fileName ?? ""}
 `;
     } else if (asset.assetType === "image" || asset.assetType === "pdf") {
-      if (!content) {
+      const inferenceContent =
+        asset.assetType === "pdf"
+          ? samplePdfText(content, getPdfPageCount(asset.metadata))
+          : content;
+      if (!inferenceContent) {
         logger.info(
           `[inference][${jobId}] No extracted content found for asset bookmark "${bookmarkId}". Skipping summary.`,
         );
@@ -245,7 +251,7 @@ File name: ${asset.fileName ?? ""}
       textToSummarize = `
 Title: ${bookmarkData.title ?? asset.fileName ?? ""}
 File name: ${asset.fileName ?? ""}
-Content: ${content}
+Content: ${inferenceContent}
 `;
     } else {
       logger.info(

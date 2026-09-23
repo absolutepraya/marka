@@ -3,7 +3,7 @@ import fs from "fs";
 import * as os from "os";
 import path from "path";
 import { execa } from "execa";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { workerStatsCounter } from "metrics";
 import { withWorkerEventLog, withWorkerTracing } from "workerTracing";
 
@@ -202,11 +202,7 @@ function fingerprintTranscript(
   providerItemId: string,
   text: string,
 ) {
-  const azureSpeech = serverConfig.transcription.azureSpeech;
-  const transcriptionModel =
-    azureSpeech.endpoint && azureSpeech.key
-      ? azureSpeech.model
-      : serverConfig.transcription.model;
+  const transcriptionModel = serverConfig.transcription.azureSpeech.model;
 
   return crypto
     .createHash("sha256")
@@ -228,7 +224,7 @@ async function saveGeneratedTranscript({
   shouldSummarize,
 }: {
   bookmark: TranscriptBookmark;
-  provider: "youtube" | "azure-whisper";
+  provider: "youtube" | "azure-speech";
   providerItemId: string;
   sourceTranscript: string;
   sourceLanguage?: string;
@@ -305,6 +301,7 @@ async function enqueueTranscriptEnrichment(
   bookmark: TranscriptBookmark,
   job: DequeuedJob<ZTranscriptRequest>,
 ) {
+  const idempotencyPrefix = `transcript:${job.id}`;
   const enqueueOpts: EnqueueOptions = {
     priority: job.priority ?? QueuePriority.Default,
     groupId: bookmark.userId,
@@ -316,12 +313,12 @@ async function enqueueTranscriptEnrichment(
         type: "embed",
         runTaggingOnComplete: true,
       },
-      enqueueOpts,
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:embed` },
     );
   } else {
     await OpenAIQueue.enqueue(
       { bookmarkId: bookmark.id, type: "tag" },
-      enqueueOpts,
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:tag` },
     );
   }
 }
@@ -344,8 +341,56 @@ async function enqueueTranscriptSummary(
     {
       priority: job.priority ?? QueuePriority.Default,
       groupId: bookmark.userId,
+      idempotencyKey: `transcript:${job.id}:summary:${revision}`,
     },
   );
+}
+
+type RefreshFallbackWork = "tagging" | "embedding" | "summarization";
+
+async function enqueueRefreshFallbackEnrichment(
+  bookmark: { id: string; userId: string },
+  jobId: string,
+  priority: number | undefined,
+  shouldSummarize: boolean,
+  enqueuedWork?: Set<RefreshFallbackWork>,
+) {
+  const enqueueOpts: EnqueueOptions = {
+    priority: priority ?? QueuePriority.Default,
+    groupId: bookmark.userId,
+  };
+  const idempotencyPrefix = `transcript-refresh:${jobId}:fallback`;
+
+  if (serverConfig.embedding.enableAutoIndexing) {
+    await EmbeddingsQueue.enqueue(
+      {
+        bookmarkId: bookmark.id,
+        type: "embed",
+        runTaggingOnComplete: true,
+      },
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:embed` },
+    );
+    enqueuedWork?.add("embedding");
+    enqueuedWork?.add("tagging");
+  } else {
+    await OpenAIQueue.enqueue(
+      { bookmarkId: bookmark.id, type: "tag" },
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:tag` },
+    );
+    enqueuedWork?.add("tagging");
+  }
+
+  if (shouldSummarize && serverConfig.inference.enableAutoSummarization) {
+    await OpenAIQueue.enqueue(
+      {
+        bookmarkId: bookmark.id,
+        type: "summarize",
+        summarySource: "web",
+      },
+      { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:summary` },
+    );
+    enqueuedWork?.add("summarization");
+  }
 }
 
 function isCaptionUnavailableError(error: unknown) {
@@ -457,18 +502,25 @@ async function runAssetTranscript(
   const shouldSummarize =
     serverConfig.inference.enableAutoSummarization &&
     user?.autoSummarizationEnabled !== false;
-  const existing = await db.query.bookmarkTranscripts.findFirst({
+  const mediaTranscripts = await db.query.bookmarkTranscripts.findMany({
     where: and(
       eq(bookmarkTranscripts.bookmarkId, bookmark.id),
-      eq(bookmarkTranscripts.provider, "azure-whisper"),
+      inArray(bookmarkTranscripts.provider, ["azure-speech", "azure-whisper"]),
     ),
   });
+  const existing =
+    mediaTranscripts.find(
+      (transcript) => transcript.provider === "azure-speech",
+    ) ??
+    mediaTranscripts.find(
+      (transcript) => transcript.provider === "azure-whisper",
+    );
 
   await db
     .insert(bookmarkTranscripts)
     .values({
       bookmarkId: bookmark.id,
-      provider: "azure-whisper",
+      provider: "azure-speech",
       providerItemId: bookmark.asset.assetId,
       status: "pending",
       sourceAttachmentsStatus: "pending",
@@ -506,30 +558,35 @@ async function runAssetTranscript(
       .where(
         and(
           eq(bookmarkTranscripts.bookmarkId, bookmark.id),
-          eq(bookmarkTranscripts.provider, "azure-whisper"),
+          eq(bookmarkTranscripts.provider, "azure-speech"),
         ),
       );
-    await clearPendingSummaryIfEmpty(bookmark);
+    if (!job.data.forceEnrichment) {
+      await clearPendingSummaryIfEmpty(bookmark);
+    }
     throw error;
   }
 
   const sourceFingerprint = fingerprintTranscript(
-    "azure-whisper",
+    "azure-speech",
     bookmark.asset.assetId,
     result.text,
   );
   const saved = await saveGeneratedTranscript({
     bookmark,
-    provider: "azure-whisper",
+    provider: "azure-speech",
     providerItemId: bookmark.asset.assetId,
     sourceTranscript: result.text,
     sourceLanguage: result.language,
-    selectedTrackId: "azure-whisper",
+    selectedTrackId: "azure-speech",
     sourceFingerprint,
     shouldSummarize,
   });
 
-  if (saved.sourceChanged && !saved.manualOverride) {
+  if (
+    (saved.sourceChanged && !saved.manualOverride) ||
+    job.data.forceEnrichment
+  ) {
     await enqueueTranscriptEnrichment(bookmark, job);
     if (shouldSummarize) {
       await enqueueTranscriptSummary(bookmark, job, saved.nextRevision);
@@ -545,7 +602,7 @@ async function runAssetTranscript(
 
   addLogFields<"transcriptWorker.run">({
     "bookmark.id": bookmark.id,
-    "transcript.provider": "azure-whisper",
+    "transcript.provider": "azure-speech",
     "transcript.source_language": result.language,
     "transcript.source_files": 1,
   });
@@ -658,7 +715,9 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
           eq(bookmarkTranscripts.provider, "youtube"),
         ),
       );
-    await clearPendingSummaryIfEmpty(bookmark);
+    if (!job.data.forceEnrichment) {
+      await clearPendingSummaryIfEmpty(bookmark);
+    }
     throw error;
   }
 
@@ -682,7 +741,9 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
             eq(bookmarkTranscripts.provider, "youtube"),
           ),
         );
-      await clearPendingSummaryIfEmpty(bookmark);
+      if (!job.data.forceEnrichment) {
+        await clearPendingSummaryIfEmpty(bookmark);
+      }
       throw error;
     }
 
@@ -697,7 +758,7 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
       providerItemId: videoId,
       sourceTranscript: result.text,
       sourceLanguage: result.language,
-      selectedTrackId: "azure-whisper",
+      selectedTrackId: "azure-speech",
       sourceFingerprint,
       shouldSummarize,
     });
@@ -726,7 +787,10 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
       );
     }
 
-    if (saved.sourceChanged && !saved.manualOverride) {
+    if (
+      (saved.sourceChanged && !saved.manualOverride) ||
+      job.data.forceEnrichment
+    ) {
       await enqueueTranscriptEnrichment(bookmark, job);
       if (shouldSummarize) {
         await enqueueTranscriptSummary(bookmark, job, saved.nextRevision);
@@ -765,7 +829,16 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
           eq(bookmarkTranscripts.provider, "youtube"),
         ),
       );
-    await clearPendingSummaryIfEmpty(bookmark);
+    if (job.data.forceEnrichment) {
+      await enqueueRefreshFallbackEnrichment(
+        bookmark,
+        job.id,
+        job.priority,
+        bookmark.summarizationStatus === "pending",
+      );
+    } else {
+      await clearPendingSummaryIfEmpty(bookmark);
+    }
     return;
   }
 
@@ -790,7 +863,16 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
           eq(bookmarkTranscripts.provider, "youtube"),
         ),
       );
-    await clearPendingSummaryIfEmpty(bookmark);
+    if (job.data.forceEnrichment) {
+      await enqueueRefreshFallbackEnrichment(
+        bookmark,
+        job.id,
+        job.priority,
+        bookmark.summarizationStatus === "pending",
+      );
+    } else {
+      await clearPendingSummaryIfEmpty(bookmark);
+    }
     return;
   }
 
@@ -943,7 +1025,7 @@ async function runTranscript(job: DequeuedJob<ZTranscriptRequest>) {
     priority: job.priority ?? QueuePriority.Default,
     groupId: bookmark.userId,
   };
-  if (sourceChanged && !manualOverride) {
+  if ((sourceChanged && !manualOverride) || job.data.forceEnrichment) {
     await enqueueTranscriptEnrichment(bookmark, job);
     if (shouldSummarize) {
       await enqueueTranscriptSummary(bookmark, job, nextRevision);
@@ -976,12 +1058,73 @@ export class TranscriptWorker {
           workerStatsCounter.labels("transcript", "completed").inc();
           return Promise.resolve();
         },
-        onError: (job) => {
+        onError: async (job) => {
           workerStatsCounter.labels("transcript", "failed").inc();
           if (job.numRetriesLeft === 0) {
             workerStatsCounter.labels("transcript", "failed_permanent").inc();
+            if (job.data?.forceEnrichment) {
+              const bookmarkId = job.data.bookmarkId;
+              const bookmark = await db.query.bookmarks.findFirst({
+                where: eq(bookmarks.id, bookmarkId),
+                columns: {
+                  id: true,
+                  userId: true,
+                  summarizationStatus: true,
+                },
+              });
+              const enqueuedWork = new Set<RefreshFallbackWork>();
+              if (bookmark) {
+                try {
+                  await enqueueRefreshFallbackEnrichment(
+                    bookmark,
+                    job.id,
+                    job.priority,
+                    bookmark.summarizationStatus === "pending",
+                    enqueuedWork,
+                  );
+                } catch (error) {
+                  logger.error(
+                    `[transcript][${job.id}] Failed to enqueue refresh fallback enrichment: ${error instanceof Error ? error.message : String(error)}`,
+                  );
+                }
+              }
+              await db.transaction(async (tx) => {
+                if (!enqueuedWork.has("tagging")) {
+                  await tx
+                    .update(bookmarks)
+                    .set({ taggingStatus: null })
+                    .where(
+                      and(
+                        eq(bookmarks.id, bookmarkId),
+                        eq(bookmarks.taggingStatus, "pending"),
+                      ),
+                    );
+                }
+                if (!enqueuedWork.has("summarization")) {
+                  await tx
+                    .update(bookmarks)
+                    .set({ summarizationStatus: null })
+                    .where(
+                      and(
+                        eq(bookmarks.id, bookmarkId),
+                        eq(bookmarks.summarizationStatus, "pending"),
+                      ),
+                    );
+                }
+                if (!enqueuedWork.has("embedding")) {
+                  await tx
+                    .update(bookmarks)
+                    .set({ embeddingStatus: null })
+                    .where(
+                      and(
+                        eq(bookmarks.id, bookmarkId),
+                        eq(bookmarks.embeddingStatus, "pending"),
+                      ),
+                    );
+                }
+              });
+            }
           }
-          return Promise.resolve();
         },
       },
       {

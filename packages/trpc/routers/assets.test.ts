@@ -1,6 +1,13 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { eq } from "drizzle-orm";
 
-import { assets, AssetTypes } from "@karakeep/db/schema";
+import {
+  assets,
+  AssetTypes,
+  bookmarkAssets,
+  bookmarks,
+} from "@karakeep/db/schema";
+import { AssetPreprocessingQueue } from "@karakeep/shared-server";
 import { BookmarkTypes, ZAssetType } from "@karakeep/shared/types/bookmarks";
 
 import type { CustomTestContext } from "../testUtils";
@@ -9,6 +16,79 @@ import { defaultBeforeEach } from "../testUtils";
 beforeEach<CustomTestContext>(defaultBeforeEach(true));
 
 describe("Asset Routes", () => {
+  test<CustomTestContext>("marks PDF enrichment as pending before queueing a forced refresh", async ({
+    apiCallers,
+    db,
+  }) => {
+    const api = apiCallers[0];
+    const user = await api.users.whoami();
+    const bookmarkId = "refresh-pdf-bookmark";
+    const assetId = "refresh-pdf-asset";
+
+    await db.insert(assets).values({
+      id: assetId,
+      assetType: AssetTypes.UNKNOWN,
+      bookmarkId: null,
+      userId: user.id,
+      contentType: "application/pdf",
+      fileName: "document.pdf",
+      size: 12,
+    });
+
+    await db.insert(bookmarks).values({
+      id: bookmarkId,
+      userId: user.id,
+      type: BookmarkTypes.ASSET,
+      source: "web",
+    });
+    await db.insert(bookmarkAssets).values({
+      id: bookmarkId,
+      assetType: "pdf",
+      assetId,
+      fileName: "document.pdf",
+    });
+    const oldModifiedAt = new Date("2020-01-01T00:00:00.000Z");
+    await db
+      .update(bookmarks)
+      .set({
+        taggingStatus: "success",
+        summarizationStatus: "success",
+        modifiedAt: oldModifiedAt,
+      })
+      .where(eq(bookmarks.id, bookmarkId));
+
+    const enqueueSpy = vi
+      .spyOn(AssetPreprocessingQueue, "enqueue")
+      .mockResolvedValue("refresh-job");
+
+    await api.bookmarks.refreshBookmark({ bookmarkId });
+
+    const refreshedBookmark = await db.query.bookmarks.findFirst({
+      where: eq(bookmarks.id, bookmarkId),
+      columns: {
+        taggingStatus: true,
+        summarizationStatus: true,
+        modifiedAt: true,
+      },
+    });
+
+    expect(refreshedBookmark).toMatchObject({
+      taggingStatus: "pending",
+    });
+    expect(refreshedBookmark?.modifiedAt?.getTime()).toBeGreaterThan(
+      oldModifiedAt.getTime(),
+    );
+    expect(enqueueSpy).toHaveBeenCalledWith(
+      {
+        bookmarkId,
+        fixMode: true,
+        force: true,
+      },
+      expect.objectContaining({ priority: expect.any(Number) }),
+    );
+    enqueueSpy.mockRestore();
+  });
+
   test<CustomTestContext>("mutate assets", async ({ apiCallers, db }) => {
     const api = apiCallers[0].assets;
     const userId = await apiCallers[0].users.whoami().then((u) => u.id);

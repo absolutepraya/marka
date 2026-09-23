@@ -233,6 +233,7 @@ export const bookmarks = sqliteTable(
     taggingStatus: text("taggingStatus", {
       enum: ["pending", "failure", "success"],
     }).default("pending"),
+    refreshGeneration: integer("refreshGeneration").notNull().default(0),
     summarizationStatus: text("summarizationStatus", {
       enum: ["pending", "failure", "success"],
     }).default("pending"),
@@ -324,7 +325,9 @@ export const bookmarkTranscripts = sqliteTable(
       .notNull()
       .references(() => bookmarks.id, { onDelete: "cascade" }),
     provider: text("provider", {
-      enum: ["youtube", "azure-whisper"],
+      // azure-whisper is retained for rolling-deploy read compatibility. New
+      // code must write azure-speech only.
+      enum: ["youtube", "azure-whisper", "azure-speech"],
     }).notNull(),
     providerItemId: text("providerItemId").notNull(),
     status: text("status", {

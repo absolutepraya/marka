@@ -273,7 +273,7 @@ Expected service shape:
 
 ### Worker-only secrets and Browserless
 
-Create `.workers.env` beside the production compose file. It is mounted only into `workers`, never `web`, and must contain `BROWSERLESS_TOKEN`, proxy credentials, and `OPENAI_API_KEY`. For the full enrichment rollout, configure the same worker-only file with `OPENAI_BASE_URL`, `INFERENCE_TEXT_MODEL`, `INFERENCE_IMAGE_MODEL`, `INFERENCE_ENABLE_AUTO_TAGGING`, `INFERENCE_ENABLE_AUTO_SUMMARIZATION`, `OCR_USE_LLM`, `TRANSCRIPTION_ENABLED`, `TRANSCRIPTION_MODEL`, `AZURE_SPEECH_ENDPOINT`, `AZURE_SPEECH_REGION`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_MODEL`, `AZURE_SPEECH_API_VERSION`, `EMBEDDING_ENABLE_AUTO_INDEXING`, `EMBEDDING_TEXT_MODEL`, and `EMBEDDING_DIMENSIONS` as applicable. When the Azure Speech pair is configured, Marka uses MAI-Transcribe-2 for media transcription. For YouTube links, `yt-dlp` captions remain preferred and Azure Speech is used only when no usable captions are available. Keep the token and all credential values out of source control. `BROWSERLESS_URL` targets the Browserless service through `karakeep-renderer`.
+Create `.workers.env` beside the production compose file. It is mounted only into `workers`, never `web`, and must contain `BROWSERLESS_TOKEN`, proxy credentials, and `OPENAI_API_KEY`. For the full enrichment rollout, configure the same worker-only file with `OPENAI_BASE_URL`, `INFERENCE_TEXT_MODEL`, `INFERENCE_IMAGE_MODEL`, `INFERENCE_ENABLE_AUTO_TAGGING`, `INFERENCE_ENABLE_AUTO_SUMMARIZATION`, `OCR_USE_LLM`, `TRANSCRIPTION_ENABLED`, `AZURE_SPEECH_ENDPOINT`, `AZURE_SPEECH_REGION`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_MODEL`, `AZURE_SPEECH_API_VERSION`, `EMBEDDING_ENABLE_AUTO_INDEXING`, `EMBEDDING_TEXT_MODEL`, and `EMBEDDING_DIMENSIONS` as applicable. When enabled, Marka uses MAI-Transcribe-2 only for media transcription. For YouTube links, `yt-dlp` captions remain preferred and Azure Speech is used only when no usable captions are available. Keep the token and all credential values out of source control. `BROWSERLESS_URL` targets the Browserless service through `karakeep-renderer`.
 
 Configure Browserless on its private host with:
 
@@ -326,6 +326,49 @@ From the repository root, where the canonical production Compose file is `deploy
    ```bash
    docker compose -f deploy/docker-compose.prod.yml start watchtower
    ```
+
+### Controlled transcript-provider rollout
+
+The transcript provider migration from `azure-whisper` to `azure-speech` must
+be rolled out as a compatibility gate because Watchtower updates `web` and
+`workers` independently. This release accepts both identifiers when reading
+legacy rows, but new code writes `azure-speech` only.
+
+1. Pause Watchtower before it can update either application service:
+
+   ```bash
+   docker compose -f deploy/docker-compose.prod.yml stop watchtower
+   ```
+
+2. Stop the old workers and confirm they are no longer running. This drains the
+   old code path before the migration renames stored provider rows:
+
+   ```bash
+   docker compose -f deploy/docker-compose.prod.yml stop workers
+   docker compose -f deploy/docker-compose.prod.yml ps workers
+   ```
+
+3. Start the new `web` image and wait for its health check. Its migration
+   init service applies the provider rename:
+
+   ```bash
+   docker compose -f deploy/docker-compose.prod.yml up -d --no-deps --force-recreate --wait --wait-timeout 120 web
+   ```
+
+4. Start the new workers and wait for them to become healthy:
+
+   ```bash
+   docker compose -f deploy/docker-compose.prod.yml up -d --no-deps --force-recreate --wait --wait-timeout 120 workers
+   ```
+
+5. Resume Watchtower only after both application services are healthy:
+
+   ```bash
+   docker compose -f deploy/docker-compose.prod.yml start watchtower
+   ```
+
+If an old worker writes a legacy row after the gate, the new application can
+still read it and prefers the canonical `azure-speech` row when both exist.
 
 Key parameters:
 - `KARAKEEP_PORT`

@@ -9,7 +9,11 @@ import {
 import ActionConfirmingDialog from "@/components/ui/action-confirming-dialog";
 import { toast } from "@/components/ui/sonner";
 import useBulkActionsStore from "@/lib/bulkActions";
-import { useBookmarkBulkMutations } from "@/lib/hooks/useBookmarkBulkActions";
+import {
+  BulkRefreshLimitError,
+  MAX_BULK_REFRESH_BOOKMARKS,
+  useBookmarkBulkMutations,
+} from "@/lib/hooks/useBookmarkBulkActions";
 import { useUndoableBookmarkDeletion } from "@/lib/hooks/useUndoableBookmarkDeletion";
 import type { UpdateBookmarkProps } from "@/lib/hooks/useBookmarkBulkActions";
 import { useTranslation } from "@/lib/i18n/client";
@@ -62,8 +66,10 @@ export default function BulkBookmarksAction() {
     updateBookmarkMutator,
     updateSelectedBookmarks,
     recrawlBookmarkMutator,
+    refreshBookmarkMutator,
     removeSelectedBookmarksFromList,
     recrawlSelectedLinkBookmarks,
+    refreshSelectedBookmarks,
     removeBookmarkFromListMutator,
     selectedBookmarkLinksText,
   } = useBookmarkBulkMutations({
@@ -83,11 +89,33 @@ export default function BulkBookmarksAction() {
     }
   }, [pathname, setIsBulkEditEnabled]);
 
-  const recrawlBookmarks = async (archiveFullPage: boolean) => {
-    const links = await recrawlSelectedLinkBookmarks(archiveFullPage);
+  const preserveOfflineArchives = async () => {
+    const links = await recrawlSelectedLinkBookmarks(true);
     toast({
-      description: `${links.length} bookmarks will be ${archiveFullPage ? "re-crawled and archived!" : "refreshed!"}`,
+      description: t("toasts.bookmarks.bulk_archive", { count: links.length }),
     });
+  };
+
+  const refreshBookmarks = async () => {
+    try {
+      const bookmarks = await refreshSelectedBookmarks();
+      toast({
+        description: t("toasts.bookmarks.bulk_refresh", {
+          count: bookmarks.length,
+        }),
+      });
+    } catch (error) {
+      if (error instanceof BulkRefreshLimitError) {
+        toast({
+          variant: "destructive",
+          description: t("toasts.bookmarks.bulk_refresh_limit", {
+            count: MAX_BULK_REFRESH_BOOKMARKS,
+          }),
+        });
+        return;
+      }
+      throw error;
+    }
   };
 
   function isClipboardAvailable() {
@@ -203,15 +231,15 @@ export default function BulkBookmarksAction() {
     {
       name: t("actions.preserve_offline_archive"),
       icon: <FileDown size={18} />,
-      action: () => recrawlBookmarks(true),
+      action: () => preserveOfflineArchives(),
       isPending: recrawlBookmarkMutator.isPending,
       hidden: !isBulkEditEnabled,
     },
     {
       name: t("actions.refresh"),
       icon: <RotateCw size={18} />,
-      action: () => recrawlBookmarks(false),
-      isPending: recrawlBookmarkMutator.isPending,
+      action: () => refreshBookmarks(),
+      isPending: refreshBookmarkMutator.isPending,
       hidden: !isBulkEditEnabled,
     },
     {

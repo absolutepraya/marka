@@ -376,6 +376,7 @@ export const adminAppRouter = router({
           {
             bookmarkId: b.id,
             fixMode: true,
+            force: true,
           },
           {
             priority: QueuePriority.Low,

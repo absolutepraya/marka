@@ -1,10 +1,11 @@
+import crypto from "node:crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
 import { and, eq } from "drizzle-orm";
 import { execa } from "execa";
 import { workerStatsCounter } from "metrics";
-import PDFParser from "pdf2json";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { fromBuffer } from "pdf2pic";
 import { createWorker } from "tesseract.js";
 import { withWorkerEventLog, withWorkerTracing } from "workerTracing";
@@ -24,12 +25,23 @@ import {
   OpenAIQueue,
   QuotaService,
   StorageQuotaError,
+  TranscriptQueue,
   triggerSearchReindex,
 } from "@karakeep/shared-server";
-import { newAssetId, readAsset, saveAsset } from "@karakeep/shared/assetdb";
+import {
+  newAssetId,
+  readAsset,
+  saveAsset,
+  silentDeleteAsset,
+} from "@karakeep/shared/assetdb";
 import serverConfig from "@karakeep/shared/config";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
+import {
+  formatPdfPageText,
+  samplePdfText,
+  selectRepresentativePageNumbers,
+} from "@karakeep/shared/pdf";
 import { buildOCRPrompt } from "@karakeep/shared/prompts";
 import {
   DequeuedJob,
@@ -182,27 +194,74 @@ async function readImageTextWithLLM(
 
 async function readPDFText(buffer: Buffer): Promise<{
   text: string;
-  metadata: Record<string, object>;
+  pageTexts: Map<number, string>;
+  metadata: Record<string, unknown>;
   pageCount: number;
 }> {
-  return new Promise((resolve, reject) => {
-    const pdfParser = new PDFParser(null, true);
-    pdfParser.on("pdfParser_dataError", reject);
-    pdfParser.on("pdfParser_dataReady", (pdfData) => {
-      resolve({
-        text: pdfParser.getRawTextContent(),
-        metadata: pdfData.Meta,
-        pageCount: pdfData.Pages.length,
-      });
-    });
-    pdfParser.parseBuffer(buffer);
+  const loadingTask = getDocument({
+    data: new Uint8Array(buffer),
+    isEvalSupported: false,
+    useWorkerFetch: false,
   });
+  const document = await loadingTask.promise;
+  const pageTexts = new Map<number, string>();
+
+  try {
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const lines: string[] = [];
+      let currentLine = "";
+
+      for (const item of textContent.items) {
+        if (!("str" in item)) {
+          continue;
+        }
+        currentLine += item.str;
+        if (item.hasEOL) {
+          lines.push(currentLine);
+          currentLine = "";
+        } else if (currentLine.length > 0) {
+          currentLine += " ";
+        }
+      }
+      if (currentLine.trim()) {
+        lines.push(currentLine);
+      }
+
+      const text = lines.join("\n").trim();
+      if (text) {
+        pageTexts.set(pageNumber, text);
+      }
+    }
+
+    let metadata: Record<string, unknown> = {};
+    try {
+      const metadataResult = await document.getMetadata();
+      if (metadataResult.info && typeof metadataResult.info === "object") {
+        metadata = { ...(metadataResult.info as Record<string, unknown>) };
+      }
+    } catch {
+      // PDF metadata is optional and should not block text extraction.
+    }
+
+    return {
+      text: formatPdfPageText(
+        [...pageTexts].map(([pageNumber, text]) => ({ pageNumber, text })),
+      ),
+      pageTexts,
+      metadata,
+      pageCount: document.numPages,
+    };
+  } finally {
+    await document.destroy();
+  }
 }
 
 async function readPDFTextWithOCR(
   buffer: Buffer,
   pageCount: number,
-): Promise<string | null> {
+): Promise<Map<number, string> | null> {
   if (serverConfig.ocr.langs.length == 1 && serverConfig.ocr.langs[0] == "") {
     return null;
   }
@@ -220,7 +279,7 @@ async function readPDFTextWithOCR(
   const worker = await createWorker(serverConfig.ocr.langs, undefined, {
     cachePath: serverConfig.ocr.cacheDir ?? os.tmpdir(),
   });
-  const pageTexts: string[] = [];
+  const pageTexts = new Map<number, string>();
 
   try {
     for (let page = 1; page <= pagesToRead; page += 1) {
@@ -230,14 +289,56 @@ async function readPDFTextWithOCR(
       }
       const text = await recognizeImageText(worker, rendered.buffer);
       if (text?.trim()) {
-        pageTexts.push(`Page ${page}\n${text.trim()}`);
+        pageTexts.set(page, text.trim());
       }
     }
   } finally {
     await worker.terminate();
   }
 
-  return pageTexts.length > 0 ? pageTexts.join("\n\n") : null;
+  return pageTexts.size > 0 ? pageTexts : null;
+}
+
+async function readPDFTextWithLLM(
+  buffer: Buffer,
+  pageNumbers: number[],
+): Promise<Map<number, string> | null> {
+  const inferenceClient = InferenceClientFactory.build();
+  if (!inferenceClient || pageNumbers.length === 0) {
+    return null;
+  }
+
+  const convertPage = fromBuffer(buffer, {
+    density: 150,
+    format: "png",
+    preserveAspectRatio: true,
+  });
+  const pageTexts = new Map<number, string>();
+
+  for (const page of pageNumbers) {
+    try {
+      const rendered = await convertPage(page, { responseType: "buffer" });
+      if (!rendered.buffer) {
+        continue;
+      }
+      const response = await inferenceClient.inferFromImage(
+        buildOCRPrompt(),
+        "image/png",
+        rendered.buffer.toString("base64"),
+        { schema: null, imageDetail: "high" },
+      );
+      const text = response.response.trim();
+      if (text) {
+        pageTexts.set(page, text);
+      }
+    } catch (error) {
+      logger.warn(
+        `[assetPreprocessing] Failed to extract LLM OCR text from PDF page ${page}: ${error}`,
+      );
+    }
+  }
+
+  return pageTexts.size > 0 ? pageTexts : null;
 }
 
 export async function extractAndSavePDFScreenshot(
@@ -245,22 +346,21 @@ export async function extractAndSavePDFScreenshot(
   asset: Buffer,
   bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
   isFixMode: boolean,
+  force: boolean,
 ): Promise<boolean> {
-  {
-    const alreadyHasScreenshot =
-      bookmark.assets.find(
-        (r) => r.assetType === AssetTypes.ASSET_SCREENSHOT,
-      ) !== undefined;
-    if (alreadyHasScreenshot && isFixMode) {
-      logger.info(
-        `[assetPreprocessing][${jobId}] Skipping PDF screenshot generation as it's already been generated.`,
-      );
-      return false;
-    }
+  const existingScreenshot = bookmark.assets.find(
+    (r) => r.assetType === AssetTypes.ASSET_SCREENSHOT,
+  );
+  if (existingScreenshot && !(isFixMode && force)) {
+    logger.info(
+      `[assetPreprocessing][${jobId}] Skipping PDF screenshot generation as it's already been generated.`,
+    );
+    return false;
   }
   logger.info(
     `[assetPreprocessing][${jobId}] Attempting to generate PDF screenshot for bookmarkId: ${bookmark.id}`,
   );
+  let replacementAssetId: string | undefined;
   try {
     /**
      * If you encountered any issues with this library, make sure you have ghostscript and graphicsmagick installed following this URL
@@ -273,7 +373,8 @@ export async function extractAndSavePDFScreenshot(
       preserveAspectRatio: true,
     })(1, { responseType: "buffer" });
 
-    if (!screenshot.buffer) {
+    const screenshotBuffer = screenshot.buffer;
+    if (!screenshotBuffer) {
       logger.error(
         `[assetPreprocessing][${jobId}] Failed to generate PDF screenshot`,
       );
@@ -284,17 +385,18 @@ export async function extractAndSavePDFScreenshot(
     const quotaApproved = await QuotaService.checkStorageQuota(
       db,
       bookmark.userId,
-      screenshot.buffer.byteLength,
+      screenshotBuffer.byteLength,
     );
 
     // Store the screenshot
     const assetId = newAssetId();
+    replacementAssetId = assetId;
     const fileName = "screenshot.png";
     const contentType = "image/png";
     await saveAsset({
       userId: bookmark.userId,
       assetId,
-      asset: screenshot.buffer,
+      asset: screenshotBuffer,
       metadata: {
         contentType,
         fileName,
@@ -302,22 +404,34 @@ export async function extractAndSavePDFScreenshot(
       quotaApproved,
     });
 
-    // Insert into database
-    await db.insert(assets).values({
-      id: assetId,
-      bookmarkId: bookmark.id,
-      userId: bookmark.userId,
-      assetType: AssetTypes.ASSET_SCREENSHOT,
-      contentType,
-      size: screenshot.buffer.byteLength,
-      fileName,
+    // Replace the old row atomically after the new object is safely stored.
+    await db.transaction(async (tx) => {
+      await tx.insert(assets).values({
+        id: assetId,
+        bookmarkId: bookmark.id,
+        userId: bookmark.userId,
+        assetType: AssetTypes.ASSET_SCREENSHOT,
+        contentType,
+        size: screenshotBuffer.byteLength,
+        fileName,
+      });
+      if (existingScreenshot) {
+        await tx.delete(assets).where(eq(assets.id, existingScreenshot.id));
+      }
     });
+
+    if (existingScreenshot) {
+      await silentDeleteAsset(bookmark.userId, existingScreenshot.id);
+    }
 
     logger.info(
       `[assetPreprocessing][${jobId}] Successfully saved PDF screenshot to database`,
     );
     return true;
   } catch (error) {
+    if (replacementAssetId) {
+      await silentDeleteAsset(bookmark.userId, replacementAssetId);
+    }
     if (error instanceof StorageQuotaError) {
       logger.warn(
         `[assetPreprocessing][${jobId}] Skipping PDF screenshot due to quota exceeded: ${error.message}`,
@@ -335,20 +449,17 @@ async function extractAndSaveVideoScreenshot(
   jobId: string,
   asset: Buffer,
   bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
-  isFixMode: boolean,
   abortSignal: AbortSignal,
+  force: boolean,
 ): Promise<boolean> {
-  {
-    const alreadyHasScreenshot =
-      bookmark.assets.find(
-        (r) => r.assetType === AssetTypes.ASSET_SCREENSHOT,
-      ) !== undefined;
-    if (alreadyHasScreenshot && isFixMode) {
-      logger.info(
-        `[assetPreprocessing][${jobId}] Skipping video screenshot generation as it's already been generated.`,
-      );
-      return false;
-    }
+  const existingScreenshot = bookmark.assets.find(
+    (r) => r.assetType === AssetTypes.ASSET_SCREENSHOT,
+  );
+  if (existingScreenshot && !force) {
+    logger.info(
+      `[assetPreprocessing][${jobId}] Skipping video screenshot generation as it's already been generated.`,
+    );
+    return false;
   }
 
   logger.info(
@@ -356,6 +467,7 @@ async function extractAndSaveVideoScreenshot(
   );
 
   let tempDir: string | undefined;
+  let replacementAssetId: string | undefined;
   try {
     tempDir = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), "video-screenshot-"),
@@ -396,6 +508,7 @@ async function extractAndSaveVideoScreenshot(
     );
 
     const assetId = newAssetId();
+    replacementAssetId = assetId;
     const fileName = "screenshot.jpg";
     const contentType = "image/jpeg";
     await saveAsset({
@@ -409,21 +522,33 @@ async function extractAndSaveVideoScreenshot(
       quotaApproved,
     });
 
-    await db.insert(assets).values({
-      id: assetId,
-      bookmarkId: bookmark.id,
-      userId: bookmark.userId,
-      assetType: AssetTypes.ASSET_SCREENSHOT,
-      contentType,
-      size: screenshot.byteLength,
-      fileName,
+    await db.transaction(async (tx) => {
+      await tx.insert(assets).values({
+        id: assetId,
+        bookmarkId: bookmark.id,
+        userId: bookmark.userId,
+        assetType: AssetTypes.ASSET_SCREENSHOT,
+        contentType,
+        size: screenshot.byteLength,
+        fileName,
+      });
+      if (existingScreenshot) {
+        await tx.delete(assets).where(eq(assets.id, existingScreenshot.id));
+      }
     });
+
+    if (existingScreenshot) {
+      await silentDeleteAsset(bookmark.userId, existingScreenshot.id);
+    }
 
     logger.info(
       `[assetPreprocessing][${jobId}] Successfully saved video first-frame screenshot to database`,
     );
     return true;
   } catch (error) {
+    if (replacementAssetId) {
+      await silentDeleteAsset(bookmark.userId, replacementAssetId);
+    }
     if (error instanceof StorageQuotaError) {
       logger.warn(
         `[assetPreprocessing][${jobId}] Skipping video screenshot due to quota exceeded: ${error.message}`,
@@ -447,10 +572,11 @@ async function extractAndSaveImageText(
   contentType: string,
   bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
   isFixMode: boolean,
+  force: boolean,
 ): Promise<boolean> {
   {
     const alreadyHasText = !!bookmark.asset.content;
-    if (alreadyHasText && isFixMode) {
+    if (alreadyHasText && isFixMode && !force) {
       logger.info(
         `[assetPreprocessing][${jobId}] Skipping image text extraction as it's already been extracted.`,
       );
@@ -512,10 +638,11 @@ async function extractAndSavePDFText(
   asset: Buffer,
   bookmark: NonNullable<Awaited<ReturnType<typeof getBookmark>>>,
   isFixMode: boolean,
+  force: boolean,
 ): Promise<boolean> {
   {
     const alreadyHasText = !!bookmark.asset.content;
-    if (alreadyHasText && isFixMode) {
+    if (alreadyHasText && isFixMode && !force) {
       logger.info(
         `[assetPreprocessing][${jobId}] Skipping PDF text extraction as it's already been extracted.`,
       );
@@ -526,12 +653,38 @@ async function extractAndSavePDFText(
     `[assetPreprocessing][${jobId}] Attempting to extract text from pdf.`,
   );
   const pdfParse = await readPDFText(asset);
+  const pageTexts = new Map(pdfParse.pageTexts);
+  const aiSamplePages = selectRepresentativePageNumbers(pdfParse.pageCount);
+  let textSource = "embedded";
+  const localOcrPages: number[] = [];
+  const aiOcrPages: number[] = [];
+
   let extractedText = pdfParse.text.trim();
   if (!extractedText) {
+    textSource = "ocr";
     logger.info(
       `[assetPreprocessing][${jobId}] PDF has no embedded text. Attempting local OCR on up to ${serverConfig.ocr.pdfMaxPages} pages.`,
     );
-    extractedText = (await readPDFTextWithOCR(asset, pdfParse.pageCount)) ?? "";
+    const localOcrText = await readPDFTextWithOCR(asset, pdfParse.pageCount);
+    for (const [page, text] of localOcrText ?? []) {
+      pageTexts.set(page, text);
+      localOcrPages.push(page);
+    }
+
+    if (serverConfig.ocr.useLLM) {
+      const aiOcrText = await readPDFTextWithLLM(
+        asset,
+        selectRepresentativePageNumbers(pdfParse.pageCount),
+      );
+      for (const [page, text] of aiOcrText ?? []) {
+        pageTexts.set(page, text);
+        aiOcrPages.push(page);
+      }
+    }
+
+    extractedText = formatPdfPageText(
+      [...pageTexts].map(([pageNumber, text]) => ({ pageNumber, text })),
+    ).trim();
   }
   if (!extractedText) {
     throw new Error(
@@ -545,7 +698,20 @@ async function extractAndSavePDFText(
     .update(bookmarkAssets)
     .set({
       content: extractedText,
-      metadata: pdfParse.metadata ? JSON.stringify(pdfParse.metadata) : null,
+      metadata: JSON.stringify({
+        ...pdfParse.metadata,
+        marka: {
+          pageCount: pdfParse.pageCount,
+          textSource,
+          localOcrPages,
+          aiOcrPages,
+          aiSamplePages,
+          aiSampleFingerprint: crypto
+            .createHash("sha256")
+            .update(samplePdfText(extractedText, pdfParse.pageCount))
+            .digest("hex"),
+        },
+      }),
     })
     .where(eq(bookmarkAssets.id, bookmark.id));
   return true;
@@ -563,6 +729,7 @@ async function getBookmark(bookmarkId: string) {
 
 async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
   const isFixMode = req.data.fixMode;
+  const force = req.data.force ?? false;
   const jobId = req.id;
   const bookmarkId = req.data.bookmarkId;
   addLogFields<"assetPreprocessingWorker.run">({ "bookmark.id": bookmarkId });
@@ -617,22 +784,25 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
         metadata.contentType,
         bookmark,
         isFixMode,
+        force,
       );
       anythingChanged ||= extractedText;
       break;
     }
     case "pdf": {
-      const extractedText = await extractAndSavePDFText(
-        jobId,
-        asset,
-        bookmark,
-        isFixMode,
-      );
       const extractedScreenshot = await extractAndSavePDFScreenshot(
         jobId,
         asset,
         bookmark,
         isFixMode,
+        force,
+      );
+      const extractedText = await extractAndSavePDFText(
+        jobId,
+        asset,
+        bookmark,
+        isFixMode,
+        force,
       );
       anythingChanged ||= extractedText || extractedScreenshot;
       break;
@@ -642,8 +812,8 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
         jobId,
         asset,
         bookmark,
-        isFixMode,
         req.abortSignal,
+        force,
       );
       anythingChanged ||= extractedScreenshot;
       break;
@@ -671,7 +841,13 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
     (bookmark.asset.assetType === "video" ||
       bookmark.asset.assetType === "audio") &&
     serverConfig.transcription.enabled;
-  if ((!isFixMode || anythingChanged) && !isTranscribedMedia) {
+  if (force && isTranscribedMedia) {
+    await TranscriptQueue.enqueue(
+      { bookmarkId, forceEnrichment: true },
+      enqueueOpts,
+    );
+  }
+  if ((!isFixMode || anythingChanged || force) && !isTranscribedMedia) {
     if (serverConfig.embedding.enableAutoIndexing) {
       await EmbeddingsQueue.enqueue(
         {
@@ -711,7 +887,7 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
     }
   }
 
-  if (!isFixMode || anythingChanged) {
+  if (!isFixMode || anythingChanged || force) {
     // Update the search index even when media enrichment is deferred to the
     // transcript worker or transcription later fails.
     await triggerSearchReindex(bookmarkId, enqueueOpts);

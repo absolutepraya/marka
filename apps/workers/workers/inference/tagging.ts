@@ -26,6 +26,7 @@ import {
 import { ASSET_TYPES, readAsset } from "@karakeep/shared/assetdb";
 import serverConfig from "@karakeep/shared/config";
 import logger from "@karakeep/shared/logger";
+import { getPdfPageCount, samplePdfText } from "@karakeep/shared/pdf";
 import { buildImagePrompt } from "@karakeep/shared/prompts";
 import { buildTextPrompt } from "@karakeep/shared/prompts.server";
 import { DequeuedJob, EnqueueOptions } from "@karakeep/shared/queueing";
@@ -278,7 +279,7 @@ function containsTagsPlaceholder(prompts: { text: string }[]): boolean {
 }
 
 async function inferTagsFromPDF(
-  _jobId: string,
+  jobId: string,
   bookmark: NonNullable<Awaited<ReturnType<typeof fetchBookmark>>>,
   inferenceClient: InferenceClient,
   abortSignal: AbortSignal,
@@ -287,10 +288,21 @@ async function inferTagsFromPDF(
   curatedTags?: string[],
   potentialRelevantTags?: string[],
 ) {
+  const content = samplePdfText(
+    bookmark.asset.content ?? "",
+    getPdfPageCount(bookmark.asset.metadata),
+  );
+  if (!content) {
+    logger.info(
+      `[inference][${jobId}] PDF bookmark "${bookmark.id}" has no extracted text. Skipping tagging.`,
+    );
+    return null;
+  }
+
   const prompt = await buildTextPrompt(
     inferredTagLang,
     await fetchCustomPrompts(bookmark.userId, "text"),
-    `Content: ${bookmark.asset.content}`,
+    `Content: ${content}`,
     serverConfig.inference.contextLength,
     tagStyle,
     curatedTags,

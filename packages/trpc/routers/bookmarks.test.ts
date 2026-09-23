@@ -79,6 +79,162 @@ describe("Bookmark Routes", () => {
     expect(res.content.type).toEqual(BookmarkTypes.LINK);
   });
 
+  test<CustomTestContext>("refreshes a link with a distinct crawl job on every request", async ({
+    apiCallers,
+  }) => {
+    const api = apiCallers[0].bookmarks;
+    const bookmark = await api.createBookmark({
+      url: "https://example.com/refresh",
+      type: BookmarkTypes.LINK,
+    });
+    const { LowPriorityCrawlerQueue } = await import("@karakeep/shared-server");
+    const enqueue = vi.mocked(LowPriorityCrawlerQueue.enqueue);
+    enqueue.mockResolvedValue("refresh-job");
+
+    await api.refreshBookmark({ bookmarkId: bookmark.id });
+    await api.refreshBookmark({ bookmarkId: bookmark.id });
+
+    const refreshCalls = enqueue.mock.calls;
+    expect(refreshCalls).toHaveLength(2);
+    expect(refreshCalls[0][0]).toEqual({
+      bookmarkId: bookmark.id,
+      runInference: true,
+      forceTranscriptEnrichment: true,
+    });
+    expect(refreshCalls[0][1]?.idempotencyKey).toMatch(
+      new RegExp(`^bookmark-refresh:${bookmark.id}:`),
+    );
+    expect(refreshCalls[1][1]?.idempotencyKey).not.toBe(
+      refreshCalls[0][1]?.idempotencyKey,
+    );
+  });
+
+  test<CustomTestContext>("does not roll back a newer refresh when an earlier enqueue fails", async ({
+    apiCallers,
+    db,
+  }) => {
+    const api = apiCallers[0].bookmarks;
+    const bookmark = await api.createBookmark({
+      url: "https://example.com/overlapping-refresh",
+      type: BookmarkTypes.LINK,
+    });
+    await db
+      .update(bookmarks)
+      .set({
+        taggingStatus: "success",
+        summarizationStatus: "success",
+        embeddingStatus: "success",
+        summaryStale: false,
+      })
+      .where(eq(bookmarks.id, bookmark.id));
+    await db
+      .update(bookmarkLinks)
+      .set({ crawlStatus: "success" })
+      .where(eq(bookmarkLinks.id, bookmark.id));
+
+    const { LowPriorityCrawlerQueue } = await import("@karakeep/shared-server");
+    const enqueue = vi.mocked(LowPriorityCrawlerQueue.enqueue);
+    let rejectFirstEnqueue!: (error: Error) => void;
+    let notifyFirstEnqueueStarted!: () => void;
+    const firstEnqueueStarted = new Promise<void>((resolve) => {
+      notifyFirstEnqueueStarted = resolve;
+    });
+    const firstEnqueue = new Promise<string>((_resolve, reject) => {
+      rejectFirstEnqueue = reject;
+    });
+    enqueue
+      .mockImplementationOnce(() => {
+        notifyFirstEnqueueStarted();
+        return firstEnqueue;
+      })
+      .mockResolvedValueOnce("second-refresh-job");
+
+    const firstRefresh = api.refreshBookmark({ bookmarkId: bookmark.id });
+    await firstEnqueueStarted;
+    await api.refreshBookmark({ bookmarkId: bookmark.id });
+    rejectFirstEnqueue(new Error("first enqueue failed"));
+
+    await expect(firstRefresh).rejects.toThrow("first enqueue failed");
+    await expect(
+      db.query.bookmarks.findFirst({
+        where: eq(bookmarks.id, bookmark.id),
+        columns: {
+          taggingStatus: true,
+          refreshGeneration: true,
+        },
+      }),
+    ).resolves.toMatchObject({
+      taggingStatus: "pending",
+      refreshGeneration: 2,
+    });
+    await expect(
+      db.query.bookmarkLinks.findFirst({
+        where: eq(bookmarkLinks.id, bookmark.id),
+        columns: { crawlStatus: true },
+      }),
+    ).resolves.toMatchObject({ crawlStatus: "pending" });
+  });
+
+  test<CustomTestContext>("preserves queued text enrichment when a later enqueue fails", async ({
+    apiCallers,
+    db,
+  }) => {
+    const previousAutoSummarization =
+      serverConfig.inference.enableAutoSummarization;
+    const previousAutoIndexing = serverConfig.embedding.enableAutoIndexing;
+    serverConfig.inference.enableAutoSummarization = true;
+    serverConfig.embedding.enableAutoIndexing = false;
+
+    try {
+      const api = apiCallers[0].bookmarks;
+      const bookmark = await api.createBookmark({
+        text: "Text refresh with partial queue failure",
+        type: BookmarkTypes.TEXT,
+      });
+      await db
+        .update(bookmarks)
+        .set({
+          taggingStatus: "success",
+          summarizationStatus: "success",
+          embeddingStatus: "success",
+          summaryStale: false,
+        })
+        .where(eq(bookmarks.id, bookmark.id));
+
+      const { OpenAIQueue } = await import("@karakeep/shared-server");
+      const enqueue = vi.mocked(OpenAIQueue.enqueue);
+      enqueue
+        .mockReset()
+        .mockResolvedValueOnce("tag-job")
+        .mockRejectedValueOnce(new Error("summary enqueue failed"));
+
+      await expect(
+        api.refreshBookmark({ bookmarkId: bookmark.id }),
+      ).rejects.toThrow("summary enqueue failed");
+
+      await expect(
+        db.query.bookmarks.findFirst({
+          where: eq(bookmarks.id, bookmark.id),
+          columns: {
+            taggingStatus: true,
+            summarizationStatus: true,
+            embeddingStatus: true,
+            summaryStale: true,
+          },
+        }),
+      ).resolves.toMatchObject({
+        taggingStatus: "pending",
+        summarizationStatus: "success",
+        embeddingStatus: "success",
+        summaryStale: false,
+      });
+    } finally {
+      serverConfig.inference.enableAutoSummarization =
+        previousAutoSummarization;
+      serverConfig.embedding.enableAutoIndexing = previousAutoIndexing;
+    }
+  });
+
   test<CustomTestContext>("includes link content asset IDs in single bookmarks", async ({
     apiCallers,
     db,

@@ -1022,9 +1022,6 @@ importers:
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
-      pdf2json:
-        specifier: ^3.1.5
-        version: 3.1.5
       pdf2pic:
         specifier: ^3.1.3
         version: 3.1.3
@@ -15905,13 +15902,6 @@ packages:
   pathval@2.0.1:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
     engines: {node: '>= 14.16'}
-
-  pdf2json@3.1.5:
-    resolution: {integrity: sha512-djZPInDLNuJU+o6GaJNvcoUh6MtUAx3IYTQCTxywHzeg1jC5YWgz/XzlgmduxxBblpMTqY2fjcWwvyRdGPTyrQ==}
-    engines: {node: '>=20.18.0', npm: '>=10.8.2'}
-    hasBin: true
-    bundledDependencies:
-      - '@xmldom/xmldom'
 
   pdf2pic@3.1.3:
     resolution: {integrity: sha512-KbW4Qb7iHw2fBRWtA9FTc4pZg9cokiFIzc6cE7dzelTrhXWolfQuG1fYVC0E2BRmK/w7xfBjQ+OEsPZPO3QEew==}
@@ -37276,8 +37266,6 @@ snapshots:
   pathe@2.0.3: {}
 
   pathval@2.0.1: {}
-
-  pdf2json@3.1.5: {}
 
   pdf2pic@3.1.3:
     dependencies:

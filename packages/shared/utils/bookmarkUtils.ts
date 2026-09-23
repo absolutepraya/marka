@@ -54,10 +54,43 @@ export function isBookmarkStillLoading(bookmark: ZBookmark) {
   return isBookmarkStillCrawling(bookmark);
 }
 
+function isBookmarkEnrichmentPending(bookmark: ZBookmark) {
+  return (
+    bookmark.taggingStatus === "pending" ||
+    bookmark.summarizationStatus === "pending"
+  );
+}
+
 export function getBookmarkRefreshInterval(
   bookmark: ZBookmark,
 ): number | false {
-  if (!isBookmarkStillLoading(bookmark)) {
+  const crawlPending =
+    bookmark.content.type === BookmarkTypes.LINK &&
+    bookmark.content.crawlStatus === "pending";
+  const enrichmentPending = isBookmarkEnrichmentPending(bookmark);
+  if (
+    !isBookmarkStillLoading(bookmark) &&
+    !crawlPending &&
+    !enrichmentPending
+  ) {
+    return false;
+  }
+
+  if (crawlPending || enrichmentPending) {
+    // Refreshes update modifiedAt before queueing work. Use it as the bounded
+    // polling anchor so old bookmarks refresh promptly too.
+    const refreshStartedAt = bookmark.modifiedAt ?? bookmark.createdAt;
+    const elapsed = Date.now().valueOf() - refreshStartedAt.valueOf();
+
+    if (elapsed < 30 * 1000) {
+      return 1000;
+    }
+    if (elapsed < 10 * 60 * 1000) {
+      return 10_000;
+    }
+    if (elapsed < 6 * 60 * 60 * 1000) {
+      return 60_000;
+    }
     return false;
   }
 

@@ -35,10 +35,15 @@ import { ensureBookmarkAccess, ensureBookmarkOwnership } from "./bookmarks";
 const transcriptsProcedure = createScopedAuthedProcedure("bookmarks");
 
 async function getTranscript(ctx: AuthedContext, bookmarkId: string) {
-  return await ctx.db.query.bookmarkTranscripts.findFirst({
+  const transcripts = await ctx.db.query.bookmarkTranscripts.findMany({
     where: eq(bookmarkTranscripts.bookmarkId, bookmarkId),
     with: { assets: true },
   });
+  return (
+    transcripts.find((transcript) => transcript.provider === "azure-speech") ??
+    transcripts.find((transcript) => transcript.provider === "azure-whisper") ??
+    transcripts[0]
+  );
 }
 
 function serializeTranscript(
@@ -321,7 +326,7 @@ export const transcriptsAppRouter = router({
         });
       }
 
-      const provider = videoId ? "youtube" : "azure-whisper";
+      const provider = videoId ? "youtube" : "azure-speech";
       const providerItemId = videoId ?? bookmark?.asset?.assetId;
       if (!providerItemId) {
         throw new TRPCError({
@@ -329,6 +334,22 @@ export const transcriptsAppRouter = router({
           message: "Transcript source is missing",
         });
       }
+
+      const existing = await ctx.db.query.bookmarkTranscripts.findFirst({
+        where: and(
+          eq(bookmarkTranscripts.bookmarkId, input.bookmarkId),
+          eq(bookmarkTranscripts.provider, provider),
+        ),
+      });
+      const legacy =
+        provider === "azure-speech"
+          ? await ctx.db.query.bookmarkTranscripts.findFirst({
+              where: and(
+                eq(bookmarkTranscripts.bookmarkId, input.bookmarkId),
+                eq(bookmarkTranscripts.provider, "azure-whisper"),
+              ),
+            })
+          : undefined;
 
       await ctx.db
         .insert(bookmarkTranscripts)
@@ -338,6 +359,10 @@ export const transcriptsAppRouter = router({
           providerItemId,
           status: "pending",
           sourceAttachmentsStatus: "pending",
+          manualOverride: (existing ?? legacy)?.manualOverride ?? false,
+          sourceTranscript: (existing ?? legacy)?.sourceTranscript ?? null,
+          text: (existing ?? legacy)?.text ?? null,
+          revision: (existing ?? legacy)?.revision ?? 0,
         })
         .onConflictDoUpdate({
           target: [
