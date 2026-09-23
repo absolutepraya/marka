@@ -107,11 +107,12 @@ Do not share a worktree's `.data/local` directory with another worktree. SQLite 
 
 Import the project actions from the root [`t3.json`](../t3.json) in T3 Project
 settings. The `Setup worktree` action runs automatically for new T3 worktrees
-after import. Its adapter reserves a T3-specific port, then calls
-[`scripts/dev-worktree.sh`](../scripts/dev-worktree.sh), which is also used by WT.
+after import. Its adapter reserves a T3-specific port, then runs the target
+worktree's [`scripts/dev-worktree.sh`](../scripts/dev-worktree.sh), which is also
+used by WT. This keeps setup aligned with the code checked out in that worktree.
 The shared script installs dependencies, creates the package `.env` links, pulls
-the full production state into the worktree, runs migrations, and starts
-`pnpm dev:start -d`.
+the full production state into the worktree using the project root's setup
+helper, runs migrations, and starts `pnpm dev:start -d`.
 
 The T3 setup assigns web ports in the `4000` to `4999` range, keeping them
 separate from the main workspace and WT slots. Assignments are kept in the

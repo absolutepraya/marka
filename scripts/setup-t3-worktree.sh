@@ -133,6 +133,6 @@ export WT_WORKSPACE_NAME="$worktree_name"
 t3_port="$(allocate_t3_port)"
 export WT_PORT_BASE=$((t3_port - 3000))
 
-# Keep dependency, environment, production-state, and dev-server setup aligned
-# with WT through the shared repository lifecycle script.
-bash "$T3CODE_PROJECT_ROOT/scripts/dev-worktree.sh" setup
+# Run the target worktree's lifecycle script so setup uses the code checked out
+# for that worktree. Its production-state helper still comes from WT_ROOT_PATH.
+bash "$T3CODE_WORKTREE_PATH/scripts/dev-worktree.sh" setup
