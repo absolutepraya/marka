@@ -1,0 +1,25 @@
+---
+import { landing } from "../content/landing";
+---
+
+<header class="site-header">
+  <nav class="site-header__inner" aria-label="Main navigation">
+    <a class="site-brand" href="/" aria-label={landing.navigation.logoAlt}>
+      <picture>
+        <source
+          srcset="/brand/marka/marka-wordmark-white.png"
+          media="(prefers-color-scheme: dark)"
+        />
+        <img
+          src="/brand/marka/marka-wordmark-navy.png"
+          alt=""
+          width="170"
+          height="45"
+        />
+      </picture>
+    </a>
+    <a class="button button--small" href={landing.navigation.ctaHref}>
+      {landing.navigation.ctaLabel}
+    </a>
+  </nav>
+</header>

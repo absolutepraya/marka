@@ -1,0 +1,249 @@
+@import "@karakeep/tailwind-config/globals.css";
+
+:root {
+  color-scheme: light dark;
+  --marka-paper: #f8f6f1;
+  --marka-ink: #17243a;
+  --marka-muted: #5f6c7c;
+  --marka-line: #d8d9d4;
+  --marka-accent: #bf593c;
+  --marka-card: #fffefa;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--marka-ink);
+  background: var(--marka-paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--marka-paper);
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  color: var(--marka-ink);
+  background: var(--marka-paper);
+}
+
+a {
+  color: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.site-frame {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.site-header {
+  width: min(100% - 48px, 1280px);
+  margin-inline: auto;
+  padding-block: 22px;
+}
+
+.site-header__inner {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.site-brand,
+.site-brand picture,
+.site-brand img {
+  display: block;
+}
+
+.site-brand img {
+  width: 170px;
+  height: auto;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--marka-accent);
+  border-radius: 999px;
+  padding: 0 22px;
+  color: #fffefa;
+  background: #a94832;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.button:hover {
+  background: #8d3827;
+  transform: translateY(-1px);
+}
+
+.button--small {
+  min-height: 42px;
+  padding-inline: 18px;
+  font-size: 0.875rem;
+}
+
+.hero {
+  width: min(100% - 48px, 840px);
+  margin: clamp(64px, 10vw, 128px) auto 96px;
+  text-align: center;
+}
+
+.hero h1 {
+  max-width: 13ch;
+  margin: 14px auto 24px;
+  font-size: clamp(3rem, 7vw, 5.6rem);
+  font-weight: 560;
+  letter-spacing: -0.065em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.hero > p:not(.eyebrow) {
+  max-width: 670px;
+  margin: 0 auto 16px;
+  color: var(--marka-muted);
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--marka-accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px 24px;
+  margin-top: 32px;
+}
+
+.text-link {
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.site-footer {
+  display: flex;
+  width: min(100% - 48px, 1280px);
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: auto auto 0;
+  border-top: 1px solid var(--marka-line);
+  padding-block: 24px;
+  color: var(--marka-muted);
+  font-size: 0.875rem;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.site-footer a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--marka-accent);
+  outline-offset: 4px;
+}
+
+@media (max-width: 560px) {
+  .site-header,
+  .site-footer {
+    width: min(100% - 36px, 1280px);
+  }
+
+  .site-header {
+    padding-block: 16px;
+  }
+
+  .site-brand img {
+    width: 138px;
+  }
+
+  .site-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-block: 22px;
+  }
+
+  .hero {
+    width: min(100% - 36px, 840px);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --marka-paper: #151b24;
+    --marka-ink: #f4f2eb;
+    --marka-muted: #b5bfca;
+    --marka-line: #3a414a;
+    --marka-accent: #ef9d78;
+    --marka-card: #202833;
+  }
+
+  .button {
+    border-color: #ef9d78;
+    color: #1d2023;
+    background: #ef9d78;
+  }
+
+  .button:hover {
+    background: #f5b191;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

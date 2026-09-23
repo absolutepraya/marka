@@ -40,6 +40,7 @@
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "autoprefixer": "^10.4.17",
+    "cookie": "2.0.1",
     "jsdom": "^24.0.0",
     "portless": "^0.10.3",
     "postcss": "^8.4.35",

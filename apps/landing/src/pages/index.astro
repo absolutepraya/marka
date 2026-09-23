@@ -1,53 +1,19 @@
 ---
-import Hero from "../components/Hero.astro";
-import Homepage from "../Homepage";
 import Layout from "../layouts/Layout.astro";
+import { landing } from "../content/landing";
 ---
 
-<Layout path="/">
-  <Fragment slot="head">
-    <script is:inline type="application/ld+json" set:html={JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Karakeep",
-      "url": "https://karakeep.app",
-      "description": "Karakeep is the open-source bookmark manager for links, notes, and images. Automatically organize and tag your bookmarks with AI.",
-      "applicationCategory": "Productivity",
-      "operatingSystem": "Web, iOS, Android",
-      "offers": [
-        {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD",
-          "description": "Free plan with 10 bookmarks and 20MB storage"
-        },
-        {
-          "@type": "Offer",
-          "price": "4",
-          "priceCurrency": "USD",
-          "billingIncrement": "P1M",
-          "description": "Pro plan with 50,000 bookmarks, 50GB storage, and AI-powered tagging"
-        }
-      ],
-      "featureList": [
-        "AI-powered bookmark tagging",
-        "Full text search",
-        "Collaborative lists",
-        "RSS feed integration",
-        "Browser extensions",
-        "Self-hosting support",
-        "REST API and webhooks",
-        "Dark mode"
-      ],
-      "screenshot": "https://karakeep.app/hero.webp",
-      "softwareVersion": "latest",
-      "author": {
-        "@type": "Organization",
-        "name": "Localhost Labs Ltd",
-        "url": "https://localhostlabs.co.uk"
-      }
-    })} />
-  </Fragment>
-  <Hero />
-  <Homepage />
+<Layout>
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow">{landing.hero.eyebrow}</p>
+      <h1 id="hero-title">{landing.hero.title}</h1>
+      <p>{landing.hero.description}</p>
+      <p>{landing.hero.supportingNote}</p>
+      <div class="hero__actions">
+        <a class="button" href={landing.primaryCta.href}>{landing.primaryCta.label}</a>
+        <a class="text-link" href={landing.secondaryCta.href}>{landing.secondaryCta.label}</a>
+      </div>
+    </section>
+  </main>
 </Layout>
