@@ -8,6 +8,7 @@ import type { ZBookmarkList } from "@karakeep/shared/types/lists";
 const mutators = vi.hoisted(() => ({
   updateMutateAsync: vi.fn(),
   recrawlMutateAsync: vi.fn(),
+  refreshMutateAsync: vi.fn(),
   removeFromListMutateAsync: vi.fn(),
 }));
 
@@ -20,6 +21,10 @@ vi.mock("@karakeep/shared-react/hooks/bookmarks", () => ({
     mutateAsync: mutators.recrawlMutateAsync,
     isPending: false,
   }),
+  useRefreshBookmark: () => ({
+    mutateAsync: mutators.refreshMutateAsync,
+    isPending: false,
+  }),
 }));
 
 vi.mock("@karakeep/shared-react/hooks/lists", () => ({
@@ -29,7 +34,11 @@ vi.mock("@karakeep/shared-react/hooks/lists", () => ({
   }),
 }));
 
-import { useBookmarkBulkMutations } from "./useBookmarkBulkActions";
+import {
+  BulkRefreshLimitError,
+  MAX_BULK_REFRESH_BOOKMARKS,
+  useBookmarkBulkMutations,
+} from "./useBookmarkBulkActions";
 
 function bookmark(id: string, userId = "user-1", type = "link") {
   return {
@@ -51,6 +60,7 @@ describe("useBookmarkBulkMutations", () => {
       Promise.resolve({ id: input.bookmarkId }),
     );
     mutators.recrawlMutateAsync.mockResolvedValue({});
+    mutators.refreshMutateAsync.mockResolvedValue({});
     mutators.removeFromListMutateAsync.mockResolvedValue({});
   });
 
@@ -138,6 +148,43 @@ describe("useBookmarkBulkMutations", () => {
       bookmarkId: "link",
       archiveFullPage: true,
     });
+  });
+
+  it("refreshes selected bookmarks within the endpoint limit", async () => {
+    const selected = [bookmark("a"), bookmark("b")];
+    const { result } = renderHook(() =>
+      useBookmarkBulkMutations({ selectedBookmarks: selected }),
+    );
+
+    await act(async () => {
+      await result.current.refreshSelectedBookmarks();
+    });
+
+    expect(mutators.refreshMutateAsync).toHaveBeenCalledTimes(2);
+    expect(mutators.refreshMutateAsync).toHaveBeenNthCalledWith(1, {
+      bookmarkId: "a",
+    });
+    expect(mutators.refreshMutateAsync).toHaveBeenNthCalledWith(2, {
+      bookmarkId: "b",
+    });
+  });
+
+  it("rejects oversized refreshes before sending any request", async () => {
+    const selected = Array.from(
+      { length: MAX_BULK_REFRESH_BOOKMARKS + 1 },
+      (_, index) => bookmark(String(index)),
+    );
+    const { result } = renderHook(() =>
+      useBookmarkBulkMutations({ selectedBookmarks: selected }),
+    );
+
+    await act(async () => {
+      await expect(
+        result.current.refreshSelectedBookmarks(),
+      ).rejects.toBeInstanceOf(BulkRefreshLimitError);
+    });
+
+    expect(mutators.refreshMutateAsync).not.toHaveBeenCalled();
   });
 
   it("removes selected bookmarks from the provided list context", async () => {

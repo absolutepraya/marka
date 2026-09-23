@@ -346,11 +346,14 @@ async function enqueueTranscriptSummary(
   );
 }
 
+type RefreshFallbackWork = "tagging" | "embedding" | "summarization";
+
 async function enqueueRefreshFallbackEnrichment(
   bookmark: { id: string; userId: string },
   jobId: string,
   priority: number | undefined,
   shouldSummarize: boolean,
+  enqueuedWork?: Set<RefreshFallbackWork>,
 ) {
   const enqueueOpts: EnqueueOptions = {
     priority: priority ?? QueuePriority.Default,
@@ -367,11 +370,14 @@ async function enqueueRefreshFallbackEnrichment(
       },
       { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:embed` },
     );
+    enqueuedWork?.add("embedding");
+    enqueuedWork?.add("tagging");
   } else {
     await OpenAIQueue.enqueue(
       { bookmarkId: bookmark.id, type: "tag" },
       { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:tag` },
     );
+    enqueuedWork?.add("tagging");
   }
 
   if (shouldSummarize && serverConfig.inference.enableAutoSummarization) {
@@ -383,6 +389,7 @@ async function enqueueRefreshFallbackEnrichment(
       },
       { ...enqueueOpts, idempotencyKey: `${idempotencyPrefix}:summary` },
     );
+    enqueuedWork?.add("summarization");
   }
 }
 
@@ -1065,7 +1072,7 @@ export class TranscriptWorker {
                   summarizationStatus: true,
                 },
               });
-              let fallbackQueued = false;
+              const enqueuedWork = new Set<RefreshFallbackWork>();
               if (bookmark) {
                 try {
                   await enqueueRefreshFallbackEnrichment(
@@ -1073,16 +1080,16 @@ export class TranscriptWorker {
                     job.id,
                     job.priority,
                     bookmark.summarizationStatus === "pending",
+                    enqueuedWork,
                   );
-                  fallbackQueued = true;
                 } catch (error) {
                   logger.error(
                     `[transcript][${job.id}] Failed to enqueue refresh fallback enrichment: ${error instanceof Error ? error.message : String(error)}`,
                   );
                 }
               }
-              if (!fallbackQueued) {
-                await db.transaction(async (tx) => {
+              await db.transaction(async (tx) => {
+                if (!enqueuedWork.has("tagging")) {
                   await tx
                     .update(bookmarks)
                     .set({ taggingStatus: null })
@@ -1092,6 +1099,8 @@ export class TranscriptWorker {
                         eq(bookmarks.taggingStatus, "pending"),
                       ),
                     );
+                }
+                if (!enqueuedWork.has("summarization")) {
                   await tx
                     .update(bookmarks)
                     .set({ summarizationStatus: null })
@@ -1101,6 +1110,8 @@ export class TranscriptWorker {
                         eq(bookmarks.summarizationStatus, "pending"),
                       ),
                     );
+                }
+                if (!enqueuedWork.has("embedding")) {
                   await tx
                     .update(bookmarks)
                     .set({ embeddingStatus: null })
@@ -1110,8 +1121,8 @@ export class TranscriptWorker {
                         eq(bookmarks.embeddingStatus, "pending"),
                       ),
                     );
-                });
-              }
+                }
+              });
             }
           }
         },

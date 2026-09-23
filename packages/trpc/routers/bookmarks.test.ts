@@ -175,6 +175,66 @@ describe("Bookmark Routes", () => {
     ).resolves.toMatchObject({ crawlStatus: "pending" });
   });
 
+  test<CustomTestContext>("preserves queued text enrichment when a later enqueue fails", async ({
+    apiCallers,
+    db,
+  }) => {
+    const previousAutoSummarization =
+      serverConfig.inference.enableAutoSummarization;
+    const previousAutoIndexing = serverConfig.embedding.enableAutoIndexing;
+    serverConfig.inference.enableAutoSummarization = true;
+    serverConfig.embedding.enableAutoIndexing = false;
+
+    try {
+      const api = apiCallers[0].bookmarks;
+      const bookmark = await api.createBookmark({
+        text: "Text refresh with partial queue failure",
+        type: BookmarkTypes.TEXT,
+      });
+      await db
+        .update(bookmarks)
+        .set({
+          taggingStatus: "success",
+          summarizationStatus: "success",
+          embeddingStatus: "success",
+          summaryStale: false,
+        })
+        .where(eq(bookmarks.id, bookmark.id));
+
+      const { OpenAIQueue } = await import("@karakeep/shared-server");
+      const enqueue = vi.mocked(OpenAIQueue.enqueue);
+      enqueue
+        .mockReset()
+        .mockResolvedValueOnce("tag-job")
+        .mockRejectedValueOnce(new Error("summary enqueue failed"));
+
+      await expect(
+        api.refreshBookmark({ bookmarkId: bookmark.id }),
+      ).rejects.toThrow("summary enqueue failed");
+
+      await expect(
+        db.query.bookmarks.findFirst({
+          where: eq(bookmarks.id, bookmark.id),
+          columns: {
+            taggingStatus: true,
+            summarizationStatus: true,
+            embeddingStatus: true,
+            summaryStale: true,
+          },
+        }),
+      ).resolves.toMatchObject({
+        taggingStatus: "pending",
+        summarizationStatus: "success",
+        embeddingStatus: "success",
+        summaryStale: false,
+      });
+    } finally {
+      serverConfig.inference.enableAutoSummarization =
+        previousAutoSummarization;
+      serverConfig.embedding.enableAutoIndexing = previousAutoIndexing;
+    }
+  });
+
   test<CustomTestContext>("includes link content asset IDs in single bookmarks", async ({
     apiCallers,
     db,

@@ -454,6 +454,10 @@ export default function BottomActions({ bookmark }: BottomActionsProps) {
           (a) =>
             a.shouldRender && (
               <Pressable
+                accessibilityLabel={TOOLBAR_ACTION_REGISTRY[a.id].render(
+                  bookmark,
+                )}
+                accessibilityRole="button"
                 disabled={a.disabled}
                 key={a.id}
                 onPress={a.onClick}

@@ -2311,7 +2311,9 @@ async function runCrawler(
 
     const isYouTubeBookmark = getYouTubeVideoId(url) !== null;
     const transcriptRefresh =
-      isYouTubeBookmark && job.data.forceTranscriptEnrichment === true;
+      isYouTubeBookmark &&
+      job.data.forceTranscriptEnrichment === true &&
+      isTranscriptWorkerConfigured();
     if (job.data.runInference !== false) {
       if (!transcriptRefresh) {
         if (serverConfig.embedding.enableAutoIndexing) {

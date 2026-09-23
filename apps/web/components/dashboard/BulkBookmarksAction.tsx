@@ -9,7 +9,11 @@ import {
 import ActionConfirmingDialog from "@/components/ui/action-confirming-dialog";
 import { toast } from "@/components/ui/sonner";
 import useBulkActionsStore from "@/lib/bulkActions";
-import { useBookmarkBulkMutations } from "@/lib/hooks/useBookmarkBulkActions";
+import {
+  BulkRefreshLimitError,
+  MAX_BULK_REFRESH_BOOKMARKS,
+  useBookmarkBulkMutations,
+} from "@/lib/hooks/useBookmarkBulkActions";
 import { useUndoableBookmarkDeletion } from "@/lib/hooks/useUndoableBookmarkDeletion";
 import type { UpdateBookmarkProps } from "@/lib/hooks/useBookmarkBulkActions";
 import { useTranslation } from "@/lib/i18n/client";
@@ -88,15 +92,30 @@ export default function BulkBookmarksAction() {
   const preserveOfflineArchives = async () => {
     const links = await recrawlSelectedLinkBookmarks(true);
     toast({
-      description: `${links.length} bookmarks will be re-crawled and archived!`,
+      description: t("toasts.bookmarks.bulk_archive", { count: links.length }),
     });
   };
 
   const refreshBookmarks = async () => {
-    const bookmarks = await refreshSelectedBookmarks();
-    toast({
-      description: `${bookmarks.length} bookmarks will be refreshed!`,
-    });
+    try {
+      const bookmarks = await refreshSelectedBookmarks();
+      toast({
+        description: t("toasts.bookmarks.bulk_refresh", {
+          count: bookmarks.length,
+        }),
+      });
+    } catch (error) {
+      if (error instanceof BulkRefreshLimitError) {
+        toast({
+          variant: "destructive",
+          description: t("toasts.bookmarks.bulk_refresh_limit", {
+            count: MAX_BULK_REFRESH_BOOKMARKS,
+          }),
+        });
+        return;
+      }
+      throw error;
+    }
   };
 
   function isClipboardAvailable() {

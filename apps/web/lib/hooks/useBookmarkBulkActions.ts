@@ -14,6 +14,16 @@ import {
 import { useRemoveBookmarkFromList } from "@karakeep/shared-react/hooks/lists";
 
 const MAX_CONCURRENT_BULK_ACTIONS = 50;
+export const MAX_BULK_REFRESH_BOOKMARKS = 200;
+
+export class BulkRefreshLimitError extends Error {
+  constructor() {
+    super(
+      `Bulk refresh is limited to ${MAX_BULK_REFRESH_BOOKMARKS} bookmarks.`,
+    );
+    this.name = "BulkRefreshLimitError";
+  }
+}
 
 export interface UpdateBookmarkProps {
   favourited?: boolean;
@@ -119,6 +129,10 @@ export function useBookmarkBulkMutations({
 
   const refreshSelectedBookmarks = useCallback(async () => {
     const selected = selectedActionableBookmarks();
+    if (selected.length > MAX_BULK_REFRESH_BOOKMARKS) {
+      throw new BulkRefreshLimitError();
+    }
+
     await Promise.all(
       limitConcurrency(
         selected.map(

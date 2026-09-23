@@ -97,6 +97,8 @@ import {
 
 const bookmarksProcedure = createScopedAuthedProcedure("bookmarks");
 
+type TextBookmarkEnrichmentWork = "tagging" | "embedding" | "summarization";
+
 async function enqueueTextBookmarkEnrichment(
   bookmarkId: string,
   enqueueOpts: EnqueueOptions,
@@ -104,6 +106,7 @@ async function enqueueTextBookmarkEnrichment(
     skipSummarization?: boolean;
     idempotencyKeyPrefix?: string | null;
   } = {},
+  enqueuedWork?: Set<TextBookmarkEnrichmentWork>,
 ) {
   const idempotencyKeyPrefix =
     options.idempotencyKeyPrefix === undefined
@@ -126,6 +129,8 @@ async function enqueueTextBookmarkEnrichment(
       },
       queueOptions("embed"),
     );
+    enqueuedWork?.add("embedding");
+    enqueuedWork?.add("tagging");
   } else {
     await OpenAIQueue.enqueue(
       {
@@ -134,6 +139,7 @@ async function enqueueTextBookmarkEnrichment(
       },
       queueOptions("tag"),
     );
+    enqueuedWork?.add("tagging");
   }
 
   if (
@@ -147,6 +153,7 @@ async function enqueueTextBookmarkEnrichment(
       },
       queueOptions("summary"),
     );
+    enqueuedWork?.add("summarization");
   }
 }
 
@@ -1182,6 +1189,7 @@ export const bookmarksAppRouter = router({
         groupId: ctx.user.id,
         priority: QueuePriority.Low,
       };
+      const enqueuedTextWork = new Set<TextBookmarkEnrichmentWork>();
 
       try {
         switch (bookmark.type) {
@@ -1200,10 +1208,15 @@ export const bookmarksAppRouter = router({
             break;
           }
           case BookmarkTypes.TEXT:
-            await enqueueTextBookmarkEnrichment(input.bookmarkId, enqueueOpts, {
-              skipSummarization: !shouldSummarize,
-              idempotencyKeyPrefix: null,
-            });
+            await enqueueTextBookmarkEnrichment(
+              input.bookmarkId,
+              enqueueOpts,
+              {
+                skipSummarization: !shouldSummarize,
+                idempotencyKeyPrefix: null,
+              },
+              enqueuedTextWork,
+            );
             await triggerSearchReindex(input.bookmarkId, enqueueOpts);
             break;
           case BookmarkTypes.ASSET:
@@ -1222,11 +1235,25 @@ export const bookmarksAppRouter = router({
           const [rolledBack] = await tx
             .update(bookmarks)
             .set({
-              taggingStatus: bookmark.taggingStatus,
-              summarizationStatus: bookmark.summarizationStatus,
-              embeddingStatus: bookmark.embeddingStatus,
-              summaryStale: bookmark.summaryStale,
-              modifiedAt: bookmark.modifiedAt,
+              ...(bookmark.type !== BookmarkTypes.TEXT ||
+              !enqueuedTextWork.has("tagging")
+                ? { taggingStatus: bookmark.taggingStatus }
+                : {}),
+              ...(bookmark.type !== BookmarkTypes.TEXT ||
+              !enqueuedTextWork.has("summarization")
+                ? {
+                    summarizationStatus: bookmark.summarizationStatus,
+                    summaryStale: bookmark.summaryStale,
+                  }
+                : {}),
+              ...(bookmark.type !== BookmarkTypes.TEXT ||
+              !enqueuedTextWork.has("embedding")
+                ? { embeddingStatus: bookmark.embeddingStatus }
+                : {}),
+              ...(bookmark.type !== BookmarkTypes.TEXT ||
+              enqueuedTextWork.size === 0
+                ? { modifiedAt: bookmark.modifiedAt }
+                : {}),
             })
             .where(
               and(
