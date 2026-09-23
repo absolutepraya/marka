@@ -500,16 +500,38 @@ a {
 }
 
 .mobile-library__visual {
+  width: min(100%, 370px);
+  justify-self: center;
+  aspect-ratio: 9 / 16;
   overflow: hidden;
   border: 1px solid var(--marka-line);
-  border-radius: 24px;
-  background: var(--marka-card);
+  border-radius: 42px;
+  padding: 8px;
+  background: #1b2737;
+  box-shadow: 0 22px 60px rgb(26 33 42 / 18%);
 }
 
-.mobile-library__visual img {
+.mobile-library__visual--poster {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.mobile-library__media {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  border-radius: 34px;
+  background: #eaf0f4;
+  object-fit: cover;
+}
+
+.mobile-library__visual--poster .mobile-library__media {
+  border-radius: 0;
+  height: 108%;
+  object-position: center top;
 }
 
 .ownership-close {

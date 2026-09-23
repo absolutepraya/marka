@@ -21,6 +21,17 @@ export interface LandingDemo {
   status: AssetStatus;
 }
 
+export interface LandingMobileDemo {
+  id: string;
+  title: string;
+  description: string;
+  video: LocalAssetPath;
+  poster: LocalAssetPath;
+  targetDuration: string;
+  status: AssetStatus;
+  illustrationAlt: string;
+}
+
 export const landing = {
   metadata: {
     title: "Marka | Everything you want to come back to",
@@ -176,7 +187,7 @@ export const landing = {
       poster: "/marketing/posters/mobile-library.webp" as LocalAssetPath,
       targetDuration: "8 to 15 seconds",
       status: "pending" as AssetStatus,
-    },
+    } satisfies LandingMobileDemo,
   },
   ownership: {
     eyebrow: "YOUR LIBRARY, YOUR SERVER",

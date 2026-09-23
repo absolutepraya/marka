@@ -5,6 +5,7 @@ import ProductCanvas from "../components/ProductCanvas.astro";
 import OwnershipClose from "../components/OwnershipClose.astro";
 import { SourceLibraryAnimation } from "../components/SourceLibraryAnimation";
 import { DemoGallery } from "../components/DemoGallery";
+import { MobileLibraryDemo } from "../components/MobileLibraryDemo";
 import { landing } from "../content/landing";
 ---
 
@@ -62,20 +63,7 @@ import { landing } from "../content/landing";
         <p>{landing.demos.mobile.description}</p>
         <p class="demo-card__status">{landing.demos.pendingLabel}</p>
       </div>
-      <div
-        class="mobile-library__visual"
-        role="img"
-        aria-label={landing.demos.mobile.illustrationAlt}
-      >
-        <img
-          src={landing.demos.mobile.poster}
-          alt=""
-          width="1120"
-          height="720"
-          loading="lazy"
-          decoding="async"
-        />
-      </div>
+      <MobileLibraryDemo demo={landing.demos.mobile} client:visible />
     </section>
 
     <OwnershipClose />
