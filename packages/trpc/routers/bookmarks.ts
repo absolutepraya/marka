@@ -1,6 +1,17 @@
 import { experimental_trpcMiddleware, TRPCError } from "@trpc/server";
 import { randomUUID } from "node:crypto";
-import { and, count, eq, gt, inArray, isNull, like, lt, or } from "drizzle-orm";
+import {
+  and,
+  count,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  like,
+  lt,
+  or,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -1137,10 +1148,8 @@ export const bookmarksAppRouter = router({
         serverConfig.inference.enableAutoSummarization &&
         userSettings?.autoSummarizationEnabled !== false &&
         bookmark.summaryProvenance !== "manual";
-      const refreshStartedAt = new Date();
-
-      await ctx.db.transaction(async (tx) => {
-        await tx
+      const refreshGeneration = await ctx.db.transaction(async (tx) => {
+        const [refresh] = await tx
           .update(bookmarks)
           .set({
             taggingStatus: "pending",
@@ -1149,9 +1158,15 @@ export const bookmarksAppRouter = router({
               ? "pending"
               : null,
             ...(shouldSummarize ? { summaryStale: true } : {}),
-            modifiedAt: refreshStartedAt,
+            modifiedAt: new Date(),
+            refreshGeneration: sql`${bookmarks.refreshGeneration} + 1`,
           })
-          .where(eq(bookmarks.id, input.bookmarkId));
+          .where(eq(bookmarks.id, input.bookmarkId))
+          .returning({ refreshGeneration: bookmarks.refreshGeneration });
+
+        if (!refresh) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
 
         if (bookmark.type === BookmarkTypes.LINK) {
           await tx
@@ -1159,6 +1174,8 @@ export const bookmarksAppRouter = router({
             .set({ crawlStatus: "pending" })
             .where(eq(bookmarkLinks.id, input.bookmarkId));
         }
+
+        return refresh.refreshGeneration;
       });
 
       const enqueueOpts: EnqueueOptions = {
@@ -1202,7 +1219,7 @@ export const bookmarksAppRouter = router({
         }
       } catch (error) {
         await ctx.db.transaction(async (tx) => {
-          await tx
+          const [rolledBack] = await tx
             .update(bookmarks)
             .set({
               taggingStatus: bookmark.taggingStatus,
@@ -1211,9 +1228,15 @@ export const bookmarksAppRouter = router({
               summaryStale: bookmark.summaryStale,
               modifiedAt: bookmark.modifiedAt,
             })
-            .where(eq(bookmarks.id, input.bookmarkId));
+            .where(
+              and(
+                eq(bookmarks.id, input.bookmarkId),
+                eq(bookmarks.refreshGeneration, refreshGeneration),
+              ),
+            )
+            .returning({ id: bookmarks.id });
 
-          if (bookmark.type === BookmarkTypes.LINK) {
+          if (rolledBack && bookmark.type === BookmarkTypes.LINK) {
             await tx
               .update(bookmarkLinks)
               .set({ crawlStatus: bookmark.link?.crawlStatus ?? null })

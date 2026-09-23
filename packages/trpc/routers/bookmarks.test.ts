@@ -109,6 +109,72 @@ describe("Bookmark Routes", () => {
     );
   });
 
+  test<CustomTestContext>("does not roll back a newer refresh when an earlier enqueue fails", async ({
+    apiCallers,
+    db,
+  }) => {
+    const api = apiCallers[0].bookmarks;
+    const bookmark = await api.createBookmark({
+      url: "https://example.com/overlapping-refresh",
+      type: BookmarkTypes.LINK,
+    });
+    await db
+      .update(bookmarks)
+      .set({
+        taggingStatus: "success",
+        summarizationStatus: "success",
+        embeddingStatus: "success",
+        summaryStale: false,
+      })
+      .where(eq(bookmarks.id, bookmark.id));
+    await db
+      .update(bookmarkLinks)
+      .set({ crawlStatus: "success" })
+      .where(eq(bookmarkLinks.id, bookmark.id));
+
+    const { LowPriorityCrawlerQueue } = await import("@karakeep/shared-server");
+    const enqueue = vi.mocked(LowPriorityCrawlerQueue.enqueue);
+    let rejectFirstEnqueue!: (error: Error) => void;
+    let notifyFirstEnqueueStarted!: () => void;
+    const firstEnqueueStarted = new Promise<void>((resolve) => {
+      notifyFirstEnqueueStarted = resolve;
+    });
+    const firstEnqueue = new Promise<string>((_resolve, reject) => {
+      rejectFirstEnqueue = reject;
+    });
+    enqueue
+      .mockImplementationOnce(() => {
+        notifyFirstEnqueueStarted();
+        return firstEnqueue;
+      })
+      .mockResolvedValueOnce("second-refresh-job");
+
+    const firstRefresh = api.refreshBookmark({ bookmarkId: bookmark.id });
+    await firstEnqueueStarted;
+    await api.refreshBookmark({ bookmarkId: bookmark.id });
+    rejectFirstEnqueue(new Error("first enqueue failed"));
+
+    await expect(firstRefresh).rejects.toThrow("first enqueue failed");
+    await expect(
+      db.query.bookmarks.findFirst({
+        where: eq(bookmarks.id, bookmark.id),
+        columns: {
+          taggingStatus: true,
+          refreshGeneration: true,
+        },
+      }),
+    ).resolves.toMatchObject({
+      taggingStatus: "pending",
+      refreshGeneration: 2,
+    });
+    await expect(
+      db.query.bookmarkLinks.findFirst({
+        where: eq(bookmarkLinks.id, bookmark.id),
+        columns: { crawlStatus: true },
+      }),
+    ).resolves.toMatchObject({ crawlStatus: "pending" });
+  });
+
   test<CustomTestContext>("includes link content asset IDs in single bookmarks", async ({
     apiCallers,
     db,

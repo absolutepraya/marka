@@ -233,6 +233,7 @@ export const bookmarks = sqliteTable(
     taggingStatus: text("taggingStatus", {
       enum: ["pending", "failure", "success"],
     }).default("pending"),
+    refreshGeneration: integer("refreshGeneration").notNull().default(0),
     summarizationStatus: text("summarizationStatus", {
       enum: ["pending", "failure", "success"],
     }).default("pending"),
