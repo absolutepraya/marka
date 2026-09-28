@@ -91,46 +91,34 @@ Commands:
   help [command]             display help for command
 ```
 
-## Obtaining an API Key
+## Configure authentication
 
-To use the CLI, you'll need to get an API key from your karakeep settings. You can validate that it's working by running:
-
-```
-karakeep --api-key <key> --server-addr <addr> whoami
-```
-
-For example:
-
-```
-karakeep --api-key mysupersecretkey --server-addr https://try.karakeep.app whoami
-{
-  id: 'j29gnbzxxd01q74j2lu88tnb',
-  name: 'Test User',
-  email: 'test@gmail.com'
-}
-```
-
-You can also store the server address and API key in
-`$XDG_CONFIG_HOME/karakeep/config.json`. If `XDG_CONFIG_HOME` is not set, the
-CLI reads `~/.config/karakeep/config.json`.
-
-```json
-{
-  "serverAddr": "https://try.karakeep.app",
-  "apiKey": "mysupersecretkey"
-}
-```
-
-Command-line options take precedence over environment variables, and
-environment variables take precedence over the config file.
-If no server address is provided, the CLI defaults to
-`https://cloud.karakeep.app`.
-
-To create or update this file interactively, run:
+Create an API key in your instance under **Settings > API Keys**. Then run the
+interactive setup in a private local terminal:
 
 ```bash
 karakeep auth init
 ```
+
+Enter the instance origin, such as `https://marka.example.com`, without the
+`/api/v1` suffix, then enter the API key. The CLI writes its configuration to
+`$XDG_CONFIG_HOME/karakeep/config.json`, or `~/.config/karakeep/config.json`
+when `XDG_CONFIG_HOME` is unset. The file is created with mode `0600`; the CLI
+does not encrypt the API key stored in it.
+
+For unattended agents, configure `KARAKEEP_API_KEY` and
+`KARAKEEP_SERVER_ADDR` in the agent host's secret or environment settings. The
+server address is your instance origin. If omitted, the CLI defaults to
+`https://cloud.karakeep.app`, so self-hosted users should set their own address.
+Verify the connection with:
+
+```bash
+karakeep whoami
+```
+
+The CLI also accepts `--api-key`, but command-line arguments can be exposed in
+shell history or process listings. Prefer `karakeep auth init` or the
+environment variables for credential setup.
 
 
 ## Other clients
