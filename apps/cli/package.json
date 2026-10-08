@@ -1,17 +1,18 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@karakeep/cli",
+  "name": "@absolutepraya/marka",
   "version": "0.32.0",
   "description": "Command Line Interface (CLI) for Marka",
   "license": "GNU Affero General Public License version 3",
   "type": "module",
   "keywords": [
-    "hoarder",
-    "karakeep",
+    "marka",
+    "bookmarks",
     "cli"
   ],
   "exports": "./dist/index.mjs",
   "bin": {
+    "marka": "dist/index.mjs",
     "karakeep": "dist/index.mjs"
   },
   "devDependencies": {
@@ -42,7 +43,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/karakeep-app/karakeep.git",
+    "url": "git+https://github.com/absolutepraya/marka.git",
     "directory": "apps/cli"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
