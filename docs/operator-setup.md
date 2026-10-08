@@ -421,3 +421,9 @@ Notes:
 - Operator operation: `docs/operator-setup.md`
 - Docs-site development: `docs/README.md`
 - Assistant operations context: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
+
+## CLI publication
+
+The npm CLI publishes independently from web/worker images after successful
+`main` CI. See [the CLI release guide](../apps/cli/README.md) for artifact-based
+versioning, retry behavior, and the required one-time npm account setup.

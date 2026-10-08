@@ -134,6 +134,21 @@ jobs:
           name: e2e-docker-logs-${{ github.sha }}-${{ github.run_attempt }}
           path: packages/e2e_tests/setup/docker-logs/
           retention-days: 7
+  cli-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./tooling/github/setup
+      - name: Build and check the CLI package
+        run: |
+          pnpm --filter @absolutepraya/marka build
+          node --test scripts/cli-release.test.mjs scripts/cli-smoke.test.mjs
+          cd apps/cli
+          npm pack --dry-run
+
   open-api-spec:
     runs-on: ubuntu-latest
     steps:

@@ -1,45 +1,125 @@
-name: Publish CLI Package to npm
+name: Publish Marka CLI to npm
+
 on:
-  push:
-    tags:
-      - "cli/v[0-9]+.[0-9]+.[0-9]+"
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      target:
+        description: "Optional CI-approved main commit to retry; defaults to current main"
+        type: string
+        default: ""
+      dry_run:
+        description: "Build and validate without publishing or creating a tag"
+        type: boolean
+        default: true
+
+concurrency:
+  group: marka-cli-release
+  cancel-in-progress: false
 
 permissions:
-  id-token: write # Required for OIDC
   contents: read
 
 jobs:
-  build:
+  publish:
+    if: >-
+      github.repository == 'absolutepraya/marka' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.conclusion == 'success') ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
+          fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || inputs.target || github.sha }}
+
+      - name: Require successful exact-commit main CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ github.event.workflow_run.head_sha || inputs.target || github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main:refs/remotes/origin/main
+          git fetch --force --tags origin
+          git merge-base --is-ancestor "$TARGET" origin/main
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$TARGET&event=push&branch=main&per_page=100")"
+          jq -e --arg target "$TARGET" 'any(.workflow_runs[]; .head_sha == $target and .head_branch == "main" and .event == "push" and .conclusion == "success")' <<< "$runs"
 
       - name: Setup
         uses: ./tooling/github/setup
 
-      - name: Set canary version
-        if: github.event_name == 'workflow_dispatch'
+      - name: Build version-independent artifact
         run: |
-          npm version "0.0.0-canary.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}" --no-git-tag-version
-        working-directory: apps/cli
+          node -e 'const fs = require("node:fs"); const p = "apps/cli/package.json"; const m = JSON.parse(fs.readFileSync(p)); m.version = "0.0.0"; fs.writeFileSync(p, JSON.stringify(m, null, 2) + "\n");'
+          pnpm --filter @absolutepraya/marka build
+          pnpm --filter @absolutepraya/marka typecheck
+          node --test scripts/cli-release.test.mjs
 
-      - name: Build CLI
-        run: pnpm build
-        working-directory: apps/cli
+      - name: Decide independent CLI version
+        id: decision
+        run: |
+          set -euo pipefail
+          node scripts/cli-release.mjs > cli-release-decision.json
+          cat cli-release-decision.json
+          echo "release=$(jq -r '.shouldRelease' cli-release-decision.json)" >> "$GITHUB_OUTPUT"
+          cat cli-release-decision.json >> "$GITHUB_STEP_SUMMARY"
 
-      # npm 11.5.1 or later is required for trusted publishing
-      - name: Upgrade npm
-        run: npm install -g npm@latest
+      - name: Prepare versioned package
+        if: steps.decision.outputs.release == 'true'
+        run: |
+          node -e 'const fs = require("node:fs"); const d = JSON.parse(fs.readFileSync("cli-release-decision.json")); const p = "apps/cli/package.json"; const m = JSON.parse(fs.readFileSync(p)); m.version = d.version; m.gitHead = d.target; fs.writeFileSync(p, JSON.stringify(m, null, 2) + "\n");'
+          pnpm --filter @absolutepraya/marka build
+          test "$(node apps/cli/dist/index.mjs --version)" = "$(jq -r '.version' cli-release-decision.json)"
+          node apps/cli/dist/index.mjs --help
+          cd apps/cli
+          npm pack --dry-run
 
-      - name: Publish stable release
-        if: github.event_name == 'push'
-        run: pnpm publish --access public --no-git-checks
-        working-directory: apps/cli
+      - name: Reserve immutable CLI release tag
+        if: steps.decision.outputs.release == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$(jq -r '.tag' cli-release-decision.json)"
+          target="$(jq -r '.target' cli-release-decision.json)"
+          if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
+            test "$(git rev-list -n 1 "$tag")" = "$target"
+            exit 0
+          fi
+          annotation="$(jq -c '{package: "@absolutepraya/marka", fingerprint}' cli-release-decision.json)"
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags" -f tag="$tag" -f message="$annotation" -f object="$target" -f type=commit --jq .sha)"
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$tag_sha"
 
-      - name: Publish canary release
-        if: github.event_name == 'workflow_dispatch'
-        run: pnpm publish --access public --no-git-checks --tag canary
+      - name: Check whether this version is already published
+        id: registry
+        if: steps.decision.outputs.release == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
+        run: node scripts/cli-publication.mjs
+
+      - name: Use npm with trusted-publishing support
+        if: steps.decision.outputs.release == 'true' && steps.registry.outputs.exists == 'false'
+        run: npm install --global npm@11.11.0
+
+      - name: Publish through npm OIDC
+        if: steps.decision.outputs.release == 'true' && steps.registry.outputs.exists == 'false'
         working-directory: apps/cli
+        run: npm publish --access public --provenance
+
+      - name: Verify published version and executable
+        if: steps.decision.outputs.release == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
+        run: |
+          set -euo pipefail
+          node scripts/cli-publication.mjs --verify
+          version="$(jq -r '.version' cli-release-decision.json)"
+          test "$(npm exec --yes --package="@absolutepraya/marka@$version" -- marka --version)" = "$version"
+          npm exec --yes --package="@absolutepraya/marka@$version" -- marka --help

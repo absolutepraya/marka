@@ -159,6 +159,14 @@ matching immutable version tags or matching `web-sha-<sha>` and
 pnpm test:release-contract
 ```
 
+### CLI releases
+
+The CLI package `@absolutepraya/marka` has independent automated versions.
+Do not bump its manifest or manually create `marka-cli/v...` release tags.
+Successful `main` CI starts the CLI workflow; changed artifacts are classified
+with Conventional Commits and published through npm trusted publishing.
+See [`apps/cli/README.md`](apps/cli/README.md) for publication and retry details.
+
 ## Review expectations
 
 Pull requests targeting `main` may receive automated review from CodeRabbit in addition to the repository's GitHub Actions checks.
