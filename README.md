@@ -56,14 +56,14 @@ instance:
 
 ```bash
 npx skills add absolutepraya/marka
-npm install --global @karakeep/cli
-karakeep auth init
+npm install --global @absolutepraya/marka
+marka auth init
 ```
 
 Create an API key in your Marka instance under **Settings > API Keys**. During
-`karakeep auth init`, enter your instance address and key. The CLI stores the
+`marka auth init`, enter your instance address and key. The CLI stores the
 key locally with file mode `0600`; verify the connection with
-`karakeep whoami`. Skill installation provides agent instructions only. See the
+`marka whoami`. Skill installation provides agent instructions only. See the
 [agent integration guide](docs/docs/05-integrations/07-agentic-skills.md) for
 environment-based setup and the REST API option.
 

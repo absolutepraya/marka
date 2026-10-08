@@ -1,6 +1,7 @@
 # Command Line Tool (CLI)
 
-Karakeep comes with a simple CLI for those users who want to do more advanced manipulation.
+Marka provides a Node.js CLI for managing bookmarks, lists, and tags.
+The command is `marka`; `karakeep` remains a compatibility alias.
 
 ## Features
 
@@ -10,11 +11,13 @@ Karakeep comes with a simple CLI for those users who want to do more advanced ma
 ## Installation (NPM)
 
 ```
-npm install -g @karakeep/cli
+npm install -g @absolutepraya/marka
 ```
 
 
-## Installation (Docker)
+## Upstream Docker alternative
+
+This image provides the upstream Karakeep CLI, not the Marka npm build.
 
 ```
 docker run --rm ghcr.io/karakeep-app/karakeep-cli:release --help
@@ -23,13 +26,13 @@ docker run --rm ghcr.io/karakeep-app/karakeep-cli:release --help
 ## Usage
 
 ```
-karakeep
+marka
 ```
 
 ```
-Usage: karakeep [options] [command]
+Usage: marka [options] [command]
 
-A CLI interface to interact with the karakeep api
+Manage your Marka library from the command line
 
 Options:
   --api-key <key>       the API key to interact with the API (env: KARAKEEP_API_KEY)
@@ -50,11 +53,11 @@ Commands:
 And some of the subcommands:
 
 ```
-karakeep bookmarks
+marka bookmarks
 ```
 
 ```
-Usage: karakeep bookmarks [options] [command]
+Usage: marka bookmarks [options] [command]
 
 Manipulating bookmarks
 
@@ -72,11 +75,11 @@ Commands:
 ```
 
 ```
-karakeep lists
+marka lists
 ```
 
 ```
-Usage: karakeep lists [options] [command]
+Usage: marka lists [options] [command]
 
 Manipulating lists
 
@@ -97,7 +100,7 @@ Create an API key in your instance under **Settings > API Keys**. Then run the
 interactive setup in a private local terminal:
 
 ```bash
-karakeep auth init
+marka auth init
 ```
 
 Enter the instance origin, such as `https://marka.example.com`, without the
@@ -113,11 +116,11 @@ server address is your instance origin. If omitted, the CLI defaults to
 Verify the connection with:
 
 ```bash
-karakeep whoami
+marka whoami
 ```
 
 The CLI also accepts `--api-key`, but command-line arguments can be exposed in
-shell history or process listings. Prefer `karakeep auth init` or the
+shell history or process listings. Prefer `marka auth init` or the
 environment variables for credential setup.
 
 

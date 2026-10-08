@@ -11,16 +11,16 @@ The skill teaches compatible agents to use the official CLI or REST API. Install
 ## Configure the CLI
 
 ```bash
-npm install --global @karakeep/cli
-karakeep auth init
-karakeep whoami
+npm install --global @absolutepraya/marka
+marka auth init
+marka whoami
 ```
 
 Create an API key in your Marka instance under **Settings > API Keys**. In
-`karakeep auth init`, enter your instance origin, such as
+`marka auth init`, enter your instance origin, such as
 `https://marka.example.com`, and the key. The CLI saves the configuration
-locally with file mode `0600`. Its executable and environment variable names
-retain the compatible `karakeep` and `KARAKEEP_` names.
+locally with file mode `0600`. The command is `marka`; the `karakeep` alias, existing config path, and
+`KARAKEEP_` environment variable names remain supported.
 
 For unattended agents, configure `KARAKEEP_API_KEY` and
 `KARAKEEP_SERVER_ADDR` in the agent host's local secret or environment
