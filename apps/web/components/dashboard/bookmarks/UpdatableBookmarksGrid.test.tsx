@@ -96,10 +96,6 @@ vi.mock("@karakeep/shared-react/hooks/bookmark-grid-context", () => ({
     children,
 }));
 
-vi.mock("@/components/dashboard/UploadDropzone", () => ({
-  default: ({ children }: { children: React.ReactNode }) => children,
-}));
-
 vi.mock("./BookmarksGridSkeleton", () => ({
   default: () => <div>Loading offline library</div>,
 }));

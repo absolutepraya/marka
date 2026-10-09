@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import UploadDropzone from "@/components/dashboard/UploadDropzone";
 import BookmarksGridSkeleton from "@/components/dashboard/bookmarks/BookmarksGridSkeleton";
 import {
   useCanReadOfflineReplica,
@@ -249,7 +248,7 @@ function BookmarkGrid({
     />
   );
 
-  return showEditorCard ? <UploadDropzone>{grid}</UploadDropzone> : grid;
+  return grid;
 }
 
 function OfflineBookmarksGrid({

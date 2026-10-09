@@ -7,6 +7,16 @@ slug: bookmarking
 
 Everything in Karakeep starts as a bookmark. Here’s how the different types work and how to keep your home view tidy with favourites and archive.
 
+## New Item
+
+Paste a link, write a note, or use **Choose files** in the New Item card. Drop files anywhere inside that card; dropping on the surrounding page does nothing. Images, PDF, video, audio, Markdown (`.md`, `.markdown`), and plain text (`.txt`) are supported.
+
+Files wait in the card until you press **Save**. Review or remove them, choose an optional destination list, then save the batch. Each file becomes its own bookmark. Typed content is saved alongside the files; one URL per line creates separate link bookmarks. Markdown and plain-text files become text bookmarks with the filename as their title.
+
+Successful items leave the queue. Failed items show their error and a **Retry** button. If the bookmark was saved but list placement failed, Retry finishes placement using that same bookmark.
+
+On phones, open New Item from the **Add** button. Closing and reopening it keeps your draft. Drafts also survive navigation within the app for the current signed-in session. They are kept in memory, so reloading or leaving the page warns before discarding pending work. Offline, notes can save through the synchronization queue; connect to add files or links. Files already staged remain available after reconnecting.
+
 ## Favourites
 
 - Star bookmarks you like so they sit in their own dedicated favourites view for quick return visits.
