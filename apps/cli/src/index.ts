@@ -29,7 +29,7 @@ function resolveGlobalOptions(opts: RawGlobalOptions) {
 
   if (!apiKey) {
     throw new Error(
-      `Missing required option: --api-key. Provide it as a CLI option, environment variable, or in ${getConfigPath()}.`,
+      `Marka is not authenticated. Run marka auth init, or configure KARAKEEP_API_KEY and KARAKEEP_SERVER_ADDR. Config: ${getConfigPath()}.`,
     );
   }
 
@@ -52,8 +52,8 @@ function isAuthCommand(command: { name(): string; parent?: unknown }) {
 }
 
 const program = new Command()
-  .name("karakeep")
-  .description("A CLI interface to interact with the karakeep api")
+  .name("marka")
+  .description("Manage your Marka library from the command line")
   .addOption(
     new Option("--api-key <key>", "the API key to interact with the API").env(
       "KARAKEEP_API_KEY",

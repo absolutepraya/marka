@@ -205,6 +205,10 @@ Important notes:
 - the guided installer generates its own portable Compose file and does not add Watchtower automatically
 - details for the existing personal VPS live in `docs/operator-setup.md`
 
+## CLI releases
+
+The `@absolutepraya/marka` npm CLI releases independently after successful `main` CI through `.github/workflows/cli.yml`. Versions come from `marka-cli/v...` tags and artifact changes, not source manifest bumps. See `apps/cli/README.md` for the release and one-time npm setup contract.
+
 ## Quality / maintenance tooling
 
 Standard commands:
