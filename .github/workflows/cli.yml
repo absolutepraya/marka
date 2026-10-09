@@ -62,8 +62,10 @@ jobs:
       - name: Build version-independent artifact
         run: |
           node -e 'const fs = require("node:fs"); const p = "apps/cli/package.json"; const m = JSON.parse(fs.readFileSync(p)); m.version = "0.0.0"; fs.writeFileSync(p, JSON.stringify(m, null, 2) + "\n");'
-          pnpm --filter @absolutepraya/marka build
-          pnpm --filter @absolutepraya/marka typecheck
+          # Setup installed the locked dependencies already. Changing only the
+          # temporary version must not trigger pnpm's automatic reinstall.
+          pnpm --config.verify-deps-before-run=false --filter @absolutepraya/marka build
+          pnpm --config.verify-deps-before-run=false --filter @absolutepraya/marka typecheck
           node --test scripts/cli-release.test.mjs
 
       - name: Decide independent CLI version
@@ -79,7 +81,7 @@ jobs:
         if: steps.decision.outputs.release == 'true'
         run: |
           node -e 'const fs = require("node:fs"); const d = JSON.parse(fs.readFileSync("cli-release-decision.json")); const p = "apps/cli/package.json"; const m = JSON.parse(fs.readFileSync(p)); m.version = d.version; m.gitHead = d.target; fs.writeFileSync(p, JSON.stringify(m, null, 2) + "\n");'
-          pnpm --filter @absolutepraya/marka build
+          pnpm --config.verify-deps-before-run=false --filter @absolutepraya/marka build
           test "$(node apps/cli/dist/index.mjs --version)" = "$(jq -r '.version' cli-release-decision.json)"
           node apps/cli/dist/index.mjs --help
           cd apps/cli
