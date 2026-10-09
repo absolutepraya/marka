@@ -33,7 +33,9 @@ import "streamdown/styles.css";
 
 import type { Viewport } from "next";
 import { headers } from "next/headers";
-import React from "react";
+import React, { Suspense } from "react";
+import StartupScreen from "@/components/startup/StartupScreen";
+import StartupReady from "@/components/startup/StartupReady";
 import { MARKA } from "@/lib/brand";
 import Providers from "@/lib/providers";
 import { getUserLocalSettings } from "@/lib/userLocalSettings/userLocalSettings";
@@ -298,7 +300,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getServerAuthSession();
   const userSettings = await getUserLocalSettings();
   const isRTL = userSettings.lang === "ar";
   // Coarse phone detection so the masonry grid can server-render the right
@@ -315,18 +316,14 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">
-        <NuqsAdapter>
-          <Providers
-            session={session}
-            clientConfig={clientConfig}
-            userLocalSettings={userSettings}
-            isMobile={isMobile}
-          >
-            {children}
-            <ReactQueryDevtools initialIsOpen={false} />
-          </Providers>
-          <Toaster className="mobile-nav-toast-offset" />
-        </NuqsAdapter>
+        <StartupScreen />
+        <div id="marka-startup-content" inert suppressHydrationWarning>
+          <Suspense fallback={null}>
+            <StartupApp userSettings={userSettings} isMobile={isMobile}>
+              {children}
+            </StartupApp>
+          </Suspense>
+        </div>
         {process.env.NODE_ENV === "development" && (
           <Script
             // React Grab inspects and annotates the DOM. Loading it after the
@@ -339,5 +336,32 @@ export default async function RootLayout({
         )}
       </body>
     </html>
+  );
+}
+
+async function StartupApp({
+  children,
+  userSettings,
+  isMobile,
+}: {
+  children: React.ReactNode;
+  userSettings: Awaited<ReturnType<typeof getUserLocalSettings>>;
+  isMobile: boolean;
+}) {
+  const session = await getServerAuthSession();
+  return (
+    <NuqsAdapter>
+      <Providers
+        session={session}
+        clientConfig={clientConfig}
+        userLocalSettings={userSettings}
+        isMobile={isMobile}
+      >
+        {children}
+        <StartupReady />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </Providers>
+      <Toaster className="mobile-nav-toast-offset" />
+    </NuqsAdapter>
   );
 }
