@@ -9,7 +9,7 @@ import { getGlobalOptions } from "./globals";
  * @param output
  */
 export function printObject(
-  output: object,
+  output: unknown,
   extraOptions?: InspectOptions,
 ): void {
   if (getGlobalOptions().json) {
@@ -26,6 +26,7 @@ export function printObject(
  * @param output the message to output
  */
 export function printStatusMessage(success: boolean, message: unknown): void {
+  if (!success) process.exitCode = 1;
   const status = success ? "Success" : "Error";
   const colorFunction = success ? chalk.green : chalk.red;
   console.error(colorFunction(`${status}: ${message}`));

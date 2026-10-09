@@ -26,6 +26,80 @@ at the key prompt to retain the existing key without displaying it.
 `marka whoami` exits unsuccessfully when access cannot be verified. An
 unauthorized response prompts you to check the instance address and API key.
 
+## Commands aligned with Marka
+
+Use `marka <command> --help` for arguments. API permissions still apply: list
+editors can organize bookmarks, while editing shared text requires a separate
+content edit grant and a current manual-list view path.
+
+### Text bodies and metadata notes
+
+```bash
+marka bookmarks add --text "# Saved text" --format markdown
+printf 'Plain text body' | marka bookmarks add --stdin --format plain
+marka bookmarks update BOOKMARK_ID --note "Personal metadata note"
+marka --json bookmarks content-access BOOKMARK_ID
+marka --json bookmarks get BOOKMARK_ID --include-content
+marka bookmarks edit-content BOOKMARK_ID --file draft.md --base-version 3
+```
+
+`add --text` creates a text bookmark body. The existing `add --note` is a legacy
+alias for the same operation. `update --note` updates the bookmark's metadata
+note, not its body. `--format` accepts `markdown` or `plain` when creating text.
+
+For body edits, retain the `textVersion` from `content-access` before you read the
+body. Supply that revision with the edited body; do not fetch a newer revision
+just to force a stale draft through. `edit-content` accepts exactly one of
+`--text`, `--file`, or `--stdin`. A stale revision fails without retrying or
+silently overwriting the canonical body.
+
+### Lists and sharing
+
+```bash
+marka lists update LIST_ID --name "Reading" --root
+marka lists update LIST_ID --public
+marka lists update LIST_ID --no-public
+marka lists merge --source SOURCE_ID --target TARGET_ID
+marka --json lists collaborators list LIST_ID
+marka lists collaborators invite LIST_ID --email person@example.com --role viewer
+marka lists collaborators update-role LIST_ID --user-id USER_ID --role editor
+marka lists collaborators remove LIST_ID --user-id USER_ID
+```
+
+Merging retains the source unless `--delete-source` is supplied. Inviting a
+collaborator sends an invitation. `--recursive` includes descendant lists.
+List roles do not grant bookmark content editing.
+
+### Highlights, transcripts, and progress
+
+```bash
+marka highlights create --bookmark BOOKMARK_ID --start 10 --end 20 --text "selection" --color yellow
+marka highlights update HIGHLIGHT_ID --note "Annotation"
+marka highlights update HIGHLIGHT_ID --clear-note
+marka --json highlights search "selection" --limit 20
+marka --json transcripts get BOOKMARK_ID
+marka transcripts update BOOKMARK_ID --file transcript.txt --expected-revision 2
+marka transcripts reset BOOKMARK_ID --yes
+marka transcripts retry BOOKMARK_ID
+marka --json bookmarks progress get BOOKMARK_ID
+marka bookmarks progress set BOOKMARK_ID --offset 200 --percent 25
+marka --json bookmarks check-url "https://example.com"
+```
+
+Highlight offsets and optional context must describe the actual saved content;
+transcript highlights can specify `--transcript-revision`. `highlights list
+--bookmark ID` returns all highlights for that bookmark and rejects pagination
+flags. Global highlight lists and searches support pagination.
+
+Transcript updates require the revision read with `get`. Reset discards working
+edits and requires `--yes`. Reading progress applies to link and text bookmarks;
+omitted optional progress fields are cleared, matching the app's API.
+
+Page sizes accept integers from 1 to 100. Commands report failures on stderr and
+exit unsuccessfully, including partial failures in multi-bookmark operations.
+Use `--json` for machine-readable results and inspect the exit status before
+reporting a successful write.
+
 ## Build locally
 
 ```bash
