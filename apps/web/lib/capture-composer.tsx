@@ -164,20 +164,17 @@ function useCaptureState() {
       (item) => !onlyId || item.id === onlyId,
     );
     // Notes can save offline even when previously staged files are waiting.
-    const eligible = items.filter(
-      (item) =>
-        !offlineRef.current ||
-        item.input?.type === BookmarkTypes.TEXT ||
-        item.offlineCreated,
-    );
+    const isEligible = (item: PendingCapture) =>
+      !offlineRef.current ||
+      item.input?.type === BookmarkTypes.TEXT ||
+      item.offlineCreated;
+    const eligible = items.filter(isEligible);
+    const eligibleNewItems = newItems.filter(isEligible);
     if (!eligible.length) return false;
     change((value) => ({
       ...value,
-      text: newItems.some((item) => eligible.includes(item)) ? "" : value.text,
-      items: [
-        ...value.items,
-        ...newItems.filter((item) => eligible.includes(item)),
-      ],
+      text: eligibleNewItems.length ? "" : value.text,
+      items: [...value.items, ...eligibleNewItems],
       saving: true,
     }));
     let allSucceeded = true;
@@ -198,16 +195,18 @@ function useCaptureState() {
             let input = item.input;
             let uploadedAssetId: string | undefined;
             if (item.file) {
-              if (isTextDocumentFile(item.file.name, item.file.type)) {
+              const file = item.file;
+              const { name: fileName, type: fileType } = file;
+              if (isTextDocumentFile(fileName, fileType)) {
                 input = {
                   type: BookmarkTypes.TEXT,
-                  text: await readTextDocument(item.file),
-                  title: getTextDocumentTitle(item.file.name),
-                  format: getTextDocumentFormat(item.file.name, item.file.type),
+                  text: await readTextDocument(file),
+                  title: getTextDocumentTitle(fileName),
+                  format: getTextDocumentFormat(fileName, fileType),
                   source: "web",
                 };
               } else {
-                const response = await upload(item.file);
+                const response = await upload(file);
                 uploadedAssetId = response.assetId;
                 const assetType = getBookmarkAssetTypeForMimeType(
                   response.contentType,
