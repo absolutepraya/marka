@@ -46,7 +46,28 @@ async function main() {
         const version = metadata.versions?.[decision.version];
         if (version) {
           validatePublishedVersion(version, decision);
-          break;
+          const installResponse = await fetch(
+            "https://registry.npmjs.org/@absolutepraya%2fmarka",
+            { headers: { Accept: "application/vnd.npm.install-v1+json" } },
+          );
+          if (installResponse.ok) {
+            const installMetadata = await installResponse.json();
+            const installVersion = installMetadata.versions?.[decision.version];
+            if (installVersion) {
+              // Abbreviated install metadata omits gitHead. Match its tarball
+              // integrity to the fully validated version instead.
+              if (
+                !version.dist?.integrity ||
+                installVersion.dist?.integrity !== version.dist.integrity
+              )
+                throw new Error("npm install metadata has different integrity");
+              break;
+            }
+          } else if (installResponse.status !== 404) {
+            throw new Error(
+              `npm install metadata check failed: HTTP ${installResponse.status}`,
+            );
+          }
         }
       } else if (packageResponse.status !== 404) {
         throw new Error(
