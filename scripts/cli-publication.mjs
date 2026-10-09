@@ -25,20 +25,65 @@ async function main() {
     readFileSync("cli-release-decision.json", "utf8"),
   );
   const verify = process.argv.includes("--verify");
+  const attempts = verify ? 31 : 1;
   let exists = false;
-  for (let attempt = 0; attempt < (verify ? 6 : 1); attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     const response = await fetch(
       `https://registry.npmjs.org/@absolutepraya%2fmarka/${decision.version}`,
     );
     if (response.ok) {
       validatePublishedVersion(await response.json(), decision);
       exists = true;
-      break;
-    }
-    if (response.status !== 404)
+      if (!verify) break;
+
+      // npm can expose the version endpoint before the package document used
+      // by npm install. Wait for both before checking the installed executable.
+      const packageResponse = await fetch(
+        "https://registry.npmjs.org/@absolutepraya%2fmarka",
+      );
+      if (packageResponse.ok) {
+        const metadata = await packageResponse.json();
+        const version = metadata.versions?.[decision.version];
+        if (version) {
+          validatePublishedVersion(version, decision);
+          const installResponse = await fetch(
+            "https://registry.npmjs.org/@absolutepraya%2fmarka",
+            { headers: { Accept: "application/vnd.npm.install-v1+json" } },
+          );
+          if (installResponse.ok) {
+            const installMetadata = await installResponse.json();
+            const installVersion = installMetadata.versions?.[decision.version];
+            if (installVersion) {
+              // Abbreviated install metadata omits gitHead. Match its tarball
+              // integrity to the fully validated version instead.
+              if (
+                !version.dist?.integrity ||
+                installVersion.dist?.integrity !== version.dist.integrity
+              )
+                throw new Error("npm install metadata has different integrity");
+              break;
+            }
+          } else if (installResponse.status !== 404) {
+            throw new Error(
+              `npm install metadata check failed: HTTP ${installResponse.status}`,
+            );
+          }
+        }
+      } else if (packageResponse.status !== 404) {
+        throw new Error(
+          `npm package check failed: HTTP ${packageResponse.status}`,
+        );
+      }
+      exists = false;
+    } else if (response.status !== 404) {
       throw new Error(`npm registry check failed: HTTP ${response.status}`);
-    if (verify && attempt < 5)
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+    if (verify && attempt < attempts - 1) {
+      console.log(
+        "Waiting for npm publication processing and install metadata",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20000));
+    }
   }
   if (verify && !exists)
     throw new Error("Published CLI version is not visible on npm");
