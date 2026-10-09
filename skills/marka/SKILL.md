@@ -33,6 +33,12 @@ Search supports plain text and filters such as `is:fav`, `is:archived`, `#tag`, 
 
 Before saving, search for the URL. Reuse a matching bookmark's ID instead of creating a duplicate. Prefer a direct page for the specific product or place over a social post or profile, and retain the post as note context when useful. For a list, use the exact ID from `marka --json lists list`; ask if its name is ambiguous. Use `--tag-name` and `--list-id` for tags and list placement.
 
+For text bookmarks, prefer `bookmarks add --text` and choose `--format markdown|plain` when supported by the installed CLI. The legacy `add --note` creates a text body; `bookmarks update --note` edits metadata instead. Check command help before using newer commands on an older CLI.
+
+For requested body edits, read `bookmarks content-access ID` before reading the body with `bookmarks get ID --include-content`. Retain that `textVersion` for `bookmarks edit-content ID --base-version VERSION` with exactly one of `--text`, `--file`, or `--stdin`. Transcript edits similarly retain the revision from `transcripts get` and supply `--expected-revision` to `transcripts update`. On a conflict, preserve the draft and ask the user how to proceed; never fetch a newer revision just to bypass the conflict. List sharing roles do not grant content editing rights. Inviting collaborators sends an invitation and requires an explicit sharing request.
+
+Inspect the CLI exit status as well as its output. A multi-bookmark operation can partly succeed and still exit unsuccessfully. Read back the affected IDs before retrying an ambiguous or failed write.
+
 Only make requested changes. Do not infer deletion, archiving, or reorganization. After a write, report its result and ID without credentials.
 
 ## REST API
