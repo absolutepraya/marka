@@ -2,6 +2,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import readline from "node:readline/promises";
+import { Writable } from "node:stream";
 import {
   DEFAULT_SERVER_ADDR,
   getConfigPath,
@@ -43,6 +44,40 @@ async function promptForValue(
   const suffix = existing ? ` [${existing}]` : "";
   const value = (await rl.question(`${prompt}${suffix}: `)).trim();
   return value || existing;
+}
+
+async function promptForApiKey(existing?: string) {
+  if (!input.isTTY) {
+    return existing;
+  }
+
+  // Readline still handles editing and raw-mode cleanup, but its terminal
+  // output is discarded so neither the typed key nor an existing key appears.
+  const silentOutput = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+  const rl = readline.createInterface({
+    input,
+    output: silentOutput,
+    terminal: true,
+  });
+  const controller = new AbortController();
+  rl.once("SIGINT", () => controller.abort());
+  output.write(
+    existing
+      ? "Marka API key (hidden, Enter keeps the existing key): "
+      : "Marka API key (hidden): ",
+  );
+  try {
+    const value = (await rl.question("", { signal: controller.signal })).trim();
+    return value || existing;
+  } finally {
+    rl.close();
+    silentOutput.end();
+    output.write("\n");
+  }
 }
 
 interface AuthInitOptions {
@@ -105,10 +140,9 @@ authCmd
           "Marka server address",
           existingAuth.serverAddr ?? DEFAULT_SERVER_ADDR,
         ));
-      const apiKey =
-        opts.apiKey ??
-        (await promptForValue(rl, "Marka API key", existingAuth.apiKey));
       rl.close();
+      const apiKey =
+        opts.apiKey ?? (await promptForApiKey(existingAuth.apiKey));
 
       if (!serverAddr || !apiKey) {
         throw new Error("Both server address and API key are required");

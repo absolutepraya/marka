@@ -20,6 +20,8 @@ Configuration remains in `$XDG_CONFIG_HOME/karakeep/config.json` (or
 `~/.config/karakeep/config.json`) for compatibility. The file has mode `0600`.
 Existing `KARAKEEP_API_KEY` and `KARAKEEP_SERVER_ADDR` environment variables
 remain supported. Keep API keys in local configuration or a secret store.
+Interactive setup hides API-key input. When updating configuration, press Enter
+at the key prompt to retain the existing key without displaying it.
 
 `marka whoami` exits unsuccessfully when access cannot be verified. An
 unauthorized response prompts you to check the instance address and API key.
@@ -65,6 +67,12 @@ until that reserved version is published. The workflow checks the installed npm 
    Allow direct publication. No GitHub environment is used by this workflow.
 3. Run a manual dry run, then retry publication if an initial automatic attempt
    failed. Confirm the npm package and the workflow's installed-executable check.
+
+New trusted publishers may show **Pending validation** with a deadline. Complete
+a publication through the configured workflow before that deadline. The local
+bootstrap publication does not validate OIDC, and a retry that skips an already
+published version cannot validate it either. The next CLI change should release
+through the workflow; confirm that npm marks the connection as validated.
 
 Subsequent releases use npm OIDC with provenance and require no stored npm token.
 The first publication and npm account configuration are external setup steps;
