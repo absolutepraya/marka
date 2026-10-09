@@ -45,8 +45,27 @@ Run Marka on your own infrastructure and use the library through the web app and
 
 - [Open Marka](https://marka.abhipraya.dev/)
 - [Self-host Marka](#self-host-marka)
+- [Connect an AI agent](#connect-an-ai-agent)
 - [Read the documentation](docs/README.md)
 - [Contribute to Marka](CONTRIBUTING.md)
+
+## Connect an AI agent
+
+Install Marka's agent skill, then configure the official CLI to access your
+instance:
+
+```bash
+npx skills add absolutepraya/marka
+npm install --global @absolutepraya/marka
+marka auth init
+```
+
+Create an API key in your Marka instance under **Settings > API Keys**. During
+`marka auth init`, enter your instance address and key. The CLI stores the
+key locally with file mode `0600`; verify the connection with
+`marka whoami`. Skill installation provides agent instructions only. See the
+[agent integration guide](docs/docs/05-integrations/07-agentic-skills.md) for
+environment-based setup and the REST API option.
 
 ## Self-host Marka
 

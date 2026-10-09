@@ -1,6 +1,6 @@
 # Migrating Between Servers
 
-This guide explains how to migrate all of your data from one Karakeep server to another using the official CLI.
+This guide explains how to migrate all of your data from one Marka server to another using the official CLI.
 
 ## What the command does
 
@@ -24,8 +24,7 @@ Notes:
 ## Prerequisites
 
 - Install the CLI:
-  - NPM: `npm install -g @karakeep/cli`
-  - Docker: `docker run --rm ghcr.io/karakeep-app/karakeep-cli:release --help`
+  - NPM: `npm install -g @absolutepraya/marka`
 - Collect API keys and base URLs for both servers:
   - Source: `--server-addr`, `--api-key`
   - Destination: `--dest-server`, `--dest-api-key`
@@ -33,7 +32,7 @@ Notes:
 ## Quick start
 
 ```
-karakeep --server-addr https://src.example.com --api-key <SOURCE_API_KEY> migrate \
+marka --server-addr https://src.example.com --api-key <SOURCE_API_KEY> migrate \
   --dest-server https://dest.example.com \
   --dest-api-key <DEST_API_KEY>
 ```
