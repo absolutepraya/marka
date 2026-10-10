@@ -23,6 +23,7 @@ export default function GlobalError() {
           <h1 style={{ fontSize: 24 }}>Marka couldn&apos;t start</h1>
           <p>Please check your connection and try again.</p>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             style={{ padding: "12px 24px", font: "inherit", cursor: "pointer" }}
           >
