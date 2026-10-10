@@ -1,4 +1,12 @@
 {
+  "startup": {
+    "label": "Démarrage de Marka",
+    "loading": "Chargement de votre bibliothèque",
+    "slow": "Cela prend plus de temps que prévu. Vous pouvez patienter encore un peu ou réessayer.",
+    "offline": "Vous semblez être hors ligne. Vérifiez votre connexion et réessayez.",
+    "retry": "Réessayer",
+    "noScript": "Activez JavaScript pour ouvrir Marka, puis rechargez cette page."
+  },
   "common": {
     "url": "URL",
     "name": "Nom",

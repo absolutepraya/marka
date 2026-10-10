@@ -19,8 +19,8 @@ const initI18next = async (lng: string) => {
   return i18nInstance;
 };
 
-export async function useTranslation() {
-  const lng = (await getUserLocalSettings()).lang;
+export async function useTranslation(language?: string) {
+  const lng = language ?? (await getUserLocalSettings()).lang;
   const i18nextInstance = await initI18next(lng);
   return {
     t: i18nextInstance.getFixedT(lng, defaultNS),
