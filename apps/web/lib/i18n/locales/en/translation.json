@@ -1111,6 +1111,7 @@
       "save_items": "Save {{count}} items",
       "item_count": "{{count}} files or items waiting to save",
       "connect_files": "Connect to add files or links. You can still save a note offline.",
+      "invalid_utf8": "This text file must use UTF-8 encoding.",
       "connect_tag": "Note saved offline. Connect to finish adding its tag.",
       "clipboard_unavailable": "Unable to read the clipboard. Paste directly into the field.",
       "clipboard_empty": "Your clipboard is empty.",

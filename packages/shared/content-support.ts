@@ -268,6 +268,13 @@ export function getTextDocumentFormat(
     : "plain";
 }
 
+export class TextDocumentDecodingError extends Error {
+  constructor() {
+    super("Text document must be UTF-8");
+    this.name = "TextDocumentDecodingError";
+  }
+}
+
 export async function readTextDocument(file: {
   arrayBuffer: () => Promise<ArrayBuffer>;
 }): Promise<string> {
@@ -275,6 +282,6 @@ export async function readTextDocument(file: {
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
-    throw new Error("Text document must be UTF-8");
+    throw new TextDocumentDecodingError();
   }
 }

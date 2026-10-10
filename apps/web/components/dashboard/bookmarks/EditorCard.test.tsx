@@ -373,7 +373,9 @@ describe("New Item capture composer", () => {
     ]);
     clickSave();
     await waitFor(() =>
-      expect(screen.getByText("Text document must be UTF-8")).toBeTruthy(),
+      expect(
+        screen.getByText(translations.editor.capture.invalid_utf8),
+      ).toBeTruthy(),
     );
     expect(mocks.create).not.toHaveBeenCalled();
   });

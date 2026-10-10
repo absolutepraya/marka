@@ -23,6 +23,7 @@ import {
   getTextDocumentTitle,
   isTextDocumentFile,
   readTextDocument,
+  TextDocumentDecodingError,
 } from "@karakeep/shared/content-support";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import type { ZNewBookmarkRequest } from "@karakeep/shared/types/bookmarks";
@@ -295,9 +296,11 @@ function useCaptureState() {
           updateItem(item.id, {
             status: "error",
             error:
-              error instanceof Error
-                ? error.message
-                : t("common.something_went_wrong"),
+              error instanceof TextDocumentDecodingError
+                ? t("editor.capture.invalid_utf8")
+                : error instanceof Error
+                  ? error.message
+                  : t("common.something_went_wrong"),
           });
         }
       }
