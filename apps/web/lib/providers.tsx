@@ -20,6 +20,7 @@ import {
 } from "@karakeep/shared-react/trpc";
 
 import { ClientConfigCtx } from "./clientConfig";
+import { CaptureComposerProvider } from "./capture-composer";
 import CustomI18nextProvider from "./i18n/provider";
 import { OfflineLibraryProvider } from "./offline-library/provider";
 import { ServerHintsCtx } from "./serverHints";
@@ -106,7 +107,9 @@ export default function Providers({
                           delayDuration={450}
                           skipDelayDuration={200}
                         >
-                          {children}
+                          <CaptureComposerProvider>
+                            {children}
+                          </CaptureComposerProvider>
                         </TooltipProvider>
                       </ThemeProvider>
                     </CustomI18nextProvider>

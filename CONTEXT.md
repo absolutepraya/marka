@@ -2,6 +2,20 @@
 
 This glossary defines the content terms used by Marka's bookmark library and its focused viewing surfaces.
 
+## Capture
+
+**Capture composer**:
+The New Item surface for preparing links, text, and supported files to become bookmarks.
+_Avoid_: calling it a text inbox or treating it as an attachment editor.
+
+**Pending capture**:
+An item prepared in the capture composer that has not completed saving. Each file is a separate capture; text containing only one URL per line represents separate link captures.
+_Avoid_: treating multiple files as attachments to one bookmark.
+
+**Capture destination**:
+The optional manual list chosen for newly captured bookmarks.
+_Avoid_: confusing a capture destination with a bookmark's content permissions.
+
 ## Content model
 
 **Bookmark type**:

@@ -51,7 +51,7 @@ export default function MobileAddButton() {
           <DialogHeader className="sr-only">
             <DialogTitle>{label}</DialogTitle>
             <DialogDescription>
-              Create a new bookmark from a link, note, or pasted content.
+              {t("editor.capture.dialog_description")}
             </DialogDescription>
           </DialogHeader>
           <EditorCard

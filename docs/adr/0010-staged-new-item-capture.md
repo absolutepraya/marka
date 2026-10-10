@@ -1,0 +1,7 @@
+# Stage captures before saving from New Item
+
+New Item is a capture composer for links, notes, images, PDFs, video, audio, Markdown, and plain-text files. Files dropped, pasted, or chosen inside the composer are staged until Save; accepting files over the bookmark grid or saving immediately makes destination selection and cancellation unpredictable. Each file becomes a separate bookmark, and typed content may be saved in the same batch. HTML, ZIP, captions, Office files, and generic attachments remain outside this capture surface.
+
+Saving processes captures in order with individual status and errors. Successful captures leave the queue, while failed captures remain available for retry or removal. Once creation succeeds, its bookmark ID is retained until destination-list and contextual tag steps finish, so retrying these steps does not create another bookmark. A save snapshots the selected destination and contextual archive, favourite, and tag state.
+
+Drafts live only in memory for the authenticated browser session. Keeping them above the desktop card and mobile dialog preserves drafts across dialog closure, responsive layout changes, and internal navigation. Reloading or leaving the document warns before discarding pending work; signing out clears it. File storage across reloads is deferred. Offline notes use the existing synchronization queue, while file and link saving requires a connection. Files staged before disconnection remain available after reconnecting.

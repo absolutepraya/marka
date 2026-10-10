@@ -11,6 +11,7 @@ import {
   isContentTypeCompatibleWithAttachment,
   isTextDocumentFile,
   readTextDocument,
+  TextDocumentDecodingError,
 } from "./content-support";
 
 describe("content support registry", () => {
@@ -117,9 +118,20 @@ describe("content support registry", () => {
   it("rejects text files that are not valid UTF-8", async () => {
     const file = new File([new Uint8Array([0xc3, 0x28])], "notes.txt");
 
-    await expect(readTextDocument(file)).rejects.toThrow(
-      "Text document must be UTF-8",
+    await expect(readTextDocument(file)).rejects.toBeInstanceOf(
+      TextDocumentDecodingError,
     );
+  });
+
+  it("preserves file read failures instead of treating them as decoding errors", async () => {
+    const error = new Error("Unable to read file");
+    const file = {
+      arrayBuffer: async () => {
+        throw error;
+      },
+    };
+
+    await expect(readTextDocument(file)).rejects.toBe(error);
   });
 
   it("matches attached asset roles to their renderable MIME types", () => {
