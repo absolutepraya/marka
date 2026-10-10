@@ -1,3 +1,4 @@
+import { choice } from "@/lib/arguments";
 import { getGlobalOptions } from "@/lib/globals";
 import {
   printError,
@@ -60,7 +61,12 @@ listsCmd
   .description("creates a new list")
   .requiredOption("--name <name>", "the name of the list")
   .requiredOption("--icon <icon>", "the icon of the list (one emoji)")
-  .option("--type <type>", "the type of the list (manual or smart)", "manual")
+  .option(
+    "--type <type>",
+    "the type of the list",
+    choice(["manual", "smart"] as const),
+    "manual",
+  )
   .option("--description <description>", "the description of the list")
   .option(
     "--query <query>",
@@ -177,4 +183,107 @@ listsCmd
           `Failed to remove bookmark "${opts.bookmark}" from list with id "${opts.list}"`,
         ),
       );
+  });
+
+listsCmd
+  .command("update")
+  .description("edit list metadata, hierarchy, or visibility")
+  .argument("<id>", "list id")
+  .option("--name <name>", "new name")
+  .option("--description <description>", "new description")
+  .option("--icon <icon>", "new icon")
+  .option("--query <query>", "smart-list query")
+  .option("--parent-id <id>", "new parent list")
+  .option("--root", "move to the root")
+  .option("--public", "make public")
+  .option("--no-public", "make private")
+  .action(async (id, opts) => {
+    if (opts.root && opts.parentId)
+      throw new Error("Choose --root or --parent-id");
+    if (!Object.values(opts).some((value) => value !== undefined))
+      throw new Error("Provide a list field to update");
+    printObject(
+      await getAPIClient().lists.edit.mutate({
+        listId: id,
+        name: opts.name,
+        description: opts.description,
+        icon: opts.icon,
+        query: opts.query,
+        parentId: opts.root ? null : opts.parentId,
+        public: opts.public,
+      }),
+    );
+  });
+listsCmd
+  .command("merge")
+  .description("merge a source list into a target list")
+  .requiredOption("--source <id>", "source list")
+  .requiredOption("--target <id>", "target list")
+  .option("--delete-source", "delete the source after merging", false)
+  .action(async (opts) => {
+    await getAPIClient().lists.merge.mutate({
+      sourceId: opts.source,
+      targetId: opts.target,
+      deleteSourceAfterMerge: opts.deleteSource,
+    });
+    printSuccess("Lists merged")();
+  });
+const collaboratorsCmd = listsCmd
+  .command("collaborators")
+  .description("manage list sharing; list roles do not grant content editing");
+collaboratorsCmd
+  .command("list")
+  .argument("<list-id>", "list id")
+  .action(async (id) =>
+    printObject(
+      await getAPIClient().lists.getCollaborators.query({ listId: id }),
+    ),
+  );
+collaboratorsCmd
+  .command("invite")
+  .argument("<list-id>", "list id")
+  .requiredOption("--email <email>", "invitee email (sends an invitation)")
+  .requiredOption(
+    "--role <role>",
+    "list permission",
+    choice(["viewer", "editor"] as const),
+  )
+  .option("--recursive", "include descendant lists", false)
+  .action(async (id, opts) =>
+    printObject(
+      await getAPIClient().lists.addCollaborator.mutate({
+        listId: id,
+        email: opts.email,
+        role: opts.role,
+        recursive: opts.recursive,
+      }),
+    ),
+  );
+collaboratorsCmd
+  .command("remove")
+  .argument("<list-id>", "list id")
+  .requiredOption("--user-id <id>", "collaborator user id")
+  .action(async (id, opts) => {
+    await getAPIClient().lists.removeCollaborator.mutate({
+      listId: id,
+      userId: opts.userId,
+    });
+    printSuccess("Collaborator removed")();
+  });
+collaboratorsCmd
+  .command("update-role")
+  .argument("<list-id>", "list id")
+  .requiredOption("--user-id <id>", "collaborator user id")
+  .requiredOption(
+    "--role <role>",
+    "list permission",
+    choice(["viewer", "editor"] as const),
+  )
+  .action(async (id, opts) => {
+    await getAPIClient().lists.updateCollaboratorRole.mutate({
+      listId: id,
+      userId: opts.userId,
+      role: opts.role,
+    });
+    printSuccess("Collaborator role updated")();
   });

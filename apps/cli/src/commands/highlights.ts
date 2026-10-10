@@ -1,3 +1,10 @@
+import {
+  choice,
+  decodeCursor,
+  encodeCursor,
+  integer,
+  pageSize,
+} from "@/lib/arguments";
 import { getGlobalOptions } from "@/lib/globals";
 import {
   printError,
@@ -33,12 +40,7 @@ highlightsCmd
   .command("list")
   .description("list all highlights")
   .option("--bookmark <id>", "list highlights for a specific bookmark")
-  .option(
-    "--limit <limit>",
-    "number of highlights per page",
-    (v: string) => parseInt(v, 10),
-    20,
-  )
+  .option("--limit <limit>", "number of highlights per page", pageSize, 20)
   .option("--all", "fetch all highlights (paginate through all pages)", false)
   .option("--cursor <cursor>", "cursor from a previous request for pagination")
   .action(async (opts) => {
@@ -46,6 +48,16 @@ highlightsCmd
 
     try {
       if (opts.bookmark) {
+        if (
+          opts.cursor ||
+          opts.all ||
+          highlightsCmd.commands
+            .find((cmd) => cmd.name() === "list")
+            ?.getOptionValueSource("limit") === "cli"
+        )
+          throw new Error(
+            "--bookmark returns all highlights for one bookmark; --limit, --cursor, and --all cannot be combined with it",
+          );
         const resp = await api.highlights.getForBookmark.query({
           bookmarkId: opts.bookmark,
         });
@@ -130,4 +142,95 @@ highlightsCmd
       .mutate({ highlightId: id })
       .then(() => console.log(`Successfully deleted highlight "${id}"`))
       .catch(printError(`Failed to delete highlight with id "${id}"`));
+  });
+
+highlightsCmd
+  .command("create")
+  .description("create an annotation at offsets in saved content")
+  .requiredOption("--bookmark <id>", "bookmark id")
+  .requiredOption("--start <offset>", "start offset", integer)
+  .requiredOption("--end <offset>", "end offset", integer)
+  .requiredOption("--text <text>", "selected text")
+  .option(
+    "--color <color>",
+    "highlight color",
+    choice(["yellow", "red", "green", "blue"] as const),
+    "yellow",
+  )
+  .option("--note <note>", "annotation note")
+  .option("--context-before <text>", "text immediately before the selection")
+  .option("--context-after <text>", "text immediately after the selection")
+  .option(
+    "--transcript-revision <revision>",
+    "revision for transcript highlights",
+    integer,
+  )
+  .action(async (opts) => {
+    if (opts.end <= opts.start)
+      throw new Error("--end must be greater than --start");
+    printObject(
+      await getAPIClient().highlights.create.mutate({
+        bookmarkId: opts.bookmark,
+        startOffset: opts.start,
+        endOffset: opts.end,
+        text: opts.text,
+        color: opts.color,
+        note: opts.note ?? null,
+        contextBefore: opts.contextBefore ?? null,
+        contextAfter: opts.contextAfter ?? null,
+        transcriptRevision: opts.transcriptRevision ?? null,
+      }),
+    );
+  });
+
+highlightsCmd
+  .command("update")
+  .argument("<id>", "highlight id")
+  .option(
+    "--color <color>",
+    "highlight color",
+    choice(["yellow", "red", "green", "blue"] as const),
+  )
+  .option("--note <note>", "annotation note")
+  .option("--clear-note", "remove the annotation note")
+  .action(async (id, opts) => {
+    if (opts.note !== undefined && opts.clearNote)
+      throw new Error("Choose --note or --clear-note");
+    if (!opts.color && opts.note === undefined && !opts.clearNote)
+      throw new Error("Provide --color, --note, or --clear-note");
+    printObject(
+      await getAPIClient().highlights.update.mutate({
+        highlightId: id,
+        color: opts.color,
+        note: opts.clearNote ? null : opts.note,
+      }),
+    );
+  });
+
+highlightsCmd
+  .command("search")
+  .argument("<query>", "highlight search text")
+  .option("--limit <limit>", "results per page (1 to 100)", pageSize, 20)
+  .option("--cursor <cursor>", "previous nextCursor")
+  .option("--all", "fetch every page")
+  .action(async (query, opts) => {
+    const api = getAPIClient();
+    let response = await api.highlights.search.query({
+      text: query,
+      limit: opts.limit,
+      cursor: decodeCursor(opts.cursor),
+    });
+    const highlights = [...response.highlights];
+    while (opts.all && response.nextCursor) {
+      response = await api.highlights.search.query({
+        text: query,
+        limit: opts.limit,
+        cursor: response.nextCursor,
+      });
+      highlights.push(...response.highlights);
+    }
+    printObject({
+      highlights,
+      nextCursor: opts.all ? undefined : encodeCursor(response.nextCursor),
+    });
   });

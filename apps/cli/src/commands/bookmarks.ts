@@ -1,3 +1,11 @@
+import {
+  boundedInteger,
+  choice,
+  decodeCursor,
+  integer,
+  pageSize,
+  readText,
+} from "@/lib/arguments";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { addToList } from "@/commands/lists";
@@ -154,7 +162,7 @@ bookmarkCmd
   )
   .option(
     "--note <note>",
-    "the note text to add. Specify multiple times to add multiple notes",
+    "legacy alias for --text: creates a text bookmark, not a metadata note",
     collect<string>,
     [],
   )
@@ -164,7 +172,18 @@ bookmarkCmd
     collect<string>,
     [],
   )
-  .option("--stdin", "reads the data from stdin and store it as a note")
+  .option(
+    "--text <text>",
+    "text bookmark body (repeatable)",
+    collect<string>,
+    [],
+  )
+  .option(
+    "--format <format>",
+    "text body format",
+    choice(["markdown", "plain"] as const),
+  )
+  .option("--stdin", "read a text bookmark body from stdin")
   .option(
     "--list-id <id>",
     "if set, the bookmark(s) will be added to this list",
@@ -182,6 +201,16 @@ bookmarkCmd
   .action(async (opts) => {
     const api = getAPIClient();
 
+    if (
+      !opts.link.length &&
+      !opts.note.length &&
+      !opts.text.length &&
+      !opts.asset.length &&
+      !opts.stdin
+    )
+      throw new Error("Provide --link, --text, --asset, or --stdin");
+    if (opts.format && !opts.note.length && !opts.text.length && !opts.stdin)
+      throw new Error("--format requires a text body");
     const results: Bookmark[] = [];
 
     const promises = [
@@ -198,11 +227,12 @@ bookmarkCmd
           })
           .catch(printError(`Failed to add a link bookmark for url "${url}"`)),
       ),
-      ...opts.note.map((text) =>
+      ...[...opts.note, ...opts.text].map((text) =>
         api.bookmarks.createBookmark
           .mutate({
             type: BookmarkTypes.TEXT,
             text,
+            format: opts.format,
             title: opts.title,
             source: "cli",
           })
@@ -224,6 +254,7 @@ bookmarkCmd
           .mutate({
             type: BookmarkTypes.TEXT,
             text,
+            format: opts.format,
             title: opts.title,
             source: "cli",
           })
@@ -360,7 +391,10 @@ bookmarkCmd
   .command("update")
   .description("update a bookmark")
   .option("--title <title>", "if set, the bookmark's title will be updated")
-  .option("--note <note>", "if set, the bookmark's note will be updated")
+  .option(
+    "--note <note>",
+    "update the metadata note (not the text bookmark body)",
+  )
   .option("--archive", "if set, the bookmark will be archived")
   .option("--no-archive", "if set, the bookmark will be unarchived")
   .option("--favourite", "if set, the bookmark will be favourited")
@@ -427,7 +461,7 @@ bookmarkCmd
   .option(
     "--limit <limit>",
     `number of bookmarks per page (max ${MAX_NUM_BOOKMARKS_PER_PAGE})`,
-    (v: string) => Math.min(parseInt(v, 10), MAX_NUM_BOOKMARKS_PER_PAGE),
+    pageSize,
     20,
   )
   .option("--all", "fetch all bookmarks (paginate through all pages)", false)
@@ -443,11 +477,7 @@ bookmarkCmd
       limit: opts.limit,
       useCursorV2: true,
       includeContent: opts.includeContent,
-      cursor: opts.cursor
-        ? JSON.parse(Buffer.from(opts.cursor, "base64").toString(), (k, v) =>
-            k === "createdAt" ? new Date(v) : v,
-          )
-        : undefined,
+      cursor: opts.cursor ? decodeCursor(opts.cursor) : undefined,
     };
 
     try {
@@ -492,12 +522,7 @@ bookmarkCmd
     "<query>",
     "the search query (supports matchers like tag:name, is:fav, etc.)",
   )
-  .option(
-    "--limit <limit>",
-    "number of results per page",
-    (val) => parseInt(val, 10),
-    50,
-  )
+  .option("--limit <limit>", "number of results per page", pageSize, 50)
   .option(
     "--sort-order <order>",
     "sort order for results",
@@ -524,11 +549,7 @@ bookmarkCmd
       limit: opts.limit,
       sortOrder: opts.sortOrder as "relevance" | "asc" | "desc",
       includeContent: opts.includeContent,
-      cursor: opts.cursor
-        ? JSON.parse(Buffer.from(opts.cursor, "base64").toString(), (k, v) =>
-            k === "createdAt" ? new Date(v) : v,
-          )
-        : undefined,
+      cursor: opts.cursor ? decodeCursor(opts.cursor) : undefined,
     };
 
     try {
@@ -580,3 +601,79 @@ bookmarkCmd
       .then(printSuccess(`Bookmark with id '${id}' got deleted`))
       .catch(printError(`Failed to delete bookmark with id "${id}"`));
   });
+
+bookmarkCmd
+  .command("edit-content")
+  .description("edit a text bookmark body using its previously read revision")
+  .argument("<id>", "bookmark id")
+  .option("--text <text>", "new body")
+  .option("--file <file>", "read the body from a UTF-8 file")
+  .option("--stdin", "read the body from stdin")
+  .requiredOption(
+    "--base-version <version>",
+    "textVersion from content-access before reading the body",
+    integer,
+  )
+  .action(async (id, opts) => {
+    const text = readText(opts);
+    printObject(
+      await getAPIClient().bookmarks.updateBookmark.mutate({
+        bookmarkId: id,
+        text,
+        textBaseVersion: opts.baseVersion,
+      }),
+    );
+  });
+
+bookmarkCmd
+  .command("check-url")
+  .description("check whether an exact URL is already saved")
+  .argument("<url>", "URL to check")
+  .action(async (url) =>
+    printObject(await getAPIClient().bookmarks.checkUrl.query({ url })),
+  );
+
+const progressCmd = bookmarkCmd
+  .command("progress")
+  .description("personal Reader View progress for a link or text bookmark");
+progressCmd
+  .command("get")
+  .argument("<id>", "bookmark id")
+  .action(async (id) =>
+    printObject(
+      await getAPIClient().bookmarks.getReadingProgress.query({
+        bookmarkId: id,
+      }),
+    ),
+  );
+progressCmd
+  .command("set")
+  .argument("<id>", "bookmark id")
+  .requiredOption("--offset <offset>", "reading offset", integer)
+  .option("--percent <percent>", "percent read from 0 to 100", (value) =>
+    boundedInteger(value, 0, 100),
+  )
+  .option("--anchor <text>", "text at the saved position")
+  .option("--revision <revision>", "content revision", integer)
+  .action(async (id, opts) => {
+    await getAPIClient().bookmarks.updateReadingProgress.mutate({
+      bookmarkId: id,
+      readingProgressOffset: opts.offset,
+      readingProgressPercent: opts.percent,
+      readingProgressAnchor: opts.anchor,
+      readingProgressRevision: opts.revision,
+    });
+    printSuccess("Reading progress saved")();
+  });
+
+bookmarkCmd
+  .command("content-access")
+  .description("read content editing permissions and the canonical textVersion")
+  .argument("<id>", "bookmark id")
+  .action(async (id) =>
+    printObject(
+      await getAPIClient().bookmarks.getContentPermissions.query({
+        bookmarkId: id,
+      }),
+    ),
+  );
