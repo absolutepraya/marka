@@ -180,6 +180,20 @@ describe("New Item capture composer", () => {
   });
   afterEach(cleanup);
 
+  it("opens the file picker from the whole drop area and stages dropped files", async () => {
+    setup();
+    const area = screen.getByRole("button", { name: "Choose or drop files" });
+    const input =
+      document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const open = vi.spyOn(input, "click").mockImplementation(() => undefined);
+    fireEvent.click(area);
+    expect(open).toHaveBeenCalledOnce();
+    await drop([makeFile("notes.md", "text/markdown", "# Notes")], area);
+    expect(screen.getByText("notes.md")).toBeTruthy();
+    expect(mocks.upload).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
   it("ignores drops outside the card and stages card drops without uploading", async () => {
     setup();
     const file = makeFile("photo.png", "image/png");
@@ -191,6 +205,85 @@ describe("New Item capture composer", () => {
     expect(mocks.create).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Remove photo.png" }));
     expect(screen.queryByText("photo.png")).toBeNull();
+  });
+
+  it("stacks the newest four files inside the drop area and reveals older files on demand", async () => {
+    setup();
+    const area = screen.getByRole("button", { name: "Choose or drop files" });
+    await drop(
+      Array.from({ length: 4 }, (_, index) =>
+        makeFile(`file-${index + 1}.pdf`, "application/pdf"),
+      ),
+      area,
+    );
+    expect(
+      screen.queryByRole("button", { name: /Show .* older files/ }),
+    ).toBeNull();
+    await drop(
+      [
+        makeFile("file-5.pdf", "application/pdf"),
+        makeFile("file-6.pdf", "application/pdf"),
+      ],
+      area,
+    );
+    const pending = screen.getByRole("list", { name: "Pending items" });
+    expect(area.parentElement?.contains(pending)).toBe(true);
+    expect(
+      Array.from(pending.querySelectorAll("li")).map(
+        (row) => row.querySelector("p")?.textContent,
+      ),
+    ).toEqual(["file-6.pdf", "file-5.pdf", "file-4.pdf", "file-3.pdf"]);
+    expect(screen.queryByText("file-1.pdf")).toBeNull();
+    expect(screen.getByRole("button", { name: /^Save 6 items/ })).toBeTruthy();
+    const reveal = screen.getByRole("button", { name: "Show 2 older files" });
+    expect(reveal.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(reveal);
+    expect(pending.querySelectorAll("li")).toHaveLength(6);
+    const collapse = screen.getByRole("button", { name: "Collapse files" });
+    expect(collapse.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(collapse);
+    expect(pending.querySelectorAll("li")).toHaveLength(4);
+    const input =
+      document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const open = vi.spyOn(input, "click").mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Remove file-6.pdf" }));
+    expect(open).not.toHaveBeenCalled();
+    expect(screen.getByText("file-2.pdf")).toBeTruthy();
+    open.mockRestore();
+    expect(mocks.upload).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Remove file-5.pdf" }));
+    expect(
+      screen.queryByRole("button", { name: /Show .* older files/ }),
+    ).toBeNull();
+    expect(screen.getByText("file-1.pdf")).toBeTruthy();
+    clickSave();
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(4));
+    expect(mocks.upload.mock.calls.map(([file]) => file.name)).toEqual([
+      "file-1.pdf",
+      "file-2.pdf",
+      "file-3.pdf",
+      "file-4.pdf",
+    ]);
+  });
+
+  it("reveals failures in the older batch after saving a collapsed stack", async () => {
+    mocks.upload.mockRejectedValue(new Error("Upload interrupted"));
+    setup();
+    await drop(
+      Array.from({ length: 6 }, (_, index) =>
+        makeFile(`file-${index + 1}.pdf`, "application/pdf"),
+      ),
+    );
+    expect(screen.queryByText("file-1.pdf")).toBeNull();
+    clickSave();
+    await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(6));
+    expect(screen.getByText("file-1.pdf")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Collapse files" })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it("saves mixed text and files in order into the selected list", async () => {
@@ -323,7 +416,7 @@ describe("New Item capture composer", () => {
     expect(
       (
         screen.getByRole("button", {
-          name: "Choose files",
+          name: "Choose or drop files",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);

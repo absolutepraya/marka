@@ -11,10 +11,11 @@ import type { PendingCapture } from "@/lib/capture-composer";
 import { useClientConfig } from "@/lib/clientConfig";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useTranslation } from "@/lib/i18n/client";
-import { useBookmarkLayoutSwitch } from "@/lib/userLocalSettings/bookmarksLayout";
 import { cn, getOS } from "@/lib/utils";
 import {
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
   ClipboardPaste,
   FileText,
   Film,
@@ -90,8 +91,13 @@ export default function EditorCard({
   const gridContext = useBookmarkGridContext();
   const demoMode = !!useClientConfig().demoMode;
   const [rejection, setRejection] = useState<string | null>(null);
+  const [showAllItems, setShowAllItems] = useState(false);
   const headingId = useId();
   const helpId = useId();
+  const pendingItemsId = useId();
+  const newestItems = [...composer.items].reverse();
+  const visibleItems = showAllItems ? newestItems : newestItems.slice(0, 4);
+  const hiddenItemCount = Math.max(0, composer.items.length - 4);
   const busy = composer.saving;
   const currentListId =
     listContext?.type === "manual"
@@ -138,7 +144,13 @@ export default function EditorCard({
   };
   const save = async (id?: string) => {
     if (demoMode || busy) return;
-    if (await composer.save(destination, id)) onCreated?.();
+    if (await composer.save(destination, id)) {
+      setShowAllItems(false);
+      onCreated?.();
+    } else {
+      // Failed items must remain reachable even if they were in the older batch.
+      setShowAllItems(true);
+    }
   };
   const insertText = (text: string) => {
     const input = inputRef.current;
@@ -175,12 +187,6 @@ export default function EditorCard({
         (item) => item.input?.type === "text" || item.offlineCreated,
       )
     : count > 0;
-  const minHeight = useBookmarkLayoutSwitch({
-    grid: "min-h-96",
-    masonry: "min-h-80",
-    list: "min-h-64",
-    compact: "min-h-64",
-  });
   return (
     <form
       {...dropzone.getRootProps({
@@ -198,8 +204,7 @@ export default function EditorCard({
       aria-busy={busy}
       data-capture-composer
       className={cn(
-        "shadow-xs ease-(--ease-out) relative flex flex-col gap-4 rounded-2xl border border-border/80 bg-card p-4 transition-[border-color,box-shadow,background-color] duration-150 focus-within:border-ring/70 focus-within:ring-2 focus-within:ring-ring/15",
-        minHeight,
+        "shadow-xs ease-(--ease-out) relative flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-4 transition-[border-color,box-shadow,background-color] duration-150 focus-within:border-ring/70 focus-within:ring-2 focus-within:ring-ring/15",
         dropzone.isDragActive &&
           "border-primary bg-primary/5 ring-2 ring-primary/25",
         className,
@@ -237,7 +242,7 @@ export default function EditorCard({
           <Kbd>{getOS() === "macos" ? "⌘" : "Ctrl"} + E</Kbd>
         )}
       </div>
-      <div className="flex min-h-28 flex-1 flex-col gap-3">
+      <div className="flex min-h-24 flex-1 flex-col gap-3">
         <Textarea
           ref={inputRef}
           value={composer.text}
@@ -245,7 +250,7 @@ export default function EditorCard({
           aria-label={t("editor.capture.content_label")}
           aria-describedby={helpId}
           placeholder={t("editor.capture.placeholder")}
-          className="min-h-28 flex-1 resize-y border-0 bg-transparent p-0 text-base leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
+          className="min-h-24 flex-1 resize-y border-0 bg-transparent p-0 text-base leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
           onChange={(event) => composer.setText(event.target.value)}
           onPaste={(event) => {
             const clipboard = event.clipboardData;
@@ -279,12 +284,57 @@ export default function EditorCard({
             }
           }}
         />
+      </div>
+      <div className="relative flex flex-col gap-3 rounded-xl px-3 py-3">
+        <button
+          type="button"
+          className="absolute inset-0 size-full cursor-pointer rounded-xl bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed"
+          onClick={dropzone.open}
+          disabled={busy || demoMode || composer.offline}
+          aria-label={t("editor.capture.choose_or_drop_files")}
+          aria-describedby={helpId}
+        />
+        <svg
+          className="pointer-events-none absolute inset-0 size-full text-ring"
+          aria-hidden="true"
+        >
+          <rect
+            x="0.5"
+            y="0.5"
+            style={{ width: "calc(100% - 1px)", height: "calc(100% - 1px)" }}
+            rx="12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="5 5"
+          />
+        </svg>
+        <div
+          className={cn(
+            "pointer-events-none relative flex flex-col items-center justify-center gap-1.5 text-center",
+            (busy || demoMode || composer.offline) && "opacity-50",
+          )}
+        >
+          <span className="flex items-center justify-center gap-2 text-sm font-medium">
+            <Paperclip className="size-4 shrink-0" aria-hidden="true" />
+            {t("editor.capture.choose_or_drop_files")}
+          </span>
+          <span
+            id={helpId}
+            className="text-xs leading-relaxed text-muted-foreground"
+          >
+            {composer.offline
+              ? t("editor.capture.connect_files")
+              : t("editor.capture.formats_hint")}
+          </span>
+        </div>
         {composer.items.length > 0 && (
           <ul
+            id={pendingItemsId}
             aria-label={t("editor.capture.pending_items")}
-            className="flex max-h-64 flex-col gap-2 overflow-y-auto"
+            className="pointer-events-none relative flex flex-col gap-2"
           >
-            {composer.items.map((item) => (
+            {visibleItems.map((item) => (
               <li
                 key={item.id}
                 className={cn(
@@ -294,10 +344,7 @@ export default function EditorCard({
               >
                 <CaptureThumbnail item={item} />
                 <div className="min-w-0 flex-1">
-                  <p
-                    className="truncate text-sm font-medium"
-                    title={item.label}
-                  >
+                  <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
                     {item.label}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -325,7 +372,7 @@ export default function EditorCard({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      className="mt-1 h-8 px-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                      className="pointer-events-auto mt-1 h-8 px-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
                       disabled={
                         busy ||
                         demoMode ||
@@ -349,12 +396,15 @@ export default function EditorCard({
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="size-9 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                    className="pointer-events-auto size-9 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
                     aria-label={t("editor.capture.remove_item", {
                       name: item.label,
                     })}
                     disabled={busy}
-                    onClick={() => composer.removeItem(item.id)}
+                    onClick={() => {
+                      composer.removeItem(item.id);
+                      if (composer.items.length === 1) setShowAllItems(false);
+                    }}
                   >
                     <X className="size-4" />
                   </Button>
@@ -363,31 +413,35 @@ export default function EditorCard({
             ))}
           </ul>
         )}
-      </div>
-      <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-5 text-center">
-        <Upload className="size-5 text-muted-foreground" aria-hidden="true" />
-        <p className="text-sm font-medium">{t("editor.capture.drop_prompt")}</p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 gap-2 px-4 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97]"
-          onClick={dropzone.open}
-          disabled={busy || demoMode || composer.offline}
-        >
-          <Paperclip className="size-4" aria-hidden="true" />
-          {t("editor.capture.choose_files")}
-        </Button>
-        <p
-          id={helpId}
-          className="text-xs leading-relaxed text-muted-foreground"
-        >
-          {composer.offline
-            ? t("editor.capture.connect_files")
-            : t("editor.capture.formats_hint")}
-        </p>
+        {hiddenItemCount > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="relative -mt-1 h-6 gap-1 self-center px-2 py-0 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            aria-expanded={showAllItems}
+            aria-controls={pendingItemsId}
+            onClick={() => setShowAllItems((value) => !value)}
+          >
+            {showAllItems ? (
+              <ChevronUp className="size-3.5" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="size-3.5" aria-hidden="true" />
+            )}
+            {showAllItems
+              ? t("editor.capture.collapse_files")
+              : hiddenItemCount === 1
+                ? t("editor.capture.show_older_file")
+                : t("editor.capture.show_older_files", {
+                    count: hiddenItemCount,
+                  })}
+          </Button>
+        )}
         {rejection && (
-          <p role="alert" className="flex gap-1.5 text-xs text-destructive">
+          <p
+            role="alert"
+            className="pointer-events-none relative flex gap-1.5 text-xs text-destructive"
+          >
             <AlertCircle
               className="mt-0.5 size-3.5 shrink-0"
               aria-hidden="true"
