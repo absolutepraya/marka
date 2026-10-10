@@ -22,7 +22,10 @@ export const startupScript = `(() => {
   window.addEventListener('pageshow', resume);
   timer = setTimeout(() => {
     if (root.dataset.startupReady !== 'true') {
-      root.dataset.startupRecovery = navigator.onLine === false ? 'offline' : 'slow';
+      const recovery = navigator.onLine === false ? 'offline' : 'slow';
+      root.dataset.startupRecovery = recovery;
+      const message = document.getElementById('marka-startup-message');
+      if (message?.dataset[recovery]) message.textContent = message.dataset[recovery];
     }
   }, 15000);
 })();`;

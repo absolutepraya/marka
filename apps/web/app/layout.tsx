@@ -38,6 +38,7 @@ import StartupScreen from "@/components/startup/StartupScreen";
 import StartupReady from "@/components/startup/StartupReady";
 import { MARKA } from "@/lib/brand";
 import Providers from "@/lib/providers";
+import { useTranslation as getTranslation } from "@/lib/i18n/server";
 import { getUserLocalSettings } from "@/lib/userLocalSettings/userLocalSettings";
 import { getServerAuthSession } from "@/server/auth";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -301,6 +302,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const userSettings = await getUserLocalSettings();
+  const { t } = await getTranslation(userSettings.lang);
   const isRTL = userSettings.lang === "ar";
   // Coarse phone detection so the masonry grid can server-render the right
   // column count on the first paint (phones get <=2 cols) instead of flashing
@@ -316,7 +318,16 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">
-        <StartupScreen />
+        <StartupScreen
+          messages={{
+            label: t("startup.label"),
+            loading: t("startup.loading"),
+            slow: t("startup.slow"),
+            offline: t("startup.offline"),
+            retry: t("startup.retry"),
+            noScript: t("startup.noScript"),
+          }}
+        />
         <div id="marka-startup-content" inert suppressHydrationWarning>
           <Suspense fallback={null}>
             <StartupApp userSettings={userSettings} isMobile={isMobile}>

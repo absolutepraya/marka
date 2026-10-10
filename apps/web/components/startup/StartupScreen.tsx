@@ -1,10 +1,15 @@
 import React from "react";
 import Image from "next/image";
 import { MARKA } from "@/lib/brand";
+import en from "@/lib/i18n/locales/en/translation.json";
 
 import { startupScript } from "./startup-script";
 
-export default function StartupScreen() {
+export default function StartupScreen({
+  messages = en.startup,
+}: {
+  messages?: typeof en.startup;
+}) {
   return (
     <>
       <style>{`
@@ -29,11 +34,10 @@ export default function StartupScreen() {
           .marka-startup-status p { margin: 0; opacity: .65; }
           .marka-startup-recovery { display: none; max-width: 280px; font-size: 14px; line-height: 1.6; }
           .marka-startup-recovery button { display: inline-block; margin-top: 16px; padding: 10px 24px; border: 1px solid currentColor; border-radius: 10px; color: inherit; background: transparent; font: inherit; cursor: pointer; }
-          .marka-startup-offline { display: none; }
-          html[data-startup-recovery] .marka-startup-status { display: none; }
+          html[data-startup-recovery] .marka-startup-indicator { display: none; }
+          html[data-startup-recovery] .marka-startup-status { max-width: 280px; font-size: 14px; line-height: 1.6; }
+          html[data-startup-recovery] .marka-startup-status p { opacity: 1; }
           html[data-startup-recovery] .marka-startup-recovery { display: block; }
-          html[data-startup-recovery="offline"] .marka-startup-slow { display: none; }
-          html[data-startup-recovery="offline"] .marka-startup-offline { display: block; }
           html[data-startup-theme="dark"] .marka-startup { background: #121a27; color: #f5f7fa; color-scheme: dark; }
           html[data-startup-theme="dark"] .marka-startup-light { display: none; }
           html[data-startup-theme="dark"] .marka-startup-dark { display: block; }
@@ -49,7 +53,7 @@ export default function StartupScreen() {
         html[data-startup-ready="true"] .marka-startup { display: none; }
         @keyframes marka-startup-spin { to { transform: rotate(360deg); } }
       `}</style>
-      <section className="marka-startup" aria-label="Starting Marka">
+      <section className="marka-startup" aria-label={messages.label}>
         <Image
           className="marka-startup-logo marka-startup-light"
           src={MARKA.wordmark.navy}
@@ -70,29 +74,30 @@ export default function StartupScreen() {
           loading="eager"
           fetchPriority="high"
         />
-        <div className="marka-startup-status" role="status" aria-live="polite">
-          <span className="marka-startup-indicator" aria-hidden="true" />
-          <p>Loading your library</p>
-        </div>
         <div
-          className="marka-startup-recovery"
+          className="marka-startup-status"
           role="status"
           aria-live="polite"
+          aria-atomic="true"
         >
-          <p className="marka-startup-slow">
-            This is taking longer than usual. You can wait a little longer or
-            try again.
+          <span className="marka-startup-indicator" aria-hidden="true" />
+          <p
+            id="marka-startup-message"
+            data-slow={messages.slow}
+            data-offline={messages.offline}
+            suppressHydrationWarning
+          >
+            {messages.loading}
           </p>
-          <p className="marka-startup-offline">
-            You appear to be offline. Check your connection and try again.
-          </p>
+        </div>
+        <div className="marka-startup-recovery">
           <button type="button" id="marka-startup-retry">
-            Try again
+            {messages.retry}
           </button>
         </div>
         <noscript>
           <style>{`.marka-startup-status, .marka-startup-recovery { display: none !important; }`}</style>
-          <p>Enable JavaScript to open Marka, then reload this page.</p>
+          <p>{messages.noScript}</p>
         </noscript>
       </section>
       <script dangerouslySetInnerHTML={{ __html: startupScript }} />
