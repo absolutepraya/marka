@@ -364,12 +364,14 @@ export default function EditorCard({
           </ul>
         )}
       </div>
-      <div className="space-y-2 border-t border-border/60 pt-3">
+      <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-5 text-center">
+        <Upload className="size-5 text-muted-foreground" aria-hidden="true" />
+        <p className="text-sm font-medium">{t("editor.capture.drop_prompt")}</p>
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="-ml-2 h-9 gap-2 px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97]"
+          className="h-9 gap-2 px-4 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.97]"
           onClick={dropzone.open}
           disabled={busy || demoMode || composer.offline}
         >
