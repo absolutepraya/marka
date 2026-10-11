@@ -239,6 +239,13 @@ This repository deploys with a **pull-based split Docker flow**.
 - package manifest versions remain independent of the shared product release
 - `web` runs Next.js and owns database migrations
 - `workers` runs background work with `WORKER_PROFILE=screenshot-first`
+- The `screenshot-first` profile includes `embeddingCleanup`, a deletion-only
+  consumer for `embeddings_queue`. It removes vectors for deleted bookmarks
+  without enabling embedding generation or indexing. Other embedding jobs,
+  including forced generation jobs, are deferred without consuming retries
+  until a full-profile embedding consumer is available. Setting
+  `WORKERS_DISABLED_WORKERS=embeddingCleanup` disables this cleanup consumer
+  and allows deletion jobs to accumulate again.
 
 ### Deploy path
 - the VPS runs a Watchtower container
