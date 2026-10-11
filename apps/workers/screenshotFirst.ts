@@ -5,6 +5,7 @@ import { buildServer } from "server";
 import {
   AssetPreprocessingQueue,
   BackupQueue,
+  EmbeddingsQueue,
   FeedQueue,
   initEventLogger,
   initTracing,
@@ -32,6 +33,7 @@ import {
 import { AssetPreprocessingWorker } from "./workers/assetPreprocessingWorker";
 import { BackupSchedulingWorker, BackupWorker } from "./workers/backupWorker";
 import { CrawlerWorker } from "./workers/crawlerWorker";
+import { EmbeddingCleanupWorker } from "./workers/embeddingCleanupWorker";
 import { FeedRefreshingWorker, FeedWorker } from "./workers/feedWorker";
 import { OpenAiWorker } from "./workers/inference/inferenceWorker";
 import { ImportWorker } from "./workers/importWorker";
@@ -84,6 +86,10 @@ const workerBuilders = {
     await TranscriptQueue.ensureInit();
     return TranscriptWorker.build();
   },
+  embeddingCleanup: async () => {
+    await EmbeddingsQueue.ensureInit();
+    return EmbeddingCleanupWorker.build();
+  },
 } as const;
 
 const enabledWorkers = new Set(serverConfig.workers.enabledWorkers);
@@ -99,6 +105,7 @@ const screenshotFirstWorkers: Record<WorkerName, true> = {
   backup: true,
   assetPreprocessing: true,
   transcript: true,
+  embeddingCleanup: true,
   import: true,
 };
 

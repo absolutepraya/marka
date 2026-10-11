@@ -9,6 +9,7 @@ export const SCREENSHOT_FIRST_QUEUE_WORKERS = [
   "backup",
   "assetPreprocessing",
   "transcript",
+  "embeddingCleanup",
 ] as const;
 
 export const SCREENSHOT_FIRST_IMPORT_WORKER = "import" as const;

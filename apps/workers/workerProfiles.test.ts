@@ -18,6 +18,7 @@ describe("screenshot-first worker profile", () => {
       "backup",
       "assetPreprocessing",
       "transcript",
+      "embeddingCleanup",
     ]);
     expect(SCREENSHOT_FIRST_QUEUE_WORKERS).not.toContain("embeddings");
     expect(SCREENSHOT_FIRST_QUEUE_WORKERS).not.toContain("video");
