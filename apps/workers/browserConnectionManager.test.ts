@@ -182,3 +182,52 @@ describe("browser context creation cancellation", () => {
     expect(create).not.toHaveBeenCalled();
   });
 });
+
+describe("retiring a damaged browser connection", () => {
+  it("gives later jobs a fresh connection without disrupting another active lease", async () => {
+    vi.useFakeTimers();
+    const { manager } = setup();
+    const failed = await manager.acquire();
+    const active = await manager.acquire();
+    failed.retire();
+    failed.release();
+    expect(active.browser!.close).not.toHaveBeenCalled();
+    const next = await manager.acquire();
+    expect(next.browser).not.toBe(active.browser);
+    expect(active.browser!.isConnected()).toBe(true);
+    active.release();
+    await Promise.resolve();
+    expect(active.browser!.close).toHaveBeenCalledTimes(1);
+    const later = await manager.acquire();
+    expect(later.browser).toBe(next.browser);
+    next.release();
+    later.release();
+    await manager.stop();
+  });
+
+  it("closes both current and retired connections during shutdown", async () => {
+    const { manager } = setup();
+    const old = await manager.acquire();
+    old.retire();
+    const current = await manager.acquire();
+    await manager.stop();
+    expect(old.browser!.close).toHaveBeenCalledTimes(1);
+    expect(current.browser!.close).toHaveBeenCalledTimes(1);
+    old.release();
+    current.release();
+  });
+});
+
+it("retries a failed retirement disconnect during shutdown", async () => {
+  const { manager, onError } = setup();
+  const old = await manager.acquire();
+  old.browser!.close.mockRejectedValueOnce(new Error("disconnect failed"));
+  old.retire();
+  old.release();
+  await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+  const next = await manager.acquire();
+  await manager.stop();
+  expect(old.browser!.close).toHaveBeenCalledTimes(2);
+  expect(next.browser!.close).toHaveBeenCalledTimes(1);
+  next.release();
+});
