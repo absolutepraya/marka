@@ -293,6 +293,8 @@ TIMEOUT=45000
 
 Do not publish a Browserless port. The external `karakeep-renderer` Docker network is the only path from workers to Browserless.
 
+Connection reuse is opt-in with `BROWSER_REUSE_CONNECTION=true` in the worker environment while keeping `BROWSER_CONNECT_ONDEMAND=true`. The default remains per-crawl connections. Reuse keeps separate contexts, proxy settings, cookies, and request validation for each crawl, disconnects after 30 idle seconds, and reconnects on the next crawl after provider disconnects. A retained Browserless session consumes renderer capacity and its `TIMEOUT` still applies. Validate repeated and concurrent crawls and resource use before enabling this in production. Set `BROWSER_REUSE_CONNECTION=false` to roll back; change `CRAWLER_NUM_WORKERS` separately so the effects can be measured independently. `CRAWLER_NUM_WORKERS` applies to each of the normal and low-priority crawler runners; a value of 2 can permit four simultaneous crawls across both queues. Include both queues in capacity validation. Compare the existing `crawlerWorker.crawlPage.getBrowserInstance` and cleanup spans, using `crawler.browser.reused` to distinguish warm acquisitions.
+
 ### Controlled embedding-cleanup rollout
 
 The stale-embedding migration is safe only as a controlled rollout. An empty-queue preflight by itself is not sufficient: pause automatic updates, capture a fresh successful read-only check immediately before the controlled `web` start that applies the migration, then resume automatic updates.
