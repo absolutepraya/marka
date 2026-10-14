@@ -39,6 +39,7 @@ describe("mobile startup", () => {
   afterEach(() => {
     window.dispatchEvent(new Event("marka:startup-ready"));
     cleanup();
+    document.body.replaceChildren();
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -144,13 +145,50 @@ describe("mobile startup", () => {
     expect(document.documentElement.dataset.startupReady).toBe("true");
   });
 
-  it("dismisses a stale startup screen on back-forward cache restoration", () => {
+  it("offers recovery on history restoration without declaring a stalled destination ready", () => {
     start();
     const event = new Event("pageshow");
     Object.defineProperty(event, "persisted", { value: true });
     window.dispatchEvent(event);
+    expect(document.documentElement.dataset.startupReady).toBeUndefined();
+    expect(document.documentElement.dataset.startupRecovery).toBe("slow");
+    render(<StartupReady />);
     expect(document.documentElement.dataset.startupReady).toBe("true");
-    vi.advanceTimersByTime(30000);
     expect(document.documentElement.dataset.startupRecovery).toBeUndefined();
+  });
+
+  it("releases content immediately and clears recovery when readiness arrives after a stall", () => {
+    document.body.innerHTML =
+      '<div id="marka-startup-content" inert><button>Destination</button></div>';
+    start();
+    vi.advanceTimersByTime(15000);
+    expect(
+      document.getElementById("marka-startup-content")?.hasAttribute("inert"),
+    ).toBe(true);
+    window.dispatchEvent(new Event("marka:startup-ready"));
+    expect(
+      document.getElementById("marka-startup-content")?.hasAttribute("inert"),
+    ).toBe(false);
+    expect(document.documentElement.dataset.startupRecovery).toBeUndefined();
+  });
+
+  it("does not replay on navigation, refresh events or resuming a ready document", () => {
+    start();
+    render(<StartupReady />);
+    window.dispatchEvent(new Event("popstate"));
+    window.dispatchEvent(new Event("online"));
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(
+      new PageTransitionEvent("pageshow", { persisted: true }),
+    );
+    vi.advanceTimersByTime(30000);
+    expect(document.documentElement.dataset.startupReady).toBe("true");
+    expect(document.documentElement.dataset.startupRecovery).toBeUndefined();
+  });
+
+  it("does not arm recovery when the destination became ready before the inline script", () => {
+    render(<StartupReady />);
+    start();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

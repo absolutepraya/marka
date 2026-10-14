@@ -324,6 +324,40 @@ describe("service worker cache boundaries", () => {
     ).resolves.toBe("offline");
   });
 
+  it.each(["/", "/dashboard/bookmarks", "/reader/example"])(
+    "shows only the public offline page for a cold %s launch with no session",
+    async (path) => {
+      const worker = createWorkerHarness();
+      const request = getRequest(path, { mode: "navigate" });
+      worker.cacheEntries.set(
+        SHELL_CACHE,
+        new Map([
+          [new URL("/offline.html", APP_ORIGIN).href, new Response("offline")],
+          [request.url, new Response("another user's cached content")],
+        ]),
+      );
+      worker.fetch.mockRejectedValue(new Error("offline"));
+      const dispatched = await worker.dispatch("fetch", { request });
+      await expect(
+        dispatched.response?.then((response) => response.text()),
+      ).resolves.toBe("offline");
+    },
+  );
+
+  it("keeps the startup redirect network-first and never caches its authenticated response", async () => {
+    const worker = createWorkerHarness();
+    worker.fetch.mockResolvedValue(
+      new Response("authenticated startup redirect"),
+    );
+    const dispatched = await worker.dispatch("fetch", {
+      request: getRequest("/", { mode: "navigate" }),
+    });
+    await expect(
+      dispatched.response?.then((response) => response.text()),
+    ).resolves.toBe("authenticated startup redirect");
+    expect(worker.caches.open).not.toHaveBeenCalled();
+  });
+
   it("signals thumbnail use only after the thumbnail response is persisted", async () => {
     const worker = createWorkerHarness();
     const postMessage = vi.fn(() => worker.events.push("thumbnail.used"));
