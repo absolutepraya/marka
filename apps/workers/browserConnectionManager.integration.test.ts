@@ -3,7 +3,10 @@ import { performance } from "node:perf_hooks";
 import { chromium } from "playwright";
 import { expect, it } from "vitest";
 
-import { BrowserConnectionManager } from "./browserConnectionManager";
+import {
+  BrowserConnectionManager,
+  createBrowserContextWithAbort,
+} from "./browserConnectionManager";
 
 // Explicit opt-in: requires local Playwright Chromium, no external services.
 it.skipIf(process.env.CRAWLER_BROWSER_INTEGRATION !== "1")(
@@ -108,6 +111,39 @@ it.skipIf(process.env.CRAWLER_BROWSER_INTEGRATION !== "1")(
             ),
           });
           if (reuse) {
+            const canceledLease = await manager.acquire();
+            const controller = new AbortController();
+            let lateCleaned = false;
+            const creating = createBrowserContextWithAbort(
+              () => canceledLease.browser!.newContext(),
+              controller.signal,
+              async (lateContext) => {
+                await lateContext.close();
+                lateCleaned = true;
+              },
+            );
+            controller.abort();
+            await expect(creating).rejects.toThrow();
+            await expect.poll(() => lateCleaned).toBe(true);
+            expect(canceledLease.browser!.contexts()).toHaveLength(1);
+            canceledLease.release();
+            const damaged = await manager.acquire();
+            const survivor = await manager.acquire();
+            const survivorContext = await survivor.browser!.newContext();
+            const survivorPage = await survivorContext.newPage();
+            await survivorPage.setContent("<title>Surviving crawl</title>");
+            damaged.retire();
+            damaged.release();
+            const replacement = await manager.acquire();
+            expect(replacement.browser).not.toBe(survivor.browser);
+            expect(await survivorPage.title()).toBe("Surviving crawl");
+            await survivorContext.close();
+            survivor.release();
+            await expect
+              .poll(() => survivor.browser!.isConnected())
+              .toBe(false);
+            expect(replacement.browser!.isConnected()).toBe(true);
+            replacement.release();
             const lease = await manager.acquire();
             expect(lease.browser!.contexts()).toHaveLength(1);
             await lease.browser!.close();

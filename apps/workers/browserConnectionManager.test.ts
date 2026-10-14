@@ -1,7 +1,10 @@
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { BrowserConnectionManager } from "./browserConnectionManager";
+import {
+  BrowserConnectionManager,
+  createBrowserContextWithAbort,
+} from "./browserConnectionManager";
 
 class FakeBrowser extends EventEmitter {
   connected = true;
@@ -145,4 +148,86 @@ describe("crawler browser connection reuse", () => {
     b.release();
     await manager.stop();
   });
+});
+
+describe("browser context creation cancellation", () => {
+  it("rejects promptly and cleans up a late context after cancellation", async () => {
+    let resolve!: (value: object) => void;
+    const pending = new Promise<object>((r) => {
+      resolve = r;
+    });
+    const cleanup = vi.fn(async () => undefined);
+    const abort = new AbortController();
+    const creation = createBrowserContextWithAbort(
+      () => pending,
+      abort.signal,
+      cleanup,
+    );
+    abort.abort();
+    await expect(creation).rejects.toThrow();
+    expect(cleanup).not.toHaveBeenCalled();
+    const context = {};
+    resolve(context);
+    await Promise.resolve();
+    expect(cleanup).toHaveBeenCalledWith(context);
+  });
+
+  it("does not allocate a context for an already canceled job", async () => {
+    const create = vi.fn(async () => ({}));
+    const abort = new AbortController();
+    abort.abort();
+    await expect(
+      createBrowserContextWithAbort(create, abort.signal, vi.fn()),
+    ).rejects.toThrow();
+    expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe("retiring a damaged browser connection", () => {
+  it("gives later jobs a fresh connection without disrupting another active lease", async () => {
+    vi.useFakeTimers();
+    const { manager } = setup();
+    const failed = await manager.acquire();
+    const active = await manager.acquire();
+    failed.retire();
+    failed.release();
+    expect(active.browser!.close).not.toHaveBeenCalled();
+    const next = await manager.acquire();
+    expect(next.browser).not.toBe(active.browser);
+    expect(active.browser!.isConnected()).toBe(true);
+    active.release();
+    await Promise.resolve();
+    expect(active.browser!.close).toHaveBeenCalledTimes(1);
+    const later = await manager.acquire();
+    expect(later.browser).toBe(next.browser);
+    next.release();
+    later.release();
+    await manager.stop();
+  });
+
+  it("closes both current and retired connections during shutdown", async () => {
+    const { manager } = setup();
+    const old = await manager.acquire();
+    old.retire();
+    const current = await manager.acquire();
+    await manager.stop();
+    expect(old.browser!.close).toHaveBeenCalledTimes(1);
+    expect(current.browser!.close).toHaveBeenCalledTimes(1);
+    old.release();
+    current.release();
+  });
+});
+
+it("retries a failed retirement disconnect during shutdown", async () => {
+  const { manager, onError } = setup();
+  const old = await manager.acquire();
+  old.browser!.close.mockRejectedValueOnce(new Error("disconnect failed"));
+  old.retire();
+  old.release();
+  await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+  const next = await manager.acquire();
+  await manager.stop();
+  expect(old.browser!.close).toHaveBeenCalledTimes(2);
+  expect(next.browser!.close).toHaveBeenCalledTimes(1);
+  next.release();
 });

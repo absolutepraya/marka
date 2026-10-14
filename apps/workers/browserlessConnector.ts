@@ -1,6 +1,7 @@
 export function buildBrowserlessWebSocketUrl(
   baseUrl: string,
   token: string | undefined,
+  reuseConnection = false,
 ): string {
   if (!token) {
     throw new Error(
@@ -9,6 +10,11 @@ export function buildBrowserlessWebSocketUrl(
   }
   const url = new URL(baseUrl);
   url.searchParams.set("token", token);
+  // The pool owns per-crawl deadlines and idle disconnects. An inherited
+  // session timer can otherwise expire in the middle of a later crawl.
+  if (reuseConnection && !url.searchParams.has("timeout")) {
+    url.searchParams.set("timeout", "-1");
+  }
   return url.toString();
 }
 
