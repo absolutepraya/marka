@@ -244,13 +244,21 @@ export function EditListModal({
                       <FormItem className="shrink-0">
                         <FormControl>
                           <Popover>
-                            <PopoverTrigger className="shadow-xs flex size-10 items-center justify-center rounded-xl border border-input bg-muted/40 text-xl transition-[border-color,background-color,box-shadow] duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-11 sm:text-2xl">
+                            <PopoverTrigger
+                              aria-label={t("lists.icon", {
+                                defaultValue: "Choose list emoji",
+                              })}
+                              className="shadow-xs flex size-10 items-center justify-center rounded-xl border border-input bg-muted/40 text-xl transition-[border-color,background-color,box-shadow] duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-11 sm:text-2xl"
+                            >
                               {field.value}
                             </PopoverTrigger>
-                            <PopoverContent className="max-h-[calc(var(--vvh)-1rem)] max-w-[calc(100vw-1rem)] overflow-auto border-0 bg-transparent p-0 shadow-none sm:max-h-none sm:max-w-none">
+                            <PopoverContent
+                              align="start"
+                              collisionPadding={8}
+                              className="max-h-[min(var(--radix-popover-content-available-height),calc(var(--vvh)-1rem))] w-fit max-w-[calc(100vw-1rem)] overflow-auto border-0 bg-transparent p-0 shadow-none [&_em-emoji-picker]:h-[min(290px,var(--radix-popover-content-available-height))] [&_em-emoji-picker]:min-h-0 sm:[&_em-emoji-picker]:h-[min(435px,var(--radix-popover-content-available-height))]"
+                            >
                               <Picker
                                 data={data}
-                                height={isMobile ? 290 : undefined}
                                 emojiSize={isMobile ? 18 : 24}
                                 emojiButtonSize={isMobile ? 30 : 36}
                                 perLine={isMobile ? 8 : 9}
