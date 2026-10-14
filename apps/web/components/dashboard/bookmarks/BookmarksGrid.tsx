@@ -169,6 +169,9 @@ export default function BookmarksGrid({
     (state) => state.setVisibleBookmarks,
   );
   const setListContext = useBulkActionsStore((state) => state.setListContext);
+  const setIsBulkEditEnabled = useBulkActionsStore(
+    (state) => state.setIsBulkEditEnabled,
+  );
   const setInBookmarkGrid = useInBookmarkGridStore(
     (state) => state.setInBookmarkGrid,
   );
@@ -232,8 +235,9 @@ export default function BookmarksGrid({
     setInBookmarkGrid(true);
     return () => {
       setInBookmarkGrid(false);
+      setIsBulkEditEnabled(false);
     };
-  }, [setInBookmarkGrid]);
+  }, [setInBookmarkGrid, setIsBulkEditEnabled]);
 
   useEffect(() => {
     if (loadMoreButtonInView && hasNextPage && !isFetchingNextPage) {

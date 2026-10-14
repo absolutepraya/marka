@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { ActionButton } from "@/components/ui/action-button";
 import ActionConfirmingDialog from "@/components/ui/action-confirming-dialog";
-import { ButtonWithTooltip } from "@/components/ui/button";
+import { EditingButton } from "@/components/ui/editing-button";
 import { toast } from "@/components/ui/sonner";
-import { Toggle } from "@/components/ui/toggle";
 import useBulkTagActionsStore from "@/lib/bulkTagActions";
 import { useTranslation } from "@/lib/i18n/client";
 import { CheckCheck, Pencil, Trash2, X } from "lucide-react";
@@ -33,7 +32,7 @@ export default function BulkTagAction() {
     return () => {
       setIsBulkEditEnabled(false);
     };
-  }, []);
+  }, [setIsBulkEditEnabled]);
 
   const onError = () => {
     toast({
@@ -112,29 +111,27 @@ export default function BulkTagAction() {
       />
 
       {!isBulkEditEnabled ? (
-        <Toggle
-          variant="outline"
-          className="bg-background"
+        <EditingButton
+          tooltip={t("actions.bulk_edit")}
           aria-label="Toggle bulk edit"
-          pressed={isBulkEditEnabled}
-          onPressedChange={setIsBulkEditEnabled}
+          aria-pressed={isBulkEditEnabled}
+          ignoreDemoMode
+          onClick={() => setIsBulkEditEnabled(true)}
         >
-          <Pencil className="size-4 sm:mr-2" />
-          <span className="hidden sm:inline">{t("actions.bulk_edit")}</span>
-        </Toggle>
+          <Pencil />
+        </EditingButton>
       ) : (
-        <div className="flex items-center rounded-md bg-background">
+        <div className="flex flex-wrap items-center gap-0.5">
           {actionList.map(({ name, icon, action, alwaysEnable }) => (
-            <ButtonWithTooltip
+            <EditingButton
               tooltip={name}
               disabled={!selectedTagIds.length && !alwaysEnable}
-              delayDuration={100}
-              variant="none"
+              ignoreDemoMode={!!alwaysEnable}
               key={name}
               onClick={action}
             >
               {icon}
-            </ButtonWithTooltip>
+            </EditingButton>
           ))}
         </div>
       )}

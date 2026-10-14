@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ButtonWithTooltip } from "@/components/ui/button";
+import { EditingButton } from "@/components/ui/editing-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import { Check, ListFilter, SortAsc, SortDesc } from "lucide-react";
 
 export default function SortOrderToggle() {
   const { t } = useTranslation();
-  const isInSearchPage = useInSearchPageStore();
+  const isInSearchPage = useInSearchPageStore((state) => state.inSearchPage);
 
   const { sortOrder: currentSort, setSortOrder } = useSortOrderStore();
 
@@ -26,20 +26,21 @@ export default function SortOrderToggle() {
       // reset to default sort order
       setSortOrder("desc");
     }
-  }, [isInSearchPage, currentSort]);
+  }, [isInSearchPage, currentSort, setSortOrder]);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <ButtonWithTooltip
+        <EditingButton
           tooltip={t("actions.sort.title")}
-          delayDuration={100}
+          aria-label={t("actions.sort.title")}
+          ignoreDemoMode
           variant="ghost"
         >
-          {currentSort === "relevance" && <ListFilter size={18} />}
-          {currentSort === "asc" && <SortAsc size={18} />}
-          {currentSort === "desc" && <SortDesc size={18} />}
-        </ButtonWithTooltip>
+          {currentSort === "relevance" && <ListFilter size={16} />}
+          {currentSort === "asc" && <SortAsc size={16} />}
+          {currentSort === "desc" && <SortDesc size={16} />}
+        </EditingButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-fit">
         {isInSearchPage && (

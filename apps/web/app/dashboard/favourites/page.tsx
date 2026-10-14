@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import GlobalActions from "@/components/dashboard/GlobalActions";
+import { PageHeader } from "@/components/shared/PageHeader";
 import Bookmarks from "@/components/dashboard/bookmarks/Bookmarks";
 import { useTranslation } from "@/lib/i18n/server";
 
@@ -14,9 +16,11 @@ export default async function FavouritesBookmarkPage() {
   return (
     <Bookmarks
       header={
-        <div className="flex items-center justify-between">
-          <p className="text-2xl">⭐️ Favourites</p>
-        </div>
+        <PageHeader
+          title="⭐️ Favourites"
+          titleAction={<GlobalActions />}
+          className="flex-wrap"
+        />
       }
       query={{ favourited: true }}
       showDivider={true}
