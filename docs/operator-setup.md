@@ -283,17 +283,19 @@ Expected service shape:
 
 Create `.workers.env` beside the production compose file. It is mounted only into `workers`, never `web`, and must contain `BROWSERLESS_TOKEN`, proxy credentials, and `OPENAI_API_KEY`. For the full enrichment rollout, configure the same worker-only file with `OPENAI_BASE_URL`, `INFERENCE_TEXT_MODEL`, `INFERENCE_IMAGE_MODEL`, `INFERENCE_ENABLE_AUTO_TAGGING`, `INFERENCE_ENABLE_AUTO_SUMMARIZATION`, `OCR_USE_LLM`, `TRANSCRIPTION_ENABLED`, `AZURE_SPEECH_ENDPOINT`, `AZURE_SPEECH_REGION`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_MODEL`, `AZURE_SPEECH_API_VERSION`, `EMBEDDING_ENABLE_AUTO_INDEXING`, `EMBEDDING_TEXT_MODEL`, and `EMBEDDING_DIMENSIONS` as applicable. When enabled, Marka uses MAI-Transcribe-2 only for media transcription. For YouTube links, `yt-dlp` captions remain preferred and Azure Speech is used only when no usable captions are available. Keep the token and all credential values out of source control. `BROWSERLESS_URL` targets the Browserless service through `karakeep-renderer`.
 
-Configure Browserless on its private host with:
+For the existing `browserless/chrome` v1 service, configure its private host with:
 
 ```text
-CONCURRENT=2
-QUEUED=4
-TIMEOUT=45000
+MAX_CONCURRENT_SESSIONS=2
+MAX_QUEUE_LENGTH=4
+CONNECTION_TIMEOUT=45000
 ```
+
+The v1 service reads these names; `CONCURRENT`, `QUEUED`, and `TIMEOUT` do not set its limits. Verify the effective configuration before a capacity change.
 
 Do not publish a Browserless port. The external `karakeep-renderer` Docker network is the only path from workers to Browserless.
 
-Connection reuse is opt-in with `BROWSER_REUSE_CONNECTION=true` in the worker environment while keeping `BROWSER_CONNECT_ONDEMAND=true`. The default remains per-crawl connections. Reuse keeps separate contexts, proxy settings, cookies, and request validation for each crawl, disconnects after 30 idle seconds, and reconnects on the next crawl after provider disconnects. A retained Browserless session consumes renderer capacity and its `TIMEOUT` still applies. Validate repeated and concurrent crawls and resource use before enabling this in production. Set `BROWSER_REUSE_CONNECTION=false` to roll back; change `CRAWLER_NUM_WORKERS` separately so the effects can be measured independently. `CRAWLER_NUM_WORKERS` applies to each of the normal and low-priority crawler runners; a value of 2 can permit four simultaneous crawls across both queues. Include both queues in capacity validation. Compare the existing `crawlerWorker.crawlPage.getBrowserInstance` and cleanup spans, using `crawler.browser.reused` to distinguish warm acquisitions.
+Connection reuse is opt-in with `BROWSER_REUSE_CONNECTION=true` in the worker environment while keeping `BROWSER_CONNECT_ONDEMAND=true`. The default remains per-crawl connections. Reuse keeps separate contexts, proxy settings, cookies, and request validation for each crawl, disconnects after 30 idle seconds, and reconnects on the next crawl after provider disconnects. A retained Browserless session consumes renderer capacity. Reuse requests Browserless `timeout=-1` so a provider session timer cannot shorten a later crawl; the worker retains its per-crawl deadlines and 30-second idle disconnect. An explicit `timeout` query parameter in `BROWSERLESS_URL` is preserved and may interrupt active crawls when that session lifetime expires. Validate repeated and concurrent crawls and resource use before enabling this in production. Set `BROWSER_REUSE_CONNECTION=false` to roll back; change `CRAWLER_NUM_WORKERS` separately so the effects can be measured independently. `CRAWLER_NUM_WORKERS` applies to each of the normal and low-priority crawler runners; a value of 2 can permit four simultaneous crawls across both queues. Include both queues in capacity validation. Compare the existing `crawlerWorker.crawlPage.getBrowserInstance` and cleanup spans, using `crawler.browser.reused` to distinguish warm acquisitions.
 
 ### Controlled embedding-cleanup rollout
 

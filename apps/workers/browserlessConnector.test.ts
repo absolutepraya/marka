@@ -15,6 +15,39 @@ describe("Browserless connector", () => {
     ).toBe("ws://shared-browserless:3000/?token=test-token");
   });
 
+  it("uses worker-owned deadlines for reused Browserless sessions", () => {
+    const url = new URL(
+      buildBrowserlessWebSocketUrl(
+        "ws://shared-browserless:3000",
+        "test-token",
+        true,
+      ),
+    );
+    expect(url.searchParams.get("timeout")).toBe("-1");
+    expect(url.searchParams.get("token")).toBe("test-token");
+  });
+
+  it("preserves an explicit operator session timeout", () => {
+    const url = new URL(
+      buildBrowserlessWebSocketUrl(
+        "ws://shared-browserless:3000/?timeout=120000",
+        "test-token",
+        true,
+      ),
+    );
+    expect(url.searchParams.get("timeout")).toBe("120000");
+  });
+
+  it("keeps provider defaults for per-job connections", () => {
+    const url = new URL(
+      buildBrowserlessWebSocketUrl(
+        "ws://shared-browserless:3000",
+        "test-token",
+      ),
+    );
+    expect(url.searchParams.has("timeout")).toBe(false);
+  });
+
   it("redacts Browserless tokens from connection URLs", () => {
     expect(
       redactBrowserConnectionUrl(

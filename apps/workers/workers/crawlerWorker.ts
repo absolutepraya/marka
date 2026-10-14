@@ -289,6 +289,7 @@ async function startBrowserInstance() {
     const connectionUrl = buildBrowserlessWebSocketUrl(
       serverConfig.crawler.browserlessUrl,
       serverConfig.crawler.browserlessToken,
+      serverConfig.crawler.browserReuseConnection,
     );
     logger.info(
       `[Crawler] Connecting to shared Browserless instance: ${redactBrowserConnectionUrl(connectionUrl)}`,
