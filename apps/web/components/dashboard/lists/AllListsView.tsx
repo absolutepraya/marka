@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
+import { EditingButton } from "@/components/ui/editing-button";
 import { CollapsibleTriggerChevron } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n/client";
@@ -199,11 +200,8 @@ export default function AllListsView({
 
   return (
     <div className="space-y-6">
-      {/* Sticky toolbar: a list search above a New List button, both the same
-          height, pinned so they stay reachable while the tree scrolls. On
-          mobile the page header is sticky (h-16) so we offset below it; on
-          desktop the header sits outside the scroll area, so top-0. */}
-      <div className="sticky top-16 z-20 flex flex-col gap-2 bg-background pb-2 pt-2 sm:top-0 sm:flex-row sm:items-center">
+      {/* Keep list search and creation reachable while the tree scrolls. */}
+      <div className="sticky top-16 z-20 flex items-center gap-2 bg-background pb-2 pt-2 sm:top-0">
         <Input
           type="search"
           value={query}
@@ -237,10 +235,9 @@ export default function AllListsView({
           className="shadow-xs h-11 rounded-lg focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 sm:flex-1 [&::-webkit-search-cancel-button]:appearance-none"
         />
         <EditListModal>
-          <Button className="h-11 w-full gap-2 rounded-lg sm:w-auto">
-            <Plus className="size-4" />
-            <span>{t("lists.new_list")}</span>
-          </Button>
+          <EditingButton tooltip={t("lists.new_list")} ignoreDemoMode>
+            <Plus />
+          </EditingButton>
         </EditListModal>
       </div>
 

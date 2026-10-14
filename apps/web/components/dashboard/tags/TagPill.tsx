@@ -1,10 +1,7 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { useDragAndDrop } from "@/lib/drag-and-drop";
-import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { X } from "lucide-react";
 import Draggable from "react-draggable";
 
 import { useMergeTag } from "@karakeep/shared-react/hooks/tags";
@@ -14,20 +11,13 @@ export const TagPill = React.memo(function TagPill({
   name,
   count,
   isDraggable,
-  onOpenDialog,
 }: {
   id: string;
   name: string;
   count: number;
   isDraggable: boolean;
-  onOpenDialog: (tag: { id: string; name: string }) => void;
 }) {
-  const [isHovered, setIsHovered] = useState(false);
-  const isMobile = useIsMobile();
   const draggableRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseOver = () => setIsHovered(true);
-  const handleMouseOut = () => setIsHovered(false);
 
   const { mutate: mergeTag } = useMergeTag({
     onSuccess: () => {
@@ -71,15 +61,7 @@ export const TagPill = React.memo(function TagPill({
 
   const pill = (
     <div
-      className="group flex items-center rounded-md border border-border bg-background text-xs text-foreground transition-colors hover:bg-foreground hover:text-background"
-      onMouseEnter={handleMouseOver}
-      onFocus={handleMouseOver}
-      onMouseLeave={handleMouseOut}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          handleMouseOut();
-        }
-      }}
+      className="relative flex max-w-full items-center rounded-md border border-border bg-background text-xs text-foreground transition-colors hover:bg-foreground hover:text-background"
       ref={draggableRef}
     >
       <Link
@@ -93,18 +75,6 @@ export const TagPill = React.memo(function TagPill({
         <span aria-hidden="true" className="border-current/30 h-3 border-l" />
         <span>{count}</span>
       </Link>
-
-      {(isHovered || isMobile) && !isDraggable && (
-        <Button
-          size="none"
-          variant="ghost"
-          className="mr-0.5 flex size-5 shrink-0 items-center justify-center rounded-sm text-current hover:bg-background/20 hover:text-current"
-          aria-label={`Delete ${name}`}
-          onClick={() => onOpenDialog({ id, name })}
-        >
-          <X className="size-3" />
-        </Button>
-      )}
     </div>
   );
   if (!isDraggable) {

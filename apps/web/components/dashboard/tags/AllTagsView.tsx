@@ -21,25 +21,17 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import InfoTooltip from "@/components/ui/info-tooltip";
+import { EditingButton } from "@/components/ui/editing-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import Spinner from "@/components/ui/spinner";
-import { Toggle } from "@/components/ui/toggle";
 import useBulkTagActionsStore from "@/lib/bulkTagActions";
 import { useTranslation } from "@/lib/i18n/client";
-import {
-  ArrowDownAZ,
-  ChevronDown,
-  Combine,
-  Search,
-  SearchX,
-  Tag,
-} from "lucide-react";
+import { ArrowDownAZ, Combine, Search, SearchX, Tag } from "lucide-react";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 
-import type { ZGetTagResponse, ZTagBasic } from "@karakeep/shared/types/tags";
+import type { ZGetTagResponse } from "@karakeep/shared/types/tags";
 import {
   useDeleteUnusedTags,
   usePaginatedSearchTags,
@@ -48,7 +40,6 @@ import { useDebounce } from "@karakeep/shared-react/hooks/use-debounce";
 
 import BulkTagAction from "./BulkTagAction";
 import { CreateTagModal } from "./CreateTagModal";
-import DeleteTagConfirmationDialog from "./DeleteTagConfirmationDialog";
 import { MultiTagSelector } from "./MultiTagSelector";
 import { TagPill } from "./TagPill";
 
@@ -106,14 +97,7 @@ export default function AllTagsView() {
   const hasActiveSearch = searchQuery.length > 0;
   const [draggingEnabled, setDraggingEnabled] = React.useState(false);
 
-  const [selectedTag, setSelectedTag] = React.useState<ZTagBasic | null>(null);
-  const isDialogOpen = !!selectedTag;
-
   const { setVisibleTagIds, isBulkEditEnabled } = useBulkTagActionsStore();
-
-  const handleOpenDialog = React.useCallback((tag: ZTagBasic) => {
-    setSelectedTag(tag);
-  }, []);
 
   function toggleDraggingEnabled(): void {
     setDraggingEnabled(!draggingEnabled);
@@ -239,7 +223,6 @@ export default function AllTagsView() {
                   name={t.name}
                   count={t.numBookmarks}
                   isDraggable={draggingEnabled}
-                  onOpenDialog={handleOpenDialog}
                 />
               ),
             )}
@@ -253,21 +236,10 @@ export default function AllTagsView() {
           </div>
         );
       },
-    [draggingEnabled, handleOpenDialog, hasActiveSearch],
+    [draggingEnabled, hasActiveSearch],
   );
   return (
     <div className="flex flex-col gap-4">
-      {selectedTag && (
-        <DeleteTagConfirmationDialog
-          tag={selectedTag}
-          open={isDialogOpen}
-          setOpen={(o) => {
-            if (!o) {
-              setSelectedTag(null);
-            }
-          }}
-        />
-      )}
       <div className="flex flex-col gap-4">
         <PageHeader
           title={t("tags.all_tags")}
@@ -276,26 +248,15 @@ export default function AllTagsView() {
             <>
               <CreateTagModal />
               <BulkTagAction />
-              <Toggle
-                variant="outline"
-                className="bg-background"
-                aria-label={t("tags.drag_and_drop_merging")}
-                pressed={draggingEnabled}
-                onPressedChange={toggleDraggingEnabled}
+              <EditingButton
+                tooltip={t("tags.drag_and_drop_merging")}
+                aria-pressed={draggingEnabled}
+                onClick={toggleDraggingEnabled}
                 disabled={isBulkEditEnabled}
+                ignoreDemoMode
               >
-                <Combine className="size-4 sm:mr-2" />
-                <span className="hidden sm:inline">
-                  {t("tags.drag_and_drop_merging")}
-                </span>
-                <InfoTooltip
-                  size={15}
-                  className="my-auto ml-2 hidden sm:block"
-                  variant="explain"
-                >
-                  <p>{t("tags.drag_and_drop_merging_info")}</p>
-                </InfoTooltip>
-              </Toggle>
+                <Combine />
+              </EditingButton>
             </>
           }
         />
@@ -316,19 +277,9 @@ export default function AllTagsView() {
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex-shrink-0 bg-background"
-                >
-                  <ArrowDownAZ className="mr-2 size-4" />
-                  <span className="mr-1 text-sm">
-                    {t("actions.sort.title")}
-                  </span>
-                  <span className="hidden text-sm font-medium sm:inline">
-                    {sortLabels[sortBy]}
-                  </span>
-                  <ChevronDown className="ml-2 size-4" />
-                </Button>
+                <EditingButton tooltip={t("actions.sort.title")} ignoreDemoMode>
+                  <ArrowDownAZ />
+                </EditingButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuRadioGroup

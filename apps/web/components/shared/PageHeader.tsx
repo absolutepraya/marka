@@ -33,17 +33,17 @@ export function PageHeader({
       <div className="min-w-0 flex-1">
         <div
           className={cn(
-            "flex gap-4",
+            "flex gap-3",
             useLargeIcon ? "items-start" : "items-center",
           )}
         >
           {icon && (
             <div
               className={cn(
-                "shrink-0 items-center justify-center bg-muted text-muted-foreground",
+                "flex shrink-0 items-center justify-center text-muted-foreground",
                 useLargeIcon
-                  ? "mt-0.5 flex size-14 rounded-2xl [&_svg]:size-7"
-                  : "flex size-11 rounded-xl [&_svg]:size-[1.375rem]",
+                  ? "mt-0.5 size-10 [&_svg]:size-7"
+                  : "size-8 [&_svg]:size-[1.375rem]",
               )}
             >
               {icon}
@@ -69,7 +69,7 @@ export function PageHeader({
         </div>
       </div>
       {(titleAction || action) && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 self-center">
+        <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2 self-center">
           {titleAction}
           {action}
         </div>

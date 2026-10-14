@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import GlobalActions from "@/components/dashboard/GlobalActions";
+import { PageHeader } from "@/components/shared/PageHeader";
 import Bookmarks from "@/components/dashboard/bookmarks/Bookmarks";
 import { api } from "@/server/api/client";
 import { TRPCError } from "@trpc/server";
@@ -24,7 +26,13 @@ export default async function FeedPage(props: {
       query={{ rssFeedId: feed.id }}
       showDivider={true}
       showEditorCard={false}
-      header={<div className="text-2xl">{feed.name}</div>}
+      header={
+        <PageHeader
+          title={feed.name}
+          titleAction={<GlobalActions />}
+          className="flex-wrap"
+        />
+      }
     />
   );
 }

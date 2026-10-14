@@ -1,4 +1,4 @@
-import { ActionButton } from "@/components/ui/action-button";
+import { EditingButton } from "@/components/ui/editing-button";
 import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -103,13 +103,14 @@ export default function HighlightCard({
       </HighlightWrapper>
       {!readOnly && (
         <div className="flex gap-2">
-          <ActionButton
+          <EditingButton
+            tooltip={t("actions.delete")}
             loading={isDeleting}
             variant="ghost"
             onClick={() => deleteHighlight({ highlightId: highlight.id })}
           >
             <Trash2 className="size-4 text-destructive" />
-          </ActionButton>
+          </EditingButton>
         </div>
       )}
     </div>
