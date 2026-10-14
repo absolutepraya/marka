@@ -187,6 +187,7 @@ async function main() {
   for (const { worker } of workers) {
     worker.stop();
   }
+  await CrawlerWorker.shutdown();
   await httpServer.stop();
   await shutdownEventLogger();
   await shutdownTracing();
