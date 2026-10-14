@@ -10,7 +10,10 @@ import type { ZBookmarkList } from "@karakeep/shared/types/lists";
 import useBulkActionsStore from "@/lib/bulkActions";
 import BulkBookmarksAction from "./BulkBookmarksAction";
 
-const mocks = vi.hoisted(() => ({ pathname: "/dashboard/bookmarks" }));
+const mocks = vi.hoisted(() => ({
+  pathname: "/dashboard/bookmarks",
+  bulkOptions: vi.fn(),
+}));
 vi.mock("./bookmarks/icons", () => ({
   FavouritedActionIcon: () => null,
   ArchivedActionIcon: () => null,
@@ -49,12 +52,15 @@ vi.mock("@/lib/hooks/useUndoableBookmarkDeletion", () => ({
 vi.mock("@/lib/hooks/useBookmarkBulkActions", () => ({
   BulkRefreshLimitError: class extends Error {},
   MAX_BULK_REFRESH_BOOKMARKS: 200,
-  useBookmarkBulkMutations: () => ({
-    updateBookmarkMutator: {},
-    recrawlBookmarkMutator: {},
-    refreshBookmarkMutator: {},
-    removeBookmarkFromListMutator: {},
-  }),
+  useBookmarkBulkMutations: (options: unknown) => {
+    mocks.bulkOptions(options);
+    return {
+      updateBookmarkMutator: {},
+      recrawlBookmarkMutator: {},
+      refreshBookmarkMutator: {},
+      removeBookmarkFromListMutator: {},
+    };
+  },
 }));
 vi.mock("./bookmarks/BulkTagModal", () => ({
   default: () => <div>Tag editor mounted</div>,
@@ -72,6 +78,7 @@ const bookmark = (id: string, userId: string) =>
 
 describe("bulk bookmark controls across collections", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mocks.pathname = "/dashboard/bookmarks";
     useBulkActionsStore.setState({
       isBulkEditEnabled: false,
@@ -152,5 +159,85 @@ describe("bulk bookmark controls across collections", () => {
     expect(screen.queryByText("List editor mounted")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "actions.edit_tags" }));
     expect(screen.getByText("Tag editor mounted")).toBeTruthy();
+  });
+  it("keeps keyboard focus on select-all when its label changes", () => {
+    useBulkActionsStore.setState({ isBulkEditEnabled: true });
+    render(<BulkBookmarksAction />);
+    const button = screen.getByRole("button", { name: "actions.select_all" });
+    button.focus();
+    fireEvent.click(button);
+    expect(screen.getByRole("button", { name: "actions.unselect_all" })).toBe(
+      button,
+    );
+    expect(document.activeElement).toBe(button);
+  });
+
+  it.each(["owner", "editor"] as const)(
+    "lets a manual-list %s select shared bookmarks for removal",
+    (userRole) => {
+      useBulkActionsStore.setState({
+        listContext: {
+          id: "folder",
+          type: "manual",
+          userRole,
+        } as ZBookmarkList,
+      });
+      render(<BulkBookmarksAction />);
+      fireEvent.click(
+        screen.getByRole("button", { name: "actions.bulk_edit" }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "actions.select_all" }),
+      );
+      expect(useBulkActionsStore.getState().selectedBookmarkIds).toEqual([
+        "owned",
+        "shared",
+      ]);
+      expect(
+        screen.getByRole<HTMLButtonElement>("button", {
+          name: "actions.remove_from_list",
+        }).disabled,
+      ).toBe(false);
+      const options = mocks.bulkOptions.mock.lastCall?.[0];
+      expect(options.selectedBookmarks.map((b: ZBookmark) => b.id)).toEqual([
+        "owned",
+        "shared",
+      ]);
+      expect(
+        options.selectedActionableBookmarks().map((b: ZBookmark) => b.id),
+      ).toEqual(["owned"]);
+    },
+  );
+
+  it("enables shared-only removal while disabling owner-only mutations", () => {
+    useBulkActionsStore.setState({
+      isBulkEditEnabled: true,
+      visibleBookmarks: [bookmark("shared", "other")],
+      selectedBookmarkIds: ["shared"],
+      listContext: {
+        id: "folder",
+        type: "manual",
+        userRole: "editor",
+      } as ZBookmarkList,
+    });
+    render(<BulkBookmarksAction />);
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "actions.remove_from_list",
+      }).disabled,
+    ).toBe(false);
+    for (const name of [
+      "actions.favorite",
+      "actions.archive",
+      "actions.edit_tags",
+      "actions.add_to_list",
+      "actions.delete",
+      "actions.refresh",
+      "actions.preserve_offline_archive",
+    ]) {
+      expect(
+        screen.getByRole<HTMLButtonElement>("button", { name }).disabled,
+      ).toBe(true);
+    }
   });
 });

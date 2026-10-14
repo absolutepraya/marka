@@ -219,4 +219,39 @@ describe("useBookmarkBulkMutations", () => {
       "https://example.com/a",
     );
   });
+  it("removes the full list selection but restricts recrawl and state updates to owned bookmarks", async () => {
+    const owned = bookmark("owned");
+    const shared = bookmark("shared", "user-2");
+    const { result } = renderHook(() =>
+      useBookmarkBulkMutations({
+        selectedBookmarks: [owned, shared],
+        selectedActionableBookmarks: () => [owned],
+        listContext: {
+          id: "folder",
+          type: "manual",
+          userRole: "editor",
+        } as ZBookmarkList,
+      }),
+    );
+    await act(async () => {
+      await result.current.removeSelectedBookmarksFromList();
+      await result.current.recrawlSelectedLinkBookmarks(true);
+      await result.current.updateSelectedBookmarks({ archived: true });
+    });
+    expect(mutators.removeFromListMutateAsync).toHaveBeenCalledTimes(2);
+    expect(mutators.removeFromListMutateAsync).toHaveBeenCalledWith({
+      bookmarkId: "shared",
+      listId: "folder",
+    });
+    expect(mutators.recrawlMutateAsync).toHaveBeenCalledTimes(1);
+    expect(mutators.recrawlMutateAsync).toHaveBeenCalledWith({
+      bookmarkId: "owned",
+      archiveFullPage: true,
+    });
+    expect(mutators.updateMutateAsync).toHaveBeenCalledTimes(1);
+    expect(mutators.updateMutateAsync).toHaveBeenCalledWith({
+      bookmarkId: "owned",
+      archived: true,
+    });
+  });
 });

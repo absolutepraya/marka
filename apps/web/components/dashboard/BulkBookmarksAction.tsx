@@ -32,6 +32,7 @@ import {
 import BulkManageListsModal from "./bookmarks/BulkManageListsModal";
 import BulkTagModal from "./bookmarks/BulkTagModal";
 import { ArchivedActionIcon, FavouritedActionIcon } from "./bookmarks/icons";
+import { canSelectBookmarkForBulkActions } from "./bookmarks/bookmarkListPermissions";
 
 export default function BulkBookmarksAction() {
   const { t } = useTranslation();
@@ -53,11 +54,18 @@ export default function BulkBookmarksAction() {
   const bulkActionsStore = useBulkActionsStore();
   const { data: session } = useSession();
   const { scheduleDeletes, pendingBookmarkIds } = useUndoableBookmarkDeletion();
-  const selectedBookmarks = bulkActionsStore.getSelectedActionableBookmarks(
-    (bookmark) => bookmark.userId === session?.user?.id,
-  );
+  const selectedBookmarks = bulkActionsStore.getSelectedBookmarks();
+  const ownedSelectedBookmarks =
+    bulkActionsStore.getSelectedActionableBookmarks(
+      (bookmark) => bookmark.userId === session?.user?.id,
+    );
   const selectableBookmarks = bulkActionsStore.visibleBookmarks.filter(
-    (bookmark) => bookmark.userId === session?.user?.id,
+    (bookmark) =>
+      canSelectBookmarkForBulkActions({
+        bookmarkOwnerId: bookmark.userId,
+        currentUserId: session?.user?.id,
+        listContext: bulkActionsStore.listContext,
+      }),
   );
   const everythingSelected =
     selectableBookmarks.length > 0 &&
@@ -81,6 +89,7 @@ export default function BulkBookmarksAction() {
     selectedBookmarkLinksText,
   } = useBookmarkBulkMutations({
     selectedBookmarks,
+    selectedActionableBookmarks: () => ownedSelectedBookmarks,
     listContext: withinListContext,
     onError,
     onBulkEditDone: () => {
@@ -153,12 +162,12 @@ export default function BulkBookmarksAction() {
     await updateSelectedBookmarks({ favourited, archived });
     setIsBulkEditEnabled(false);
     toast({
-      description: `${selectedBookmarks.length} bookmarks have been updated!`,
+      description: `${ownedSelectedBookmarks.length} bookmarks have been updated!`,
     });
   };
 
   const deleteBookmarks = () => {
-    scheduleDeletes(selectedBookmarks.map((bookmark) => bookmark.id));
+    scheduleDeletes(ownedSelectedBookmarks.map((bookmark) => bookmark.id));
     setIsBulkEditEnabled(false);
     setIsDeleteDialogOpen(false);
   };
@@ -178,15 +187,16 @@ export default function BulkBookmarksAction() {
   };
 
   const alreadyFavourited =
-    selectedBookmarks.length &&
-    selectedBookmarks.every((item) => item.favourited === true);
+    ownedSelectedBookmarks.length &&
+    ownedSelectedBookmarks.every((item) => item.favourited === true);
 
   const alreadyArchived =
-    selectedBookmarks.length &&
-    selectedBookmarks.every((item) => item.archived === true);
+    ownedSelectedBookmarks.length &&
+    ownedSelectedBookmarks.every((item) => item.archived === true);
 
   const actionList = [
     {
+      id: "copy-links",
       name: isClipboardAvailable()
         ? t("actions.copy_link")
         : "Copying is only available over https",
@@ -196,6 +206,7 @@ export default function BulkBookmarksAction() {
       hidden: !isBulkEditEnabled,
     },
     {
+      id: "remove-from-list",
       name: t("actions.remove_from_list"),
       icon: <ListMinus size={16} />,
       action: () => setIsRemoveFromListDialogOpen(true),
@@ -208,54 +219,69 @@ export default function BulkBookmarksAction() {
           withinListContext.userRole !== "owner"),
     },
     {
+      id: "add-to-list",
       name: t("actions.add_to_list"),
       icon: <List size={16} />,
       action: () => setManageListsModalOpen(true),
       isPending: false,
       hidden: !isBulkEditEnabled,
+      disabled: ownedSelectedBookmarks.length === 0,
     },
     {
+      id: "edit-tags",
       name: t("actions.edit_tags"),
       icon: <Hash size={16} />,
       action: () => setBulkTagModalOpen(true),
       isPending: false,
       hidden: !isBulkEditEnabled,
+      disabled: ownedSelectedBookmarks.length === 0,
     },
     {
+      id: "favorite",
       name: alreadyFavourited ? t("actions.unfavorite") : t("actions.favorite"),
       icon: <FavouritedActionIcon favourited={!!alreadyFavourited} size={16} />,
       action: () => updateBookmarks({ favourited: !alreadyFavourited }),
       isPending: updateBookmarkMutator.isPending,
       hidden: !isBulkEditEnabled,
+      disabled: ownedSelectedBookmarks.length === 0,
     },
     {
+      id: "archive",
       name: alreadyArchived ? t("actions.unarchive") : t("actions.archive"),
       icon: <ArchivedActionIcon size={16} archived={!!alreadyArchived} />,
       action: () => updateBookmarks({ archived: !alreadyArchived }),
       isPending: updateBookmarkMutator.isPending,
       hidden: !isBulkEditEnabled,
+      disabled: ownedSelectedBookmarks.length === 0,
     },
     {
+      id: "preserve-archive",
       name: t("actions.preserve_offline_archive"),
       icon: <FileDown size={16} />,
       action: () => preserveOfflineArchives(),
       isPending: recrawlBookmarkMutator.isPending,
       hidden: !isBulkEditEnabled,
+      disabled: ownedSelectedBookmarks.length === 0,
     },
     {
+      id: "refresh",
       name: t("actions.refresh"),
       icon: <RotateCw size={16} />,
       action: () => refreshBookmarks(),
       isPending: refreshBookmarkMutator.isPending,
       hidden: !isBulkEditEnabled,
+      disabled: ownedSelectedBookmarks.length === 0,
     },
     {
+      id: "delete",
       name: t("actions.delete"),
       icon: <Trash2 size={16} color="red" />,
       action: () => setIsDeleteDialogOpen(true),
       hidden: !isBulkEditEnabled,
+      disabled: ownedSelectedBookmarks.length === 0,
     },
     {
+      id: "select-all",
       name: everythingSelected
         ? t("actions.unselect_all")
         : t("actions.select_all"),
@@ -274,6 +300,7 @@ export default function BulkBookmarksAction() {
       hidden: !isBulkEditEnabled,
     },
     {
+      id: "close",
       name: t("actions.close_bulk_edit"),
       icon: <X size={16} />,
       action: () => setIsBulkEditEnabled(false),
@@ -281,6 +308,7 @@ export default function BulkBookmarksAction() {
       hidden: !isBulkEditEnabled,
     },
     {
+      id: "enable",
       name: t("actions.bulk_edit"),
       icon: <Pencil size={16} />,
       action: () => setIsBulkEditEnabled(true),
@@ -303,7 +331,7 @@ export default function BulkBookmarksAction() {
           <ActionButton
             type="button"
             variant="destructive"
-            loading={selectedBookmarks.some((bookmark) =>
+            loading={ownedSelectedBookmarks.some((bookmark) =>
               pendingBookmarkIdSet.has(bookmark.id),
             )}
             onClick={() => deleteBookmarks()}
@@ -335,14 +363,14 @@ export default function BulkBookmarksAction() {
       />
       {manageListsModal && (
         <BulkManageListsModal
-          bookmarkIds={selectedBookmarks.map((b) => b.id)}
+          bookmarkIds={ownedSelectedBookmarks.map((b) => b.id)}
           open={manageListsModal}
           setOpen={setManageListsModalOpen}
         />
       )}
       {bulkTagModal && (
         <BulkTagModal
-          bookmarkIds={selectedBookmarks.map((b) => b.id)}
+          bookmarkIds={ownedSelectedBookmarks.map((b) => b.id)}
           open={bulkTagModal}
           setOpen={setBulkTagModalOpen}
         />
@@ -352,6 +380,7 @@ export default function BulkBookmarksAction() {
           .filter((action) => !action.hidden)
           .map(
             ({
+              id,
               name,
               icon: Icon,
               action,
@@ -368,7 +397,7 @@ export default function BulkBookmarksAction() {
                 loading={!!isPending}
                 variant="ghost"
                 className="h-8 min-w-8 px-2 sm:h-9 sm:min-w-9 sm:px-2.5 [&_svg]:size-4 sm:[&_svg]:size-[18px]"
-                key={name}
+                key={id}
                 onClick={action}
               >
                 {Icon}
