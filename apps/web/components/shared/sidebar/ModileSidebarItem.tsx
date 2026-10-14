@@ -1,25 +1,124 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Link from "next/link";
+import React, { useEffect, useRef } from "react";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { haptic } from "@/lib/haptic";
 import { cn } from "@/lib/utils";
+
+import { useSaveTabPosition } from "./MobileTabNavigation";
+import { useMobileNavSelection } from "./MobileNavSelection";
+
+function LoadingUnderline({ pending }: { pending: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const settling = useRef<Animation | null>(null);
+
+  useEffect(() => {
+    settling.current?.cancel();
+    const element = ref.current;
+    if (
+      !pending ||
+      !element?.animate ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return () => settling.current?.cancel();
+    }
+
+    const loading = element.animate(
+      [
+        { left: "0px", right: "0px" },
+        { left: "0px", right: "18px" },
+        { left: "0px", right: "0px" },
+        { left: "18px", right: "0px" },
+        { left: "0px", right: "0px" },
+      ],
+      {
+        duration: 600,
+        delay: 200,
+        iterations: Infinity,
+        easing: "ease-in-out",
+      },
+    );
+
+    return () => {
+      // Capture the moving endpoints before cancelling so completion grows
+      // smoothly from the current shape to the full-width resting line.
+      const { left, right } = getComputedStyle(element);
+      const started =
+        typeof loading.currentTime === "number" && loading.currentTime >= 200;
+      loading.cancel();
+      if (element.isConnected && started) {
+        settling.current = element.animate(
+          [
+            { left, right },
+            { left: "0px", right: "0px" },
+          ],
+          { duration: 180, easing: "ease-out" },
+        );
+      }
+    };
+  }, [pending]);
+
+  return (
+    <span
+      ref={ref}
+      aria-hidden="true"
+      className="absolute inset-x-0 -bottom-2.5 h-0.5 rounded-full bg-foreground/60"
+    />
+  );
+}
+
+function TabContent({
+  logo,
+  isActive,
+  path,
+}: {
+  logo: React.ReactNode;
+  isActive: boolean;
+  path: string;
+}) {
+  const { pending } = useLinkStatus();
+  const selection = useMobileNavSelection();
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (pending) wasPending.current = true;
+    else if (wasPending.current) {
+      wasPending.current = false;
+      selection?.finish(path);
+    }
+  }, [pending, path, selection]);
+  return (
+    <span
+      aria-busy={pending}
+      className="relative flex items-center justify-center"
+    >
+      <span className="flex size-6 items-center justify-center [&_svg]:size-[22px] [&_svg]:stroke-[1.5]">
+        {logo}
+      </span>
+      {isActive && <LoadingUnderline pending={pending} />}
+    </span>
+  );
+}
 
 export default function MobileSidebarItem({
   name,
   logo,
   path,
   className,
+  prefetch,
 }: {
   name: string;
   logo: React.ReactNode;
   path: string;
   className?: string;
+  prefetch?: boolean;
 }) {
   const currentPath = usePathname();
-  const isActive = path == currentPath;
+  const selection = useMobileNavSelection();
+  const selectedPath = selection?.selectedPath ?? currentPath;
+  const isActive = selectedPath === path || selectedPath.startsWith(`${path}/`);
   const ref = useRef<HTMLLIElement>(null);
+  const savePosition = useSaveTabPosition();
 
   // When the nav scrolls horizontally (dense settings nav), keep the active
   // tab in view so the user can always see where they are.
@@ -34,24 +133,28 @@ export default function MobileSidebarItem({
     // many; grow makes the few-item dashboard nav spread to fill the bar.
     <li
       ref={ref}
-      className={cn("flex min-w-0 shrink-0 grow basis-[3.25rem]", className)}
+      className={cn("flex min-w-[44px] shrink-0 grow basis-11", className)}
     >
       <Link
         onClick={haptic}
+        onNavigate={() => {
+          savePosition?.();
+          selection?.select(path);
+        }}
+        prefetch={prefetch}
+        scroll={savePosition ? false : undefined}
         href={path}
         title={name}
         aria-label={name}
+        aria-current={isActive ? "page" : undefined}
         className={cn(
-          "ease-(--ease-out) flex w-full flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition-[background-color,color,box-shadow,transform] duration-150 active:bg-accent",
+          "ease-(--ease-out) relative flex min-h-[52px] w-full items-center justify-center rounded-[14px] px-1.5 py-2 transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:scale-[0.96] motion-reduce:transition-none",
           isActive
-            ? "shadow-xs bg-background text-foreground"
-            : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
+            ? "bg-primary/[0.07] text-foreground shadow-inner shadow-primary/10 ring-1 ring-inset ring-primary/30"
+            : "text-muted-foreground",
         )}
       >
-        <span className="flex size-5 items-center justify-center">{logo}</span>
-        <span className="max-w-full truncate text-[0.625rem] leading-none">
-          {name}
-        </span>
+        <TabContent logo={logo} isActive={isActive} path={path} />
       </Link>
     </li>
   );

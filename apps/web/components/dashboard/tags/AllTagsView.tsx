@@ -40,12 +40,10 @@ import {
 import { parseAsStringEnum, useQueryState } from "nuqs";
 
 import type { ZGetTagResponse, ZTagBasic } from "@karakeep/shared/types/tags";
-import {
-  useDeleteUnusedTags,
-  usePaginatedSearchTags,
-} from "@karakeep/shared-react/hooks/tags";
+import { useDeleteUnusedTags } from "@karakeep/shared-react/hooks/tags";
 import { useDebounce } from "@karakeep/shared-react/hooks/use-debounce";
 
+import { useSavedTags } from "./useSavedTags";
 import BulkTagAction from "./BulkTagAction";
 import { CreateTagModal } from "./CreateTagModal";
 import DeleteTagConfirmationDialog from "./DeleteTagConfirmationDialog";
@@ -126,7 +124,7 @@ export default function AllTagsView() {
     hasNextPage: hasNextPageHumanTags,
     fetchNextPage: fetchNextPageHumanTags,
     isFetchingNextPage: isFetchingNextPageHumanTags,
-  } = usePaginatedSearchTags({
+  } = useSavedTags({
     nameContains: searchQuery,
     sortBy,
     attachedBy: "human",
@@ -140,7 +138,7 @@ export default function AllTagsView() {
     hasNextPage: hasNextPageAiTags,
     fetchNextPage: fetchNextPageAiTags,
     isFetchingNextPage: isFetchingNextPageAiTags,
-  } = usePaginatedSearchTags({
+  } = useSavedTags({
     nameContains: searchQuery,
     sortBy,
     attachedBy: "ai",
@@ -154,7 +152,7 @@ export default function AllTagsView() {
     hasNextPage: hasNextPageEmptyTags,
     fetchNextPage: fetchNextPageEmptyTags,
     isFetchingNextPage: isFetchingNextPageEmptyTags,
-  } = usePaginatedSearchTags({
+  } = useSavedTags({
     nameContains: searchQuery,
     sortBy,
     attachedBy: "none",

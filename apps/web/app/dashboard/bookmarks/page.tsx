@@ -21,6 +21,7 @@ export default async function BookmarksPage() {
       query={{ archived: false }}
       showDivider={true}
       showEditorCard={true}
+      deferInitialFetch
     />
   );
 }
