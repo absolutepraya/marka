@@ -40,7 +40,10 @@ import {
   redactBrowserConnectionUrl,
 } from "../browserlessConnector";
 import { z } from "zod";
-import { BrowserConnectionManager } from "../browserConnectionManager";
+import {
+  BrowserConnectionManager,
+  createBrowserContextWithAbort,
+} from "../browserConnectionManager";
 
 import type { ZCrawlLinkRequest } from "@karakeep/shared-server";
 import { db } from "@karakeep/db";
@@ -666,16 +669,36 @@ async function crawlPage(
         tracer,
         "crawlerWorker.crawlPage.createContext",
         { attributes: { "job.id": jobId } },
-        async () => {
-          abortSignal.throwIfAborted();
-          return browser.newContext({
-            viewport: { width: 1440, height: 900 },
-            userAgent:
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            proxy: proxyConfig,
-            serviceWorkers: "block",
-          });
-        },
+        () =>
+          createBrowserContextWithAbort(
+            () =>
+              browser.newContext({
+                viewport: { width: 1440, height: 900 },
+                userAgent:
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                proxy: proxyConfig,
+                serviceWorkers: "block",
+              }),
+            abortSignal,
+            async (lateContext) => {
+              const entry = { context: lateContext, createdAt: Date.now() };
+              activeContexts.set(jobId, entry);
+              const closed = await raceWith(
+                lateContext
+                  .close()
+                  .then(() => true)
+                  .catch(() => false),
+                timeoutRace(CONTEXT_CLOSE_TIMEOUT_MS, () => false),
+              );
+              if (closed && activeContexts.get(jobId) === entry) {
+                activeContexts.delete(jobId);
+              } else if (!closed) {
+                logger.warn(
+                  `[Crawler][${jobId}] Late context cleanup failed or timed out; leaving in active set for reaper`,
+                );
+              }
+            },
+          ),
       ).catch(async (error: unknown) => {
         browserLease?.release();
         if (serverConfig.crawler.browserConnectOnDemand && !browserLease) {
@@ -688,13 +711,16 @@ async function crawlPage(
       let page: Page | undefined;
       try {
         if (globalCookies.length > 0) {
-          await context.addCookies(globalCookies);
+          await raceWith(
+            context.addCookies(globalCookies),
+            abortRace(abortSignal),
+          );
           logger.info(
             `[Crawler][${jobId}] Cookies successfully loaded into browser context`,
           );
         }
 
-        page = await withSpan(
+        const pageSetup = withSpan(
           tracer,
           "crawlerWorker.crawlPage.setupPage",
           { attributes: { "job.id": jobId } },
@@ -859,6 +885,8 @@ async function crawlPage(
             return nextPage;
           },
         );
+
+        page = await raceWith(pageSetup, abortRace(abortSignal));
 
         const activePage = page;
         const navigationValidation = await withSpan(

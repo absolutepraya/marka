@@ -1,7 +1,10 @@
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { BrowserConnectionManager } from "./browserConnectionManager";
+import {
+  BrowserConnectionManager,
+  createBrowserContextWithAbort,
+} from "./browserConnectionManager";
 
 class FakeBrowser extends EventEmitter {
   connected = true;
@@ -144,5 +147,38 @@ describe("crawler browser connection reuse", () => {
     );
     b.release();
     await manager.stop();
+  });
+});
+
+describe("browser context creation cancellation", () => {
+  it("rejects promptly and cleans up a late context after cancellation", async () => {
+    let resolve!: (value: object) => void;
+    const pending = new Promise<object>((r) => {
+      resolve = r;
+    });
+    const cleanup = vi.fn(async () => undefined);
+    const abort = new AbortController();
+    const creation = createBrowserContextWithAbort(
+      () => pending,
+      abort.signal,
+      cleanup,
+    );
+    abort.abort();
+    await expect(creation).rejects.toThrow();
+    expect(cleanup).not.toHaveBeenCalled();
+    const context = {};
+    resolve(context);
+    await Promise.resolve();
+    expect(cleanup).toHaveBeenCalledWith(context);
+  });
+
+  it("does not allocate a context for an already canceled job", async () => {
+    const create = vi.fn(async () => ({}));
+    const abort = new AbortController();
+    abort.abort();
+    await expect(
+      createBrowserContextWithAbort(create, abort.signal, vi.fn()),
+    ).rejects.toThrow();
+    expect(create).not.toHaveBeenCalled();
   });
 });

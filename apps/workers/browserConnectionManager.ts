@@ -1,4 +1,4 @@
-import { raceWith, timeoutRace } from "./utils";
+import { abortRace, raceWith, timeoutRace } from "./utils";
 
 /** A worker-owned connection; each caller must still create its own context. */
 interface BrowserConnection {
@@ -41,6 +41,7 @@ export class BrowserConnectionManager<T extends BrowserConnection> {
     try {
       // Do not consume another renderer slot while an idle disconnect finishes.
       await this.closing;
+      signal?.throwIfAborted();
       if (this.stopped)
         throw new Error("Browser connection manager is stopped");
       const reused = !!this.browser?.isConnected();
@@ -100,5 +101,23 @@ export class BrowserConnectionManager<T extends BrowserConnection> {
     clearTimeout(this.idleTimer);
     await this.connecting?.catch(() => undefined);
     await this.closeCurrent();
+  }
+}
+
+/** Cancel context creation promptly and reclaim any context returned afterward. */
+export async function createBrowserContextWithAbort<T>(
+  create: () => Promise<T>,
+  signal: AbortSignal,
+  cleanupAbandoned: (context: T) => Promise<void>,
+): Promise<T> {
+  signal.throwIfAborted();
+  const pending = create();
+  try {
+    const context = await raceWith(pending, abortRace(signal));
+    signal.throwIfAborted();
+    return context;
+  } catch (error) {
+    void pending.then(cleanupAbandoned, () => undefined).catch(() => undefined);
+    throw error;
   }
 }
