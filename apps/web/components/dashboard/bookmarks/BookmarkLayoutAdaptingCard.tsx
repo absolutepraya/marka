@@ -38,6 +38,7 @@ import {
 import { switchCase } from "@karakeep/shared/utils/switch";
 
 import BookmarkActionBar from "./BookmarkActionBar";
+import { canSelectBookmarkForBulkActions } from "./bookmarkListPermissions";
 import BookmarkFormattedCreatedAt from "./BookmarkFormattedCreatedAt";
 import BookmarkOwnerIcon from "./BookmarkOwnerIcon";
 import Favicon from "./Favicon";
@@ -143,9 +144,13 @@ function MultiBookmarkSelector({ bookmark }: { bookmark: ZBookmark }) {
   const toggleBookmark = useBulkActionsStore((state) => state.toggleBookmark);
   const { data: session } = useSession();
 
-  // Don't show selector for non-owned bookmarks or when bulk edit is disabled
-  const isOwner = session?.user?.id === bookmark.userId;
-  if (!isBulkEditEnabled || !isOwner) return null;
+  const listContext = useBookmarkListContext();
+  const canSelect = canSelectBookmarkForBulkActions({
+    bookmarkOwnerId: bookmark.userId,
+    currentUserId: session?.user?.id,
+    listContext,
+  });
+  if (!isBulkEditEnabled || !canSelect) return null;
 
   return (
     <button
@@ -154,6 +159,8 @@ function MultiBookmarkSelector({ bookmark }: { bookmark: ZBookmark }) {
         "absolute left-0 top-0 z-50 h-full w-full transition-colors",
         isSelected ? "bg-foreground/10" : "bg-transparent",
       )}
+      aria-label={getBookmarkTitle(bookmark) ?? "Untitled bookmark"}
+      aria-pressed={isSelected}
       onClick={() => toggleBookmark(bookmark.id)}
     >
       <div className="absolute right-2 top-2 z-50">

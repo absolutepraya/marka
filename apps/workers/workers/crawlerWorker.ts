@@ -40,6 +40,7 @@ import {
   redactBrowserConnectionUrl,
 } from "../browserlessConnector";
 import { z } from "zod";
+import { BrowserConnectionManager } from "../browserConnectionManager";
 
 import type { ZCrawlLinkRequest } from "@karakeep/shared-server";
 import { db } from "@karakeep/db";
@@ -203,9 +204,16 @@ function getPlaywrightProxyConfig(
 }
 
 let globalBrowser: Browser | undefined;
+let browserShuttingDown = false;
 let globalBlocker: PlaywrightBlocker | undefined;
 let globalCookies: Cookie[] = [];
 const browserMutex = new Mutex();
+const reusableBrowser = new BrowserConnectionManager(
+  startBrowserInstance,
+  (error) => {
+    logger.warn(`[Crawler] Shared browser disconnect failed: ${error}`);
+  },
+);
 
 const activeContexts = new Map<
   string,
@@ -315,6 +323,7 @@ async function startBrowserInstance() {
 }
 
 async function launchBrowser() {
+  if (browserShuttingDown) return;
   globalBrowser = undefined;
   await browserMutex.runExclusive(async () => {
     const globalBrowserResult = await tryCatch(startBrowserInstance());
@@ -322,7 +331,7 @@ async function launchBrowser() {
       logger.error(
         `[Crawler] Failed to connect to the browser instance, will retry in 5 secs: ${globalBrowserResult.error.stack}`,
       );
-      if (exitAbortController.signal.aborted) {
+      if (exitAbortController.signal.aborted || browserShuttingDown) {
         logger.info("[Crawler] We're shutting down so won't retry.");
         return;
       }
@@ -331,9 +340,13 @@ async function launchBrowser() {
       }, 5000);
       return;
     }
+    if (browserShuttingDown) {
+      await globalBrowserResult.data?.close().catch(() => undefined);
+      return;
+    }
     globalBrowser = globalBrowserResult.data;
     globalBrowser?.on("disconnected", () => {
-      if (exitAbortController.signal.aborted) {
+      if (exitAbortController.signal.aborted || browserShuttingDown) {
         logger.info(
           "[Crawler] The Playwright browser got disconnected. But we're shutting down so won't restart it.",
         );
@@ -391,6 +404,14 @@ export class CrawlerWorker {
       })();
     }
     return CrawlerWorker.initPromise;
+  }
+
+  static async shutdown() {
+    browserShuttingDown = true;
+    await reusableBrowser.stop();
+    await globalBrowser?.close().catch((error: unknown) => {
+      logger.warn(`[Crawler] Browser shutdown failed: ${error}`);
+    });
   }
 
   static async build(queue: Queue<ZCrawlLinkRequest>) {
@@ -610,18 +631,29 @@ async function crawlPage(
         return browserlessCrawlPage(jobId, url, abortSignal, runProxy);
       }
 
+      let browserLease:
+        | Awaited<ReturnType<typeof reusableBrowser.acquire>>
+        | undefined;
       const browser = await withSpan(
         tracer,
         "crawlerWorker.crawlPage.getBrowserInstance",
         { attributes: { "job.id": jobId } },
         async () => {
           if (serverConfig.crawler.browserConnectOnDemand) {
+            if (serverConfig.crawler.browserReuseConnection) {
+              browserLease = await reusableBrowser.acquire(abortSignal);
+              setSpanAttributes({
+                "crawler.browser.reused": browserLease.reused,
+              });
+              return browserLease.browser;
+            }
             return startBrowserInstance();
           }
           return globalBrowser;
         },
       );
       if (!browser) {
+        browserLease?.release();
         return browserlessCrawlPage(jobId, url, abortSignal, runProxy);
       }
 
@@ -633,15 +665,23 @@ async function crawlPage(
         tracer,
         "crawlerWorker.crawlPage.createContext",
         { attributes: { "job.id": jobId } },
-        async () =>
-          browser.newContext({
+        async () => {
+          abortSignal.throwIfAborted();
+          return browser.newContext({
             viewport: { width: 1440, height: 900 },
             userAgent:
               "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             proxy: proxyConfig,
             serviceWorkers: "block",
-          }),
-      );
+          });
+        },
+      ).catch(async (error: unknown) => {
+        browserLease?.release();
+        if (serverConfig.crawler.browserConnectOnDemand && !browserLease) {
+          await browser.close().catch(() => undefined);
+        }
+        throw error;
+      });
 
       activeContexts.set(jobId, { context, createdAt: Date.now() });
       let page: Page | undefined;
@@ -1097,7 +1137,7 @@ async function crawlPage(
               );
             }
 
-            if (serverConfig.crawler.browserConnectOnDemand) {
+            if (serverConfig.crawler.browserConnectOnDemand && !browserLease) {
               await withSpan(
                 tracer,
                 "crawlerWorker.crawlPage.cleanup.closeBrowser",
@@ -1116,7 +1156,7 @@ async function crawlPage(
               );
             }
           },
-        );
+        ).finally(() => browserLease?.release());
       }
     },
   );

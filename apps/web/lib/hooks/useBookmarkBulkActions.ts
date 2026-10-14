@@ -62,10 +62,10 @@ export function useBookmarkBulkMutations({
 
   const selectedLinkBookmarks = useCallback(
     () =>
-      selectedBookmarks.filter(
+      selectedActionableBookmarks().filter(
         (bookmark) => bookmark.content.type === BookmarkTypes.LINK,
       ),
-    [selectedBookmarks],
+    [selectedActionableBookmarks],
   );
 
   const updateSelectedBookmarks = useCallback(

@@ -1,6 +1,6 @@
 import { ActionButton } from "@/components/ui/action-button";
 import ActionConfirmingDialog from "@/components/ui/action-confirming-dialog";
-import { Button } from "@/components/ui/button";
+import { EditingButton } from "@/components/ui/editing-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
@@ -103,13 +103,14 @@ export default function RuleList({
                     })
                   }
                 />
-                <Button
+                <EditingButton
+                  tooltip={t("actions.edit")}
+                  ignoreDemoMode
                   variant="ghost"
-                  size="icon"
                   onClick={() => onEditRule(rule)}
                 >
                   <Edit className="h-4 w-4" />
-                </Button>
+                </EditingButton>
                 <ActionConfirmingDialog
                   title={t("settings.rules.delete_rule")}
                   description={t("settings.rules.delete_rule_confirmation")}
@@ -127,9 +128,12 @@ export default function RuleList({
                     </ActionButton>
                   )}
                 >
-                  <Button variant="ghostDestructive" size="icon">
+                  <EditingButton
+                    tooltip={t("actions.delete")}
+                    variant="ghostDestructive"
+                  >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
+                  </EditingButton>
                 </ActionConfirmingDialog>
               </div>
             </div>
