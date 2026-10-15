@@ -29,3 +29,9 @@ snapshots
 .next/
 out/
 .claude/worktrees
+
+# Local restored state, assets, and runtime logs must never enter an image.
+.data
+.data.*
+.dev
+**/*.tsbuildinfo

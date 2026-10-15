@@ -109,6 +109,9 @@ jobs:
         working-directory: packages/shared
         run: pnpm test
 
+      - name: Local Development Tests
+        run: bash scripts/dev-infra.test.sh && bash scripts/start-dev.test.sh
+
       - name: Release Contract Tests
         run: pnpm test:release-contract
 

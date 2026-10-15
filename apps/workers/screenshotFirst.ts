@@ -162,14 +162,19 @@ async function main() {
     importWorkerPromise = importWorker.start();
   }
 
+  const runningWorkers = workers.map(({ worker }) => worker.run());
+  httpServer.setReady(true);
+
   await Promise.any([
     Promise.all([
-      ...workers.map(({ worker }) => worker.run()),
+      ...runningWorkers,
       httpServer.serve(),
       ...(importWorkerPromise ? [importWorkerPromise] : []),
     ]),
     shutdownPromise,
   ]);
+
+  httpServer.setReady(false);
 
   logger.info(
     `Shutting down ${workers.map((w) => w.name).join(", ")} workers ...`,

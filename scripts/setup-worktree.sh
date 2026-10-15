@@ -12,11 +12,16 @@ refresh_data="${WT_REFRESH_DATA:-false}"
 data_source="${WT_DATA_SOURCE:-main}"
 workspace_name="${WT_WORKSPACE_NAME:-$(basename "$WT_WORKSPACE_PATH")}"
 chrome_port="${MARKA_DEV_CHROME_PORT:-9250}"
+browserless_port="${MARKA_DEV_BROWSERLESS_PORT:-9251}"
 
 [[ -f "$root_env" ]] || {
   echo "error: missing root environment file: $root_env" >&2
   exit 1
 }
+
+# Reruns retain worktree-specific integration credentials, including repaired proxies.
+source_env="$root_env"
+[[ ! -f "$workspace_env" ]] || source_env="$workspace_env"
 
 case "$WT_PORT_BASE" in
   '' | *[!0-9]*)
@@ -34,6 +39,11 @@ if ((10#$chrome_port < 1 || 10#$chrome_port > 65535)); then
   exit 1
 fi
 
+if ! [[ "$browserless_port" =~ ^[0-9]+$ ]] || ((10#$browserless_port < 1 || 10#$browserless_port > 65535)); then
+  echo "error: MARKA_DEV_BROWSERLESS_PORT must be between 1 and 65535" >&2
+  exit 1
+fi
+
 workspace_slug="$(printf '%s' "$workspace_name" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]_-' '-' | sed 's/^-*//; s/-*$//')"
 [[ -n "$workspace_slug" ]] || workspace_slug="worktree"
 web_port=$((3000 + WT_PORT_BASE))
@@ -43,16 +53,21 @@ trap 'rm -f "$tmp_env"' EXIT
 
 while IFS= read -r line || [[ -n "$line" ]]; do
   case "$line" in
-    DATA_DIR=* | KARAKEEP_PORT=* | API_URL=* | NEXTAUTH_URL=* | MEILI_ADDR=* | MEILI_MASTER_KEY=* | MEILI_VECTOR_ADDR=* | MEILI_VECTOR_MASTER_KEY=* | MEILI_INDEX_PREFIX=* | BROWSER_WEB_URL=* | BROWSER_WEBSOCKET_URL=* | BROWSERLESS_URL=* | BROWSERLESS_TOKEN=* | BROWSER_CONNECT_ONDEMAND=* | MARKA_DEV_CHROME_PORT=*)
+    DATA_DIR=* | ASSETS_DIR=* | WORKERS_HOST=* | WORKERS_PORT=* | WORKER_PROFILE=* | CRAWLER_NUM_WORKERS=* | KARAKEEP_PORT=* | API_URL=* | NEXTAUTH_URL=* | MEILI_ADDR=* | MEILI_MASTER_KEY=* | MEILI_VECTOR_ADDR=* | MEILI_VECTOR_MASTER_KEY=* | MEILI_INDEX_PREFIX=* | BROWSER_WEB_URL=* | BROWSER_WEBSOCKET_URL=* | BROWSERLESS_URL=* | BROWSERLESS_TOKEN=* | BROWSER_CONNECT_ONDEMAND=* | MARKA_DEV_CHROME_PORT=* | MARKA_DEV_BROWSERLESS_PORT=* | MARKA_DEV_RENDERER=*)
       ;;
     *)
       printf '%s\n' "$line" >>"$tmp_env"
       ;;
   esac
-done <"$root_env"
+done <"$source_env"
 
 cat >>"$tmp_env" <<ENV
 DATA_DIR=$workspace_data_dir
+ASSETS_DIR=$workspace_data_dir/assets
+WORKERS_HOST=127.0.0.1
+WORKERS_PORT=$((web_port + 10000))
+WORKER_PROFILE=${WORKER_PROFILE:-screenshot-first}
+CRAWLER_NUM_WORKERS=${CRAWLER_NUM_WORKERS:-2}
 KARAKEEP_PORT=$web_port
 API_URL=http://localhost:$web_port
 NEXTAUTH_URL=http://localhost:$web_port
@@ -61,9 +76,12 @@ MEILI_MASTER_KEY=
 MEILI_INDEX_PREFIX=$meili_index_prefix
 BROWSER_WEB_URL=http://127.0.0.1:$chrome_port
 MARKA_DEV_CHROME_PORT=$chrome_port
-BROWSER_CONNECT_ONDEMAND=false
+MARKA_DEV_BROWSERLESS_PORT=$browserless_port
+MARKA_DEV_RENDERER=browserless
+BROWSER_CONNECT_ONDEMAND=true
 ENV
 
+chmod 600 "$tmp_env"
 mv "$tmp_env" "$workspace_env"
 trap - EXIT
 
@@ -93,7 +111,7 @@ case "$data_source" in
     ;;
   prod)
     echo "Refreshing worktree state from production..."
-    NO_COLOR=false "$WT_ROOT_PATH/scripts/run-pnpm.sh" prod:pull-state
+    NO_COLOR=false "$(dirname "${BASH_SOURCE[0]}")/run-pnpm.sh" prod:pull-state
     ;;
   *)
     echo "error: WT_DATA_SOURCE must be main or prod" >&2
@@ -101,4 +119,4 @@ case "$data_source" in
     ;;
 esac
 
-echo "Configured worktree: web $web_port, shared Meilisearch 127.0.0.1:7700, shared Chrome 127.0.0.1:$chrome_port, Meilisearch prefix $meili_index_prefix"
+echo "Configured worktree: web $web_port, shared Meilisearch 127.0.0.1:7700, shared Browserless 127.0.0.1:$browserless_port, Meilisearch prefix $meili_index_prefix"

@@ -66,8 +66,8 @@
     "vitest": "^3.2.4"
   },
   "scripts": {
-    "start": "tsx watch index.ts",
-    "start:prod": "tsx index.ts",
+    "start": "tsx watch start.ts",
+    "start:prod": "tsx start.ts",
     "build": "tsdown",
     "build:watch": "tsdown --watch",
     "lint": "oxlint --ignore-path=../../.gitignore .",

@@ -117,7 +117,9 @@ After the repository is configured, the normal development command is:
 pnpm dev:start
 ```
 
-`pnpm dev:start` runs the current worktree's web and workers processes. It reuses one machine-level Chrome/CDP service at `127.0.0.1:9250` and one Meilisearch service at `127.0.0.1:7700`. Each worktree keeps its own SQLite/assets directory, web port, and Meilisearch index namespace. Worktree slot 1 uses web port `3100`, slot 2 uses `3200`, and so on. Shared Chrome can be moved with `MARKA_DEV_CHROME_PORT` when the default port is occupied.
+`pnpm dev:start` runs this worktree's web and workers with local Browserless at `127.0.0.1:9251` and Meilisearch at `127.0.0.1:7700`. The renderer image matches the personal production renderer. Defaults are `WORKER_PROFILE=screenshot-first`, `CRAWLER_NUM_WORKERS=2`, and on-demand browser connections. Set `BROWSER_REUSE_CONNECTION=true` to test reuse locally. Startup waits for web health and worker readiness. Each worktree keeps separate SQLite/assets, web/worker ports, and search indexes.
+
+Native development uses macOS workers with hot reload. It reproduces the crawler connection path, but does not establish Linux binary or VPS memory parity. See [operator setup](docs/operator-setup.md) for the isolated Linux development stack and optional integrations.
 
 The repository is supported by [`wt`](https://github.com/absolutepraya/wt):
 
@@ -129,12 +131,10 @@ wt ls
 The project configuration in [`.wt/config.toml`](.wt/config.toml) prepares isolated
 dependencies, data, ports, and Meilisearch namespaces for each worktree. WT and T3
 share lifecycle logic in [`scripts/dev-worktree.sh`](scripts/dev-worktree.sh). WT
-runs the project-root copy, while T3 runs the target worktree's copy so setup
-tracks that worktree's checkout. Each tool keeps its own allocation rules.
+and T3 both run the target worktree's copy so setup tracks that checkout. Each tool keeps its own allocation rules.
 
 T3 Code can import the project actions in [`t3.json`](t3.json) through Project
-settings. Its automatic `Setup worktree` action imports production state, prepares
-the isolated environment, and starts the detached development server.
+settings. Its automatic `Setup worktree` action preserves existing local state or copies the main local snapshot, prepares the isolated environment, and starts the detached server. Production state pulls are explicit.
 
 ### Pull production state into local development
 

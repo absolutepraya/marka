@@ -64,7 +64,11 @@ case "${1:-}" in
     if [[ "${2:-}" == "-f" ]]; then
       name="${4:-}"
       [[ -f "$state_dir/$name" ]] || exit 1
-      if [[ "$3" == *"HostConfig.PortBindings"* || "$3" == *"9222/tcp"* ]]; then
+      if [[ "$3" == *"State.Health.Status"* ]]; then
+        printf 'healthy\n'
+      elif [[ "$3" == *"Config.Image"* ]]; then
+        printf '%s\n' 'browserless/chrome@sha256:57d19e414d9fe4ae9d2ab12ba768c97f38d51246c5b31af55a009205c136012f'
+      elif [[ "$3" == *"HostConfig.PortBindings"* || "$3" == *"9222/tcp"* ]]; then
         printf '%s\n' "$(sed -n '2p' "$state_dir/$name")"
       else
         printf '%s\n' "$(head -n 1 "$state_dir/$name")"
@@ -143,6 +147,7 @@ EOF_LSOF
 chmod +x "$fake_bin/lsof"
 
 export PATH="$fake_bin:$PATH"
+export MARKA_DEV_RENDERER=chrome
 export FAKE_DOCKER_STATE="$state_dir"
 export FAKE_DOCKER_LOG="$root/docker.log"
 : >"$FAKE_DOCKER_LOG"
@@ -260,7 +265,13 @@ assert_contains "$workspace/.env" "MEILI_MASTER_KEY="
 assert_contains "$workspace/.env" "BROWSER_WEB_URL=http://127.0.0.1:9250"
 assert_not_contains "$workspace/.env" "BROWSER_WEB_URL=http://localhost:9250"
 assert_contains "$workspace/.env" "MARKA_DEV_CHROME_PORT=9250"
-assert_contains "$workspace/.env" "BROWSER_CONNECT_ONDEMAND=false"
+assert_contains "$workspace/.env" "BROWSER_CONNECT_ONDEMAND=true"
+assert_contains "$workspace/.env" "WORKER_PROFILE=screenshot-first"
+assert_contains "$workspace/.env" "CRAWLER_NUM_WORKERS=2"
+assert_contains "$workspace/.env" "MARKA_DEV_RENDERER=browserless"
+assert_contains "$workspace/.env" "MARKA_DEV_BROWSERLESS_PORT=9251"
+assert_contains "$workspace/.env" "ASSETS_DIR=$workspace/.data/local/assets"
+assert_contains "$workspace/.env" "WORKERS_PORT=13007"
 assert_contains "$workspace/.env" "MEILI_INDEX_PREFIX=issue-abc-weird-7_"
 assert_not_contains "$workspace/.env" "MEILI_INDEX_PREFIX=issue-abc.weird-7_"
 assert_not_contains "$workspace/.env" "old-meili.example"
@@ -274,20 +285,29 @@ assert_not_contains "$workspace/.env" "ws://localhost:9334"
 assert_not_contains "$workspace/.env" "http://localhost:7707"
 assert_not_contains "$workspace/.env" "http://localhost:9229"
 
+# Re-running setup must not restore stale shared integration credentials.
+printf 'CRAWLER_HTTPS_PROXY=http://current-local.invalid\n' >>"$workspace/.env"
+printf 'CRAWLER_HTTPS_PROXY=http://stale-root.invalid\n' >>"$main_root/.env"
+WT_ROOT_PATH="$main_root" WT_WORKSPACE_PATH="$workspace" WT_PORT_BASE=7 "$SETUP_WORKTREE" >/dev/null
+assert_contains "$workspace/.env" "CRAWLER_HTTPS_PROXY=http://current-local.invalid"
+assert_not_contains "$workspace/.env" "stale-root.invalid"
+
 # Workspace lifecycle delegates shared infra startup, pins service selection, and never tears it down implicitly.
 assert_contains "$START_DEV" 'scripts/dev-infra.sh" up'
-assert_contains "$START_DEV" "DEFAULT_CHROME_PORT=9250"
-assert_contains "$START_DEV" 'BASH_REMATCH[2]'
+assert_contains "$START_DEV" 'MARKA_DEV_RENDERER="${MARKA_DEV_RENDERER:-browserless}"'
+assert_contains "$START_DEV" 'MARKA_DEV_BROWSERLESS_PORT="${MARKA_DEV_BROWSERLESS_PORT:-9251}"'
 assert_contains "$START_DEV" 'BROWSER_WEB_URL="http://127.0.0.1:${MARKA_DEV_CHROME_PORT}"'
-assert_contains "$START_DEV" "unset MEILI_VECTOR_ADDR MEILI_VECTOR_MASTER_KEY"
-assert_contains "$START_DEV" "unset BROWSER_WEBSOCKET_URL BROWSERLESS_URL BROWSERLESS_TOKEN"
-assert_contains "$START_DEV" "export BROWSER_CONNECT_ONDEMAND=false"
+assert_contains "$START_DEV" 'MEILI_MASTER_KEY="" MEILI_VECTOR_ADDR="" MEILI_VECTOR_MASTER_KEY=""'
+assert_contains "$START_DEV" 'export BROWSER_WEB_URL="" BROWSER_WEBSOCKET_URL=""'
+assert_contains "$START_DEV" "export BROWSER_CONNECT_ONDEMAND=true"
+assert_contains "$START_DEV" '$WORKERS_PORT/ready'
+assert_contains "$START_DEV" 'ASSET_STORE_S3_ENDPOINT=""'
 assert_not_contains "$START_DEV" "gcr.io/zenika-hub/alpine-chrome:124"
 assert_not_contains "$STOP_DEV" 'docker stop "$MEILI_CONTAINER"'
 assert_not_contains "$STOP_DEV" 'docker stop "$CHROME_CONTAINER"'
 assert_not_contains "$STOP_DEV" 'docker rm "$MEILI_CONTAINER"'
 assert_not_contains "$STOP_DEV" 'docker rm "$CHROME_CONTAINER"'
-assert_contains "$DEV_COMPOSE" "127.0.0.1:9222:9222"
+assert_contains "$DEV_COMPOSE" "BROWSERLESS_URL: ws://browserless:3000"
 assert_not_contains "$DEV_COMPOSE" "- 9222:9222"
 assert_contains "$PACKAGE_JSON" '"dev:infra:up": "bash scripts/dev-infra.sh up"'
 assert_contains "$PACKAGE_JSON" '"dev:infra:status": "bash scripts/dev-infra.sh status"'
@@ -299,7 +319,7 @@ cat >"$fake_bin/mise" <<'EOF_MISE'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 printf 'mise:%s|%s\n' "$*" "$PWD" >>"${LIFECYCLE_LOG:?}"
-if [[ "${1:-}" == where && "${2:-}" == node@24 ]]; then
+if [[ "${1:-}" == where && "${2:-}" == node@24.18.1 ]]; then
   printf '%s\n' "${FAKE_NODE_ROOT:?}"
 fi
 EOF_MISE
@@ -318,7 +338,7 @@ cat >"$fake_node_root/bin/node" <<'EOF_NODE'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 if [[ "${1:-}" == -p ]]; then
-  printf '24\n'
+  printf '24.18.1\n'
 elif [[ "${1:-}" == --version ]]; then
   printf 'v24.18.1\n'
 else
@@ -331,6 +351,7 @@ export FAKE_NODE_ROOT="$fake_node_root"
 make_fake_project() {
   local project_root="$1"
   mkdir -p "$project_root/scripts"
+  printf '24.18.1\n' >"$project_root/.nvmrc"
   cat >"$project_root/scripts/setup-worktree.sh" <<'EOF_SETUP'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -341,7 +362,15 @@ EOF_SETUP
 }
 
 make_fake_workspace() {
-  mkdir -p "$1/apps/web" "$1/apps/workers" "$1/packages/db"
+  mkdir -p "$1/apps/web" "$1/apps/workers" "$1/packages/db" "$1/scripts"
+  printf '24.18.1\n' >"$1/.nvmrc"
+  cp "$DEV_WORKTREE" "$1/scripts/dev-worktree.sh"
+  cp "$SCRIPT_DIR/run-pnpm.sh" "$1/scripts/run-pnpm.sh"
+  cat >"$1/scripts/setup-worktree.sh" <<'EOF_SETUP'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf 'state:%s|%s|%s|%s\n' "$WT_DATA_SOURCE" "$WT_ROOT_PATH" "$WT_WORKSPACE_PATH" "$WT_PORT_BASE" >>"${LIFECYCLE_LOG:?}"
+EOF_SETUP
 }
 
 wt_project="$root/wt-project"
@@ -354,10 +383,10 @@ WT_ROOT_PATH="$wt_project" \
   WT_WORKSPACE_NAME='wt-fixture' \
   WT_PORT_BASE=500 \
   LIFECYCLE_LOG="$wt_log" \
-  bash "$DEV_WORKTREE" setup
-assert_contains "$wt_log" "mise:where node@24|$wt_workspace"
+  bash "$wt_workspace/scripts/dev-worktree.sh" setup
+assert_contains "$wt_log" "mise:where node@24.18.1|$wt_workspace"
 assert_contains "$wt_log" "pnpm:install --frozen-lockfile|$wt_workspace"
-assert_contains "$wt_log" "state:prod|$wt_project|$wt_workspace|500"
+assert_contains "$wt_log" "state:main|$wt_project|$wt_workspace|500"
 assert_contains "$wt_log" "pnpm:dev:start -d|$wt_workspace"
 assert_symlink_target "$wt_workspace/apps/web/.env" "../../.env"
 assert_symlink_target "$wt_workspace/apps/workers/.env" "../../.env"
@@ -384,9 +413,9 @@ NO_COLOR=1 \
   T3_PORT_REGISTRY_FILE="$t3_registry" \
   LIFECYCLE_LOG="$t3_log" \
   bash "$SCRIPT_DIR/setup-t3-worktree.sh"
-assert_contains "$t3_log" "mise:where node@24|$t3_workspace"
+assert_contains "$t3_log" "mise:where node@24.18.1|$t3_workspace"
 assert_contains "$t3_log" "pnpm:install --frozen-lockfile|$t3_workspace"
-assert_contains "$t3_log" "state:prod|$t3_project|$t3_workspace|1000"
+assert_contains "$t3_log" "state:main|$t3_project|$t3_workspace|1000"
 assert_contains "$t3_log" "pnpm:dev:start -d|$t3_workspace"
 assert_contains "$t3_log" "pnpm-env:NO_COLOR=false|$t3_workspace"
 assert_contains "$t3_registry" "4000$(printf '\t')$t3_workspace"
@@ -406,5 +435,26 @@ printf 'true\n' >"$state_dir/marka-dev-chrome"
 bash "$INFRA" down >/dev/null
 assert_contains "$FAKE_DOCKER_LOG" "rm -f marka-dev-meilisearch"
 assert_contains "$FAKE_DOCKER_LOG" "rm -f marka-dev-chrome"
+
+# Default Browserless creation is additive: it never replaces a running legacy renderer.
+printf 'true\n9250\n' >"$state_dir/marka-dev-chrome"
+: >"$FAKE_DOCKER_LOG"
+MARKA_DEV_RENDERER=browserless bash "$INFRA" up >/dev/null
+assert_contains "$FAKE_DOCKER_LOG" "127.0.0.1:9251:3000"
+assert_contains "$FAKE_DOCKER_LOG" "--platform linux/amd64"
+assert_contains "$FAKE_DOCKER_LOG" "--memory 1g"
+assert_contains "$FAKE_DOCKER_LOG" "--env TOKEN"
+assert_contains "$FAKE_DOCKER_LOG" "CONNECTION_TIMEOUT=60000"
+assert_not_contains "$FAKE_DOCKER_LOG" "rm -f marka-dev-chrome"
+assert_not_contains "$FAKE_DOCKER_LOG" "TOKEN="
+first_browserless_runs="$(grep -c '^run ' "$FAKE_DOCKER_LOG" || true)"
+MARKA_DEV_RENDERER=browserless bash "$INFRA" up >/dev/null
+[[ "$first_browserless_runs" == "$(grep -c '^run ' "$FAKE_DOCKER_LOG" || true)" ]] || fail "Duplicate Browserless containers created"
+if MARKA_DEV_RENDERER=browserless MARKA_DEV_BROWSERLESS_PORT=9261 bash "$INFRA" up >"$root/browserless-mismatch.out" 2>&1; then
+  fail "Browserless reused a mismatched port"
+fi
+assert_contains "$root/browserless-mismatch.out" "mapped to host port 9251"
+MARKA_DEV_RENDERER=browserless bash "$INFRA" down >/dev/null
+assert_contains "$FAKE_DOCKER_LOG" "rm -f marka-dev-browserless"
 
 printf 'Shared dev infrastructure and worktree lifecycle tests passed.\n'
