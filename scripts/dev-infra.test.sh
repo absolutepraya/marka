@@ -165,6 +165,12 @@ assert_contains "$DEV_WORKTREE" 'run-pnpm.sh" install --frozen-lockfile'
 assert_contains "$DEV_WORKTREE" 'run-pnpm.sh" dev:start -d'
 assert_contains "$DEV_WORKTREE" 'run-pnpm.sh" dev:stop'
 
+# Renderer validation runs before any Docker access or inherited endpoint use.
+if MARKA_DEV_RENDERER=browserles bash "$INFRA" up >"$root/invalid-renderer.out" 2>&1; then
+  fail "Unknown renderer was accepted"
+fi
+assert_contains "$root/invalid-renderer.out" "MARKA_DEV_RENDERER must be browserless or chrome"
+
 # Invalid Chrome ports are rejected before Docker startup.
 for invalid_port in 0 65536 abc; do
   if MARKA_DEV_CHROME_PORT="$invalid_port" bash "$INFRA" up >"$root/invalid-$invalid_port.out" 2>&1; then

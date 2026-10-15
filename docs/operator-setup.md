@@ -114,7 +114,7 @@ settings. The `Setup worktree` action runs automatically for new T3 worktrees
 after import. Its adapter reserves a T3-specific port, then runs the target
 worktree's [`scripts/dev-worktree.sh`](../scripts/dev-worktree.sh), which is also
 used by WT. This keeps setup aligned with the code checked out in that worktree.
-The shared script installs dependencies, creates the package `.env` links, preserves existing local data or copies the main local snapshot, runs migrations, and starts `pnpm dev:start -d`. Both WT and T3 invoke the target worktree's setup helper. Setup reruns preserve this worktree's integration credentials while regenerating its local paths and ports. Production state refreshes require an explicit `pnpm prod:pull-state` or `WT_DATA_SOURCE=prod` during setup.
+The shared script installs dependencies, creates the package `.env` links, preserves existing local data or copies the main local snapshot, runs migrations, and starts `pnpm dev:start -d`. Both WT and T3 invoke the target worktree's setup helper. Setup reruns preserve this worktree's integration credentials while regenerating its local paths and ports. Local database copies use SQLite online snapshots of both `db.db` and `queue.db`, then copy assets and publish the completed directory. Failed copies leave no reusable partial destination. For a snapshot that must also freeze asset creation/deletion across files, stop the main workspace during setup. Production state refreshes require an explicit `pnpm prod:pull-state` or `WT_DATA_SOURCE=prod` during setup.
 
 The T3 setup assigns web ports in the `4000` to `4999` range, keeping them
 separate from the main workspace and WT slots. Assignments are kept in the

@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 
-process.loadEnvFile(".env");
+if (existsSync(".env")) process.loadEnvFile(".env");
 const port = Number(process.env.KARAKEEP_PORT || 3000);
 const workerPort = Number(process.env.WORKERS_PORT || port + 10000);
 if (

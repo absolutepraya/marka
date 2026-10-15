@@ -101,7 +101,7 @@ case "$data_source" in
   main)
     if [[ ! -e "$workspace_data_dir" && -d "$WT_ROOT_PATH/.data/local" ]]; then
       mkdir -p "$(dirname "$workspace_data_dir")"
-      rsync -a "$WT_ROOT_PATH/.data/local/" "$workspace_data_dir/"
+      node "$(dirname "${BASH_SOURCE[0]}")/copy-dev-state.mjs" "$WT_ROOT_PATH/.data/local" "$workspace_data_dir"
       echo "Copied the main workspace data snapshot to $workspace_data_dir"
     elif [[ -e "$workspace_data_dir" ]]; then
       echo "Preserved existing worktree data at $workspace_data_dir"
