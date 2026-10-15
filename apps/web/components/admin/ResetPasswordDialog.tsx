@@ -127,7 +127,7 @@ export default function ResetPasswordDialog({
                   </FormItem>
                 )}
               />
-              <DialogFooter className="sm:justify-end">
+              <DialogFooter equalColumns={2}>
                 <DialogClose asChild>
                   <Button type="button" variant="secondary">
                     Close

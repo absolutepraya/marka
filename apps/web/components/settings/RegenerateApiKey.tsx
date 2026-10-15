@@ -98,7 +98,7 @@ export default function RegenerateApiKey({
             {t("settings.api_keys.regenerate_confirmation")}
           </p>
         )}
-        <DialogFooter className="sm:justify-end">
+        <DialogFooter equalColumns={key ? undefined : 2}>
           {!key ? (
             <>
               <DialogClose asChild>

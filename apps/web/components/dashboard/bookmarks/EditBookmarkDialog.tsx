@@ -7,6 +7,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -477,11 +478,13 @@ export function EditBookmarkDialog({
               </FormItem>
             </div>
 
-            <div className="sticky bottom-0 flex gap-2 border-t border-border/70 bg-card px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:px-6 sm:py-4">
+            <DialogFooter
+              equalColumns={2}
+              className="sticky bottom-0 border-t border-border/70 bg-card px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:px-6 sm:py-4"
+            >
               <Button
                 type="button"
                 variant="secondary"
-                className="h-11 flex-1"
                 onClick={() => setOpen(false)}
                 disabled={updateBookmarkMutation.isPending}
               >
@@ -490,11 +493,10 @@ export function EditBookmarkDialog({
               <ActionButton
                 type="submit"
                 loading={updateBookmarkMutation.isPending}
-                className="h-11 flex-1"
               >
                 {t("bookmark_editor.save_changes")}
               </ActionButton>
-            </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

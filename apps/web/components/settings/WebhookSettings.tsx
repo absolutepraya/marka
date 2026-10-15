@@ -159,7 +159,7 @@ export function WebhooksEditorDialog() {
             />
           </form>
         </Form>
-        <DialogFooter>
+        <DialogFooter equalColumns={2}>
           <DialogClose asChild>
             <Button type="button" variant="secondary">
               Close
@@ -283,7 +283,7 @@ export function EditWebhookDialog({ webhook }: { webhook: ZWebhook }) {
             />
           </form>
         </Form>
-        <DialogFooter>
+        <DialogFooter equalColumns={2}>
           <DialogClose asChild>
             <Button type="button" variant="secondary">
               {t("actions.close")}

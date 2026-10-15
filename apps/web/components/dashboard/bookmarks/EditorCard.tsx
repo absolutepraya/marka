@@ -75,6 +75,95 @@ function CaptureThumbnail({ item }: { item: PendingCapture }) {
   );
 }
 
+function CaptureItem({
+  item,
+  busy,
+  demoMode,
+  offline,
+  onRetry,
+  onRemove,
+}: {
+  item: PendingCapture;
+  busy: boolean;
+  demoMode: boolean;
+  offline: boolean;
+  onRetry: () => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <li
+      className={cn(
+        "flex min-w-0 flex-wrap items-start gap-2.5 rounded-xl border border-border/70 bg-background/60 p-2.5",
+        item.status === "error" && "border-destructive/40",
+      )}
+    >
+      <CaptureThumbnail item={item} />
+      <div className="min-w-0 flex-1 basis-1/2">
+        <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
+          {item.label}
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {item.status === "saving"
+            ? t("editor.capture.saving_item")
+            : item.file
+              ? `${(item.file.size / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`
+              : t("editor.capture.pending_text")}
+        </p>
+        {item.bookmarkId && item.status === "error" && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("editor.capture.saved_placement_pending")}
+          </p>
+        )}
+        {item.error && (
+          <p
+            role="alert"
+            className="mt-1 break-words text-xs text-destructive [overflow-wrap:anywhere]"
+          >
+            {item.error}
+          </p>
+        )}
+        {item.status === "error" && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="pointer-events-auto mt-1 h-8 px-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            disabled={
+              busy ||
+              demoMode ||
+              (offline && !item.offlineCreated && item.input?.type !== "text")
+            }
+            onClick={onRetry}
+          >
+            {t("editor.capture.retry")}
+          </Button>
+        )}
+      </div>
+      {item.status === "saving" ? (
+        <Loader2
+          aria-hidden="true"
+          className="mt-2 size-4 shrink-0 animate-spin motion-reduce:animate-none"
+        />
+      ) : (
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="pointer-events-auto size-9 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          aria-label={t("editor.capture.remove_item", {
+            name: item.label,
+          })}
+          disabled={busy}
+          onClick={onRemove}
+        >
+          <X className="size-4" />
+        </Button>
+      )}
+    </li>
+  );
+}
+
 export default function EditorCard({
   className,
   onCreated,
@@ -91,13 +180,17 @@ export default function EditorCard({
   const gridContext = useBookmarkGridContext();
   const demoMode = !!useClientConfig().demoMode;
   const [rejection, setRejection] = useState<string | null>(null);
+  const [clipboardError, setClipboardError] = useState<string | null>(null);
   const [showAllItems, setShowAllItems] = useState(false);
   const headingId = useId();
   const helpId = useId();
+  const clipboardErrorId = useId();
   const pendingItemsId = useId();
-  const newestItems = [...composer.items].reverse();
+  const fileItems = composer.items.filter((item) => item.file);
+  const textItems = composer.items.filter((item) => !item.file);
+  const newestItems = [...fileItems].reverse();
   const visibleItems = showAllItems ? newestItems : newestItems.slice(0, 4);
-  const hiddenItemCount = Math.max(0, composer.items.length - 4);
+  const hiddenItemCount = Math.max(0, fileItems.length - 4);
   const busy = composer.saving;
   const currentListId =
     listContext?.type === "manual"
@@ -165,17 +258,18 @@ export default function EditorCard({
     });
   };
   const paste = async () => {
+    setClipboardError(null);
     try {
       if (!navigator.clipboard?.readText)
         throw new Error(t("editor.capture.clipboard_unavailable"));
       const text = await navigator.clipboard.readText();
       if (!text) {
-        setRejection(t("editor.capture.clipboard_empty"));
+        setClipboardError(t("editor.capture.clipboard_empty"));
         return;
       }
       insertText(text);
     } catch {
-      setRejection(t("editor.capture.clipboard_unavailable"));
+      setClipboardError(t("editor.capture.clipboard_unavailable"));
     }
   };
   const urls = parseCaptureUrls(composer.text.trim());
@@ -204,7 +298,7 @@ export default function EditorCard({
       aria-busy={busy}
       data-capture-composer
       className={cn(
-        "shadow-xs ease-(--ease-out) relative flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-4 transition-[border-color,box-shadow,background-color] duration-150 focus-within:border-ring/70 focus-within:ring-2 focus-within:ring-ring/15",
+        "shadow-xs ease-(--ease-out) relative flex w-full min-w-0 max-w-full flex-col gap-3 rounded-2xl border border-border/80 bg-card p-4 transition-[border-color,box-shadow,background-color] duration-150",
         dropzone.isDragActive &&
           "border-primary bg-primary/5 ring-2 ring-primary/25",
         className,
@@ -219,7 +313,7 @@ export default function EditorCard({
           "aria-label": t("editor.capture.choose_files"),
         })}
       />
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
         <p
           id={headingId}
           className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground"
@@ -242,16 +336,22 @@ export default function EditorCard({
           <Kbd>{getOS() === "macos" ? "⌘" : "Ctrl"} + E</Kbd>
         )}
       </div>
-      <div className="flex min-h-24 flex-1 flex-col gap-3">
+      <div className="flex min-h-36 min-w-0 flex-1 flex-col gap-3">
         <Textarea
           ref={inputRef}
+          data-capture-input
           value={composer.text}
           disabled={busy || demoMode}
           aria-label={t("editor.capture.content_label")}
-          aria-describedby={helpId}
+          aria-describedby={
+            clipboardError ? `${helpId} ${clipboardErrorId}` : helpId
+          }
           placeholder={t("editor.capture.placeholder")}
-          className="min-h-24 flex-1 resize-y border-0 bg-transparent p-0 text-base leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
-          onChange={(event) => composer.setText(event.target.value)}
+          className="min-h-36 min-w-0 max-w-full flex-1 resize-y rounded-xl border-0 bg-muted p-3 text-sm leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-background"
+          onChange={(event) => {
+            composer.setText(event.target.value);
+            setClipboardError(null);
+          }}
           onPaste={(event) => {
             const clipboard = event.clipboardData;
             const files = Array.from(clipboard.files);
@@ -284,8 +384,21 @@ export default function EditorCard({
             }
           }}
         />
+        {clipboardError && (
+          <p
+            id={clipboardErrorId}
+            role="alert"
+            className="flex w-full min-w-0 items-start justify-center gap-1.5 text-center text-xs text-destructive [overflow-wrap:anywhere]"
+          >
+            <AlertCircle
+              className="mt-0.5 size-3.5 shrink-0"
+              aria-hidden="true"
+            />
+            <span className="min-w-0">{clipboardError}</span>
+          </p>
+        )}
       </div>
-      <div className="relative flex flex-col gap-3 rounded-xl px-3 py-3">
+      <div className="relative flex min-w-0 flex-col gap-3 rounded-xl bg-background px-3 py-3 dark:bg-muted">
         <button
           type="button"
           className="absolute inset-0 size-full cursor-pointer rounded-xl bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed"
@@ -328,88 +441,25 @@ export default function EditorCard({
               : t("editor.capture.formats_hint")}
           </span>
         </div>
-        {composer.items.length > 0 && (
+        {fileItems.length > 0 && (
           <ul
             id={pendingItemsId}
             aria-label={t("editor.capture.pending_items")}
-            className="pointer-events-none relative flex flex-col gap-2"
+            className="pointer-events-none relative flex min-w-0 flex-col gap-2"
           >
             {visibleItems.map((item) => (
-              <li
+              <CaptureItem
                 key={item.id}
-                className={cn(
-                  "flex items-start gap-2.5 rounded-xl border border-border/70 bg-background/60 p-2.5",
-                  item.status === "error" && "border-destructive/40",
-                )}
-              >
-                <CaptureThumbnail item={item} />
-                <div className="min-w-0 flex-1">
-                  <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
-                    {item.label}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {item.status === "saving"
-                      ? t("editor.capture.saving_item")
-                      : item.file
-                        ? `${(item.file.size / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`
-                        : t("editor.capture.pending_text")}
-                  </p>
-                  {item.bookmarkId && item.status === "error" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t("editor.capture.saved_placement_pending")}
-                    </p>
-                  )}
-                  {item.error && (
-                    <p
-                      role="alert"
-                      className="mt-1 break-words text-xs text-destructive"
-                    >
-                      {item.error}
-                    </p>
-                  )}
-                  {item.status === "error" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="pointer-events-auto mt-1 h-8 px-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-                      disabled={
-                        busy ||
-                        demoMode ||
-                        (composer.offline &&
-                          !item.offlineCreated &&
-                          item.input?.type !== "text")
-                      }
-                      onClick={() => void save(item.id)}
-                    >
-                      {t("editor.capture.retry")}
-                    </Button>
-                  )}
-                </div>
-                {item.status === "saving" ? (
-                  <Loader2
-                    aria-hidden="true"
-                    className="mt-2 size-4 shrink-0 animate-spin motion-reduce:animate-none"
-                  />
-                ) : (
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="pointer-events-auto size-9 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-                    aria-label={t("editor.capture.remove_item", {
-                      name: item.label,
-                    })}
-                    disabled={busy}
-                    onClick={() => {
-                      composer.removeItem(item.id);
-                      if (composer.items.length === 1) setShowAllItems(false);
-                    }}
-                  >
-                    <X className="size-4" />
-                  </Button>
-                )}
-              </li>
+                item={item}
+                busy={busy}
+                demoMode={demoMode}
+                offline={composer.offline}
+                onRetry={() => void save(item.id)}
+                onRemove={() => {
+                  composer.removeItem(item.id);
+                  if (fileItems.length === 1) setShowAllItems(false);
+                }}
+              />
             ))}
           </ul>
         )}
@@ -440,17 +490,37 @@ export default function EditorCard({
         {rejection && (
           <p
             role="alert"
-            className="pointer-events-none relative flex gap-1.5 text-xs text-destructive"
+            className="pointer-events-none relative flex w-full min-w-0 items-start justify-center gap-1.5 text-center text-xs text-destructive [overflow-wrap:anywhere]"
           >
             <AlertCircle
               className="mt-0.5 size-3.5 shrink-0"
               aria-hidden="true"
             />
-            {rejection}
+            <span className="min-w-0">{rejection}</span>
           </p>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      {textItems.length > 0 && (
+        <ul
+          aria-label={t("editor.capture.pending_text_items", {
+            defaultValue: "Pending links and notes",
+          })}
+          className="flex min-w-0 flex-col gap-2"
+        >
+          {textItems.map((item) => (
+            <CaptureItem
+              key={item.id}
+              item={item}
+              busy={busy}
+              demoMode={demoMode}
+              offline={composer.offline}
+              onRetry={() => void save(item.id)}
+              onRemove={() => composer.removeItem(item.id)}
+            />
+          ))}
+        </ul>
+      )}
+      <div className="flex min-w-0 items-center gap-2">
         <BookmarkListSelector
           value={composer.listId}
           onChange={composer.setListId}

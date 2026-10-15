@@ -126,7 +126,7 @@ export default function LibrarySyncConflictDialog({
           </p>
         )}
 
-        <DialogFooter className="gap-2 sm:space-x-0">
+        <DialogFooter equalColumns={2}>
           <Button
             type="button"
             variant="secondary"

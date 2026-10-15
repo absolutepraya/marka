@@ -180,6 +180,36 @@ describe("New Item capture composer", () => {
   });
   afterEach(cleanup);
 
+  it("shows clipboard feedback beside the textbox instead of in the file drop area", async () => {
+    mocks.mobile = true;
+    const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const readText = vi.fn().mockResolvedValue("");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { readText },
+    });
+    try {
+      setup();
+      fireEvent.click(screen.getByRole("button", { name: "Paste" }));
+      const alert = await screen.findByRole("alert");
+      const input = screen.getByRole("textbox");
+      const fileArea = screen.getByRole("button", {
+        name: "Choose or drop files",
+      }).parentElement!;
+      expect(alert.textContent).toContain("Your clipboard is empty");
+      expect(fileArea.contains(alert)).toBe(false);
+      expect(input.parentElement?.contains(alert)).toBe(true);
+
+      readText.mockResolvedValue("https://example.com");
+      fireEvent.click(screen.getByRole("button", { name: "Paste" }));
+      await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+      expect((input as HTMLTextAreaElement).value).toBe("https://example.com");
+    } finally {
+      if (original) Object.defineProperty(navigator, "clipboard", original);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
+
   it("opens the file picker from the whole drop area and stages dropped files", async () => {
     setup();
     const area = screen.getByRole("button", { name: "Choose or drop files" });
@@ -486,6 +516,16 @@ describe("New Item capture composer", () => {
     await waitFor(() =>
       expect(screen.queryByText("https://two.example")).toBeNull(),
     );
+    const dropArea = screen.getByRole("button", {
+      name: "Choose or drop files",
+    }).parentElement!;
+    expect(dropArea.contains(screen.getByText("https://one.example"))).toBe(
+      false,
+    );
+    expect(dropArea.contains(screen.getByText("Link unavailable"))).toBe(false);
+    expect(
+      dropArea.contains(screen.getByRole("button", { name: "Retry" })),
+    ).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(screen.queryByRole("list")).toBeNull());
     expect(mocks.create.mock.calls.map(([input]) => input.url)).toEqual([
@@ -507,6 +547,41 @@ describe("New Item capture composer", () => {
       assetId: "asset-cleanup.pdf",
     });
     expect(screen.getByText("cleanup.pdf")).toBeTruthy();
+  });
+
+  it("keeps file failures in the drop area and link retries outside it in a mixed batch", async () => {
+    mocks.upload.mockRejectedValueOnce(new Error("PDF interrupted"));
+    mocks.create.mockRejectedValueOnce(new Error("Link interrupted"));
+    setup();
+    await drop([makeFile("report.pdf", "application/pdf")]);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "https://one.example\nhttps://two.example" },
+    });
+    expect(screen.getByRole("button", { name: /^Save 3 items/ })).toBeTruthy();
+    clickSave();
+    await waitFor(() =>
+      expect(screen.getByText("Link interrupted")).toBeTruthy(),
+    );
+    const dropArea = screen.getByRole("button", {
+      name: "Choose or drop files",
+    }).parentElement!;
+    expect(dropArea.contains(screen.getByText("PDF interrupted"))).toBe(true);
+    expect(dropArea.contains(screen.getByText("Link interrupted"))).toBe(false);
+    expect(dropArea.contains(screen.getByText("https://one.example"))).toBe(
+      false,
+    );
+    expect(screen.queryByText("https://two.example")).toBeNull();
+    const linkRow = screen.getByText("https://one.example").closest("li")!;
+    fireEvent.click(linkRow.querySelector("button")!);
+    await waitFor(() =>
+      expect(screen.queryByText("https://one.example")).toBeNull(),
+    );
+    expect(screen.getByText("report.pdf")).toBeTruthy();
+    expect(mocks.upload).toHaveBeenCalledTimes(1);
+    clickSave();
+    await waitFor(() => expect(screen.queryByRole("list")).toBeNull());
+    expect(mocks.upload).toHaveBeenCalledTimes(2);
+    expect(mocks.create).toHaveBeenCalledTimes(4);
   });
 
   it("finishes contextual tags after reconnect without recreating an offline note", async () => {
