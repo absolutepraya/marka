@@ -38,7 +38,7 @@ export default function MobileAddButton() {
           className="ease-(--ease-out) flex min-h-[52px] w-full items-center justify-center rounded-[14px] bg-accent px-1.5 py-2 text-accent-foreground transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:scale-[0.96] motion-reduce:transition-none dark:bg-primary dark:text-primary-foreground"
         >
           <span className="flex size-6 items-center justify-center">
-            <Plus size={24} strokeWidth={1.5} />
+            <Plus size={24} strokeWidth={2} />
           </span>
         </DialogTrigger>
         <ResponsiveDialogContent
