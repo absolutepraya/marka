@@ -367,12 +367,84 @@
   --dialog-safe-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
 }
 
-/* Center a fixed dialog within the visible viewport, respecting the mobile
-   safe area and capping its height so long dialogs scroll internally. Bottom
-   sheets extend behind the home indicator and reserve that space as internal
-   padding, so their background never leaves a transparent strip below them.
-   Paired with `translate-y-[-50%]` on centered elements. */
 @layer components {
+  /* Layer decreasing blur strengths toward content without boosting its colors. */
+  @media (max-width: 639px) {
+    .mobile-header-frost::before,
+    .mobile-header-frost::after,
+    .mobile-header-frost-layer {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .mobile-header-frost::before {
+      inset: 0 0 -3rem;
+      background: linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--background) 76%, transparent),
+        color-mix(in oklab, var(--background) 42%, transparent) 52%,
+        transparent
+      );
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        black 45%,
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        black 45%,
+        transparent 100%
+      );
+    }
+
+    .mobile-header-frost-layer {
+      inset: 0 0 -2rem;
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        black 25%,
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        black 25%,
+        transparent 100%
+      );
+    }
+
+    .mobile-header-frost::after {
+      inset: 0 0 -0.75rem;
+      -webkit-backdrop-filter: blur(28px);
+      backdrop-filter: blur(28px);
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        black 15%,
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        black 15%,
+        transparent 100%
+      );
+    }
+  }
+
+  /* Center a fixed dialog within the visible viewport, respecting the mobile
+     safe area and capping its height so long dialogs scroll internally. Bottom
+     sheets extend behind the home indicator and reserve that space as internal
+     padding, so their background never leaves a transparent strip below them.
+     Paired with `translate-y-[-50%]` on centered elements. */
   .dialog-vv-center {
     top: calc(var(--vvo) + (var(--vvh) - var(--dialog-safe-bottom)) / 2);
     max-height: calc(var(--vvh) - var(--dialog-safe-bottom));
