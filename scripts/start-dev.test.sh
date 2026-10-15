@@ -26,7 +26,9 @@ cat >"$root/bin/lsof" <<'EOF'
 EOF
 cat >"$root/bin/curl" <<'EOF'
 #!/usr/bin/env bash
-if [[ "$*" == *'/ready'* && ( "${DEV_TEST_NOT_READY:-false}" == true || "${DEV_TEST_WORKER_EXIT:-false}" == true ) ]]; then exit 22; fi
+if [[ "$*" == *'/ready'* ]]; then
+  if [[ "${DEV_TEST_NOT_READY:-false}" == true || "${DEV_TEST_WORKER_EXIT:-false}" == true || ! -f "$DEV_TEST_ENV.ready" ]]; then exit 22; fi
+fi
 exit 0
 EOF
 cat >"$root/bin/sleep" <<'EOF'
@@ -39,8 +41,11 @@ set -eu
 printf 'pnpm:%s\n' "$*" >>"$DEV_TEST_LOG"
 [[ "$*" != 'run db:migrate' ]] || exit 0
 if [[ "$1" == workers ]]; then
+  /bin/sleep "${DEV_TEST_WORKER_START_DELAY:-0}"
   "$REAL_NODE" -e 'const keys=["DATA_DIR","ASSETS_DIR","API_URL","NEXTAUTH_URL","MEILI_ADDR","MEILI_MASTER_KEY","MEILI_INDEX_PREFIX","BROWSERLESS_URL","BROWSERLESS_TOKEN","BROWSER_WEB_URL","BROWSER_WEBSOCKET_URL","BROWSER_CONNECT_ONDEMAND","BROWSER_REUSE_CONNECTION","CRAWLER_NUM_WORKERS","WORKER_PROFILE","WORKERS_PORT","ASSET_STORE_S3_ENDPOINT","NO_COLOR"]; require("node:fs").writeFileSync(process.env.DEV_TEST_ENV,JSON.stringify(Object.fromEntries(keys.map(k=>[k,process.env[k]]))));'
   [[ "${DEV_TEST_WORKER_EXIT:-false}" != true ]] || exit 7
+  # Publish readiness only after the environment snapshot has been written.
+  touch "$DEV_TEST_ENV.ready"
 fi
 exec /bin/sleep 120
 EOF
@@ -65,7 +70,7 @@ BROWSER_CONNECT_ONDEMAND=false
 BROWSER_REUSE_CONNECTION=true
 WORKER_PROFILE=screenshot-first
 EOF
-(cd "$root/project" && NO_COLOR=1 bash ./start-dev.sh -d) >"$root/success.log" 2>&1
+(cd "$root/project" && DEV_TEST_WORKER_START_DELAY=0.1 NO_COLOR=1 bash ./start-dev.sh -d) >"$root/success.log" 2>&1
 "$REAL_NODE" - "$DEV_TEST_ENV" "$root/project" <<'JS'
 const assert=require('node:assert/strict');const fs=require('node:fs');const e=JSON.parse(fs.readFileSync(process.argv[2]));const root=process.argv[3];
 assert.equal(e.NO_COLOR,'true');assert.equal(e.DATA_DIR,root+'/.data/local');assert.equal(e.ASSETS_DIR,root+'/.data/local/assets');assert.equal(e.ASSET_STORE_S3_ENDPOINT,'');
@@ -74,6 +79,7 @@ assert.equal(e.BROWSERLESS_URL,'ws://127.0.0.1:9251');assert.equal(e.BROWSERLESS
 JS
 if grep -Eq 'production-secret|local-test-token' "$root/success.log"; then fail 'Startup leaked a token'; fi
 (cd "$root/project" && bash ./stop-dev.sh) >/dev/null
+rm -f "$DEV_TEST_ENV" "$DEV_TEST_ENV.ready"
 if (cd "$root/project" && DEV_TEST_NOT_READY=true bash ./start-dev.sh -d) >"$root/not-ready.log" 2>&1; then fail 'Startup accepted unready workers'; fi
 [[ ! -e "$root/project/.dev/workers.pid" ]] || fail 'Failed startup retained worker PID'
 if grep -Fq 'Development environment is running!' "$root/not-ready.log"; then fail 'Failed startup reported success'; fi

@@ -346,18 +346,11 @@ export default function ServiceWorkerRegistration({
     };
     checkForUpdateRef.current = checkForUpdate;
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void checkForUpdate();
-      }
-    };
-
     navigator.serviceWorker.addEventListener("message", receiveWorkerMessage);
     navigator.serviceWorker.addEventListener(
       "controllerchange",
       handleControllerChange,
     );
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     void (async () => {
       try {
@@ -407,6 +400,8 @@ export default function ServiceWorkerRegistration({
           clearUserCaches();
         }
 
+        // This root provider survives client-side navigation. Automatically
+        // check only on a fresh document; further checks are user initiated.
         await checkForUpdate();
       } catch {
         // Service-worker registration is best-effort in unsupported/broken clients.
@@ -425,7 +420,6 @@ export default function ServiceWorkerRegistration({
         "controllerchange",
         handleControllerChange,
       );
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       checkForUpdateRef.current = null;
     };
   }, []);
