@@ -43,8 +43,8 @@ export function ListPrivacyLabel({
 
   return (
     <span className={cn("flex items-center gap-1", className)}>
-      <PrivacyIcon className="size-3.5" />
       {privacy.label}
+      <PrivacyIcon aria-hidden="true" className="size-3.5 shrink-0" />
     </span>
   );
 }

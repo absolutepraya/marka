@@ -7,7 +7,7 @@ import { EditingButton } from "@/components/ui/editing-button";
 import { useTranslation } from "@/lib/i18n/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Sparkles } from "lucide-react";
+import { Bookmark, MoreHorizontal, Sparkles } from "lucide-react";
 
 import { useBookmarkLists } from "@karakeep/shared-react/hooks/lists";
 import { useTRPC } from "@karakeep/shared-react/trpc";
@@ -120,8 +120,9 @@ export default function ListHeader({
         </div>
         <div className="flex max-w-[45%] shrink-0 flex-col items-end gap-1 text-end text-xs text-muted-foreground">
           {itemCount !== undefined && (
-            <span className="tabular-nums">
+            <span className="inline-flex items-center gap-1 tabular-nums">
               {t("lists.items_count", { count: itemCount })}
+              <Bookmark aria-hidden="true" className="size-3.5 shrink-0" />
             </span>
           )}
           <ListPrivacyLabel list={list} className="justify-end" />
