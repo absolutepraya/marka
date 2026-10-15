@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Library navigation",
+    "section_navigation": "Section navigation",
     "something_went_wrong": "Something went wrong",
     "drop_upload_top_level": "Drop an image, PDF, video, audio, Markdown, or plain-text file",
     "audio_playback_unavailable": "This audio format is not supported for in-browser playback. You can download the original file instead.",

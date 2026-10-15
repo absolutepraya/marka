@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "라이브러리 탐색",
+    "section_navigation": "섹션 탐색",
     "url": "URL",
     "name": "이름",
     "email": "이메일",

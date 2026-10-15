@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Biblioteknavigasjon",
+    "section_navigation": "Seksjonsnavigasjon",
     "home": "Hjem",
     "name": "Navn",
     "roles": {

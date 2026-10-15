@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Навігація бібліотекою",
+    "section_navigation": "Навігація розділами",
     "url": "URL",
     "name": "Ім'я",
     "email": "Email",

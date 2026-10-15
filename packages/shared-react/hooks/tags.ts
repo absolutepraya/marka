@@ -21,7 +21,8 @@ export function usePaginatedSearchTags(
     ...api.tags.list.infiniteQueryOptions(input, {
       placeholderData: keepPreviousData,
       getNextPageParam: (lastPage) => lastPage.nextCursor,
-      gcTime: 60_000,
+      gcTime:
+        typeof input === "object" && input?.nameContains ? 60_000 : 300_000,
     }),
     select: (data) => ({
       tags: data.pages.flatMap((page) => page.tags),

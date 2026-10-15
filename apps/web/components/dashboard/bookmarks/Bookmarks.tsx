@@ -12,20 +12,24 @@ export default async function Bookmarks({
   header,
   showDivider,
   showEditorCard = false,
+  deferInitialFetch = false,
+  allowLocalReplica = true,
 }: {
   query: Omit<ZGetBookmarksRequest, "sortOrder" | "includeContent">; // Sort order is handled by the store
   header?: React.ReactNode;
   showDivider?: boolean;
   showEditorCard?: boolean;
+  deferInitialFetch?: boolean;
+  allowLocalReplica?: boolean;
 }) {
   const session = await getServerAuthSession();
   if (!session) {
     redirect("/");
   }
 
-  const bookmarks = await api.bookmarks.getBookmarks({
-    ...query,
-  });
+  const bookmarks = deferInitialFetch
+    ? undefined
+    : await api.bookmarks.getBookmarks({ ...query });
 
   return (
     <div className="flex flex-col gap-3">
@@ -35,6 +39,8 @@ export default async function Bookmarks({
         query={query}
         bookmarks={bookmarks}
         showEditorCard={showEditorCard}
+        preferLocalData={deferInitialFetch}
+        allowLocalReplica={allowLocalReplica}
       />
     </div>
   );

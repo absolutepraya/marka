@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Navegação da biblioteca",
+    "section_navigation": "Navegação das seções",
     "bookmark_types": {
       "media": "Mídia",
       "title": "Tipo de marcador",

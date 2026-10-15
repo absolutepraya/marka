@@ -27,6 +27,7 @@ export default async function ArchivedBookmarkPage() {
       query={{ archived: true }}
       showDivider={true}
       showEditorCard={true}
+      deferInitialFetch
     />
   );
 }

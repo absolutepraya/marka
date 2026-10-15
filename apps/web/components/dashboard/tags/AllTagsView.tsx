@@ -32,12 +32,10 @@ import { ArrowDownAZ, Combine, Search, SearchX, Tag } from "lucide-react";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 
 import type { ZGetTagResponse } from "@karakeep/shared/types/tags";
-import {
-  useDeleteUnusedTags,
-  usePaginatedSearchTags,
-} from "@karakeep/shared-react/hooks/tags";
+import { useDeleteUnusedTags } from "@karakeep/shared-react/hooks/tags";
 import { useDebounce } from "@karakeep/shared-react/hooks/use-debounce";
 
+import { useSavedTags } from "./useSavedTags";
 import BulkTagAction from "./BulkTagAction";
 import { CreateTagModal } from "./CreateTagModal";
 import { MultiTagSelector } from "./MultiTagSelector";
@@ -110,7 +108,7 @@ export default function AllTagsView() {
     hasNextPage: hasNextPageHumanTags,
     fetchNextPage: fetchNextPageHumanTags,
     isFetchingNextPage: isFetchingNextPageHumanTags,
-  } = usePaginatedSearchTags({
+  } = useSavedTags({
     nameContains: searchQuery,
     sortBy,
     attachedBy: "human",
@@ -124,7 +122,7 @@ export default function AllTagsView() {
     hasNextPage: hasNextPageAiTags,
     fetchNextPage: fetchNextPageAiTags,
     isFetchingNextPage: isFetchingNextPageAiTags,
-  } = usePaginatedSearchTags({
+  } = useSavedTags({
     nameContains: searchQuery,
     sortBy,
     attachedBy: "ai",
@@ -138,7 +136,7 @@ export default function AllTagsView() {
     hasNextPage: hasNextPageEmptyTags,
     fetchNextPage: fetchNextPageEmptyTags,
     isFetchingNextPage: isFetchingNextPageEmptyTags,
-  } = usePaginatedSearchTags({
+  } = useSavedTags({
     nameContains: searchQuery,
     sortBy,
     attachedBy: "none",

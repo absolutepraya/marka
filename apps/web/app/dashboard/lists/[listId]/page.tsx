@@ -32,7 +32,6 @@ export default async function ListPage(props: {
 }) {
   const searchParams = await props.searchParams;
   const params = await props.params;
-  const userSettings = await api.users.settings();
   let list;
   try {
     list = await api.lists.get({ listId: params.listId });
@@ -44,6 +43,8 @@ export default async function ListPage(props: {
     }
     throw e;
   }
+
+  const userSettings = await api.users.settings();
 
   const includeArchived =
     searchParams?.includeArchived !== undefined
@@ -61,6 +62,8 @@ export default async function ListPage(props: {
           archived: !includeArchived ? false : undefined,
         }}
         showDivider={true}
+        deferInitialFetch
+        allowLocalReplica={list.type === "manual"}
         showEditorCard={list.type === "manual" && canEdit}
         header={<ListHeader initialData={list} />}
       />

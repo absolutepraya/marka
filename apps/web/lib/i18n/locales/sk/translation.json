@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Navigácia knižnicou",
+    "section_navigation": "Navigácia sekciami",
     "name": "Meno",
     "action": "Akcia",
     "created_at": "Vytvorené",

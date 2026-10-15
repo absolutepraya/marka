@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Nascleanúint na leabharlainne",
+    "section_navigation": "Nascleanúint na rannán",
     "updated_at": "Nuashonraithe ag",
     "role": "Ról",
     "url": "URL",

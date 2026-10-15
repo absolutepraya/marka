@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Kirjaston navigointi",
+    "section_navigation": "Osioiden navigointi",
     "name": "Nimi",
     "email": "Sähköposti",
     "password": "Salasana",

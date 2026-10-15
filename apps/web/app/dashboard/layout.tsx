@@ -4,6 +4,7 @@ import MobileSidebar from "@/components/shared/sidebar/MobileSidebar";
 import Sidebar from "@/components/shared/sidebar/Sidebar";
 import SidebarLayout from "@/components/shared/sidebar/SidebarLayout";
 import { Separator } from "@/components/ui/separator";
+import { SavedQueryInvalidationListener } from "@/lib/offline-library/use-saved-query";
 import { ReaderSettingsProvider } from "@/lib/readerSettings";
 import { UserSettingsContextProvider } from "@/lib/userSettings";
 import { api } from "@/server/api/client";
@@ -83,6 +84,7 @@ export default async function Dashboard({
   return (
     <UserSettingsContextProvider userSettings={userSettings.data}>
       <ReaderSettingsProvider>
+        <SavedQueryInvalidationListener />
         <SidebarLayout
           sidebar={
             <Sidebar
@@ -95,7 +97,7 @@ export default async function Dashboard({
               }
             />
           }
-          mobileSidebar={<MobileSidebar items={mobileSidebar} />}
+          mobileSidebar={<MobileSidebar items={mobileSidebar} dashboardTabs />}
           modal={modal}
         >
           {children}
