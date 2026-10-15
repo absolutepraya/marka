@@ -12,7 +12,7 @@ import {
 import { getBookmarkGridColumnPolicy } from "./bookmarkGridColumns";
 
 const responsiveGridClassName =
-  "-ml-4 grid w-auto grid-cols-[repeat(var(--bookmark-grid-columns),minmax(0,1fr))] [--bookmark-grid-columns:var(--bookmark-grid-columns-sm)] min-[641px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-md)] min-[769px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-lg)] min-[1025px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-default)]";
+  "-ml-2 grid w-auto grid-cols-[repeat(var(--bookmark-grid-columns),minmax(0,1fr))] sm:-ml-3 [--bookmark-grid-columns:var(--bookmark-grid-columns-sm)] min-[641px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-md)] min-[769px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-lg)] min-[1025px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-default)]";
 
 // Each skeleton mirrors the geometry of the real card for its layout so the
 // load -> loaded transition doesn't jump.
@@ -80,7 +80,7 @@ export default function BookmarksGridSkeleton({
     <CardSkeleton key={i} layout={layout} />
   ));
   const masonryChildren = children.map((child, index) => (
-    <div key={index} className="pl-4">
+    <div key={index} className="pl-2 sm:pl-3">
       {child}
     </div>
   ));
