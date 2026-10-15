@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "书库导航",
+    "section_navigation": "分区导航",
     "url": "URL",
     "name": "名称",
     "email": "电子邮件",

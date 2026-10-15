@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Navigace knihovnou",
+    "section_navigation": "Navigace sekcemi",
     "password": "Heslo",
     "url": "URL",
     "name": "Název",

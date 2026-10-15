@@ -56,6 +56,8 @@
     "rename": "Rinomina"
   },
   "common": {
+    "library_navigation": "Navigazione della raccolta",
+    "section_navigation": "Navigazione delle sezioni",
     "attachments": "Allegati",
     "something_went_wrong": "Qualcosa è andato storto",
     "roles": {

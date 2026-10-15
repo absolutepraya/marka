@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import superjson from "superjson";
 
 import { offlineLibraryDb, purgeOfflineLibrary } from "./repository";
 import { readSavedQuery, writeSavedQuery } from "./saved-queries";
@@ -74,3 +75,30 @@ test("saves the first page and its cursor while preserving the live object", asy
   });
   expect(value.pages).toHaveLength(2);
 });
+
+test.each([
+  "not json",
+  superjson.stringify(null),
+  superjson.stringify({ savedAt: "bad" }),
+])(
+  "prunes an unreadable timestamp without rolling back the new snapshot: %s",
+  async (value) => {
+    await offlineLibraryDb.metadata.put({ key: "savedQuery:broken", value });
+    for (let i = 0; i < 31; i++) {
+      await writeSavedQuery("user-1", String(i), [i]);
+    }
+    await expect(
+      writeSavedQuery("user-1", "latest", ["Newest"]),
+    ).resolves.toBeUndefined();
+    expect(await readSavedQuery("user-1", "latest")).toEqual(["Newest"]);
+    expect(
+      await offlineLibraryDb.metadata.get("savedQuery:broken"),
+    ).toBeUndefined();
+    expect(
+      await offlineLibraryDb.metadata
+        .where("key")
+        .startsWith("savedQuery:")
+        .count(),
+    ).toBe(32);
+  },
+);

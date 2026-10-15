@@ -826,6 +826,8 @@
     "placeholder_v2": "Indsæt et link, skriv en note eller slip et billede…"
   },
   "common": {
+    "library_navigation": "Biblioteksnavigation",
+    "section_navigation": "Sektionsnavigation",
     "roles": {
       "user": "Bruger",
       "admin": "Admin"

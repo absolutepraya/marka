@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "التنقل في المكتبة",
+    "section_navigation": "التنقل بين الأقسام",
     "url": "الرابط",
     "name": "الاسم",
     "email": "البريد الإلكتروني",

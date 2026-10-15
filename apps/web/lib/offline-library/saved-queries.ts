@@ -6,6 +6,19 @@ const PREFIX = "savedQuery:";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_SNAPSHOTS = 32;
 
+function savedAtOf(value: string): number {
+  try {
+    const savedAt = superjson.parse<{ savedAt?: unknown } | null>(
+      value,
+    )?.savedAt;
+    return typeof savedAt === "number" && Number.isFinite(savedAt)
+      ? savedAt
+      : -Infinity;
+  } catch {
+    return -Infinity;
+  }
+}
+
 export async function readSavedQuery<T>(
   owner: string,
   hash: string,
@@ -68,11 +81,7 @@ export async function writeSavedQuery(
         .startsWith(PREFIX)
         .toArray();
       if (rows.length > MAX_SNAPSHOTS) {
-        rows.sort(
-          (a, b) =>
-            superjson.parse<{ savedAt: number }>(a.value).savedAt -
-            superjson.parse<{ savedAt: number }>(b.value).savedAt,
-        );
+        rows.sort((a, b) => savedAtOf(a.value) - savedAtOf(b.value));
         await offlineLibraryDb.metadata.bulkDelete(
           rows.slice(0, rows.length - MAX_SNAPSHOTS).map((row) => row.key),
         );

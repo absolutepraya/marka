@@ -730,6 +730,8 @@
     }
   },
   "common": {
+    "library_navigation": "ライブラリナビゲーション",
+    "section_navigation": "セクションナビゲーション",
     "role": "ロール",
     "roles": {
       "admin": "管理者",

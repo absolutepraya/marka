@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "پیمایش کتابخانه",
+    "section_navigation": "پیمایش بخش‌ها",
     "url": "آدرس اینترنتی",
     "name": "نام",
     "email": "ایمیل",

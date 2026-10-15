@@ -824,7 +824,9 @@ export async function buildOfflineSyncSnapshot(
       ...ownedBookmarks.map((bookmark) => bookmark.id),
       ...sharedBookmarks.map((bookmark) => bookmark.id),
     ]);
-    const snapshotLists = lists.map((list) => list.asZBookmarkList());
+    const snapshotLists = lists.map((list) =>
+      list.asZBookmarkList({ includeVisibleParent: true }),
+    );
     const listIds = snapshotLists.map((list) => list.id);
     const bookmarkRows = await Promise.all(
       [...bookmarkIds].map(async (bookmarkId) =>

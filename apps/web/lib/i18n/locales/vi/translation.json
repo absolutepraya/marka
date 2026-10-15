@@ -736,6 +736,8 @@
     }
   },
   "common": {
+    "library_navigation": "Điều hướng thư viện",
+    "section_navigation": "Điều hướng các mục",
     "screenshot": "Ảnh chụp màn hình",
     "action": "Hành động",
     "url": "URL",

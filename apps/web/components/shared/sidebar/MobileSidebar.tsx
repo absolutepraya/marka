@@ -28,8 +28,8 @@ export default async function MobileSidebar({
         className="fixed inset-x-3 bottom-0 z-40 sm:hidden"
         aria-label={
           dashboardTabs
-            ? t("common.navigation", { defaultValue: "Library navigation" })
-            : t("common.navigation", { defaultValue: "Section navigation" })
+            ? t("common.library_navigation")
+            : t("common.section_navigation")
         }
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)" }}
       >

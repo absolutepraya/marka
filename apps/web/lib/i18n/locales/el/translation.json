@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Πλοήγηση βιβλιοθήκης",
+    "section_navigation": "Πλοήγηση ενοτήτων",
     "url": "URL",
     "name": "Όνομα",
     "email": "Email",

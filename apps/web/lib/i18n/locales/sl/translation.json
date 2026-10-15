@@ -753,6 +753,8 @@
     "attached_by_ai": "{{count}} s strani umetne inteligence"
   },
   "common": {
+    "library_navigation": "Krmarjenje po knjižnici",
+    "section_navigation": "Krmarjenje po razdelkih",
     "archive": "Arhiv",
     "role": "Vloga",
     "video": "Video",

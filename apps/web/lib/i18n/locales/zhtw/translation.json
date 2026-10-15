@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "書庫導覽",
+    "section_navigation": "區段導覽",
     "url": "網址",
     "name": "名稱",
     "email": "電子郵件",

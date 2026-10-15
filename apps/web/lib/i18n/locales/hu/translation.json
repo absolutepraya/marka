@@ -561,6 +561,8 @@
     }
   },
   "common": {
+    "library_navigation": "Könyvtári navigáció",
+    "section_navigation": "Szakaszok közötti navigáció",
     "archive": "Archívum",
     "bookmark_types": {
       "link": "Hivatkozás",

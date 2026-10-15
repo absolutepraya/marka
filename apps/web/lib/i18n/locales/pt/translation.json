@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Navegação da biblioteca",
+    "section_navigation": "Navegação das secções",
     "url": "URL",
     "roles": {
       "admin": "Admin",
