@@ -17,6 +17,14 @@ export async function generateMetadata(props: {
       title: `${list.name} | Marka`,
     };
   } catch (e) {
+    // Preview crawlers have no session. Preserve the root branding while the
+    // dashboard layout handles authentication, without exposing a list title.
+    if (
+      e instanceof TRPCError &&
+      (e.code === "UNAUTHORIZED" || e.code === "FORBIDDEN")
+    ) {
+      return {};
+    }
     if (e instanceof TRPCError && e.code === "NOT_FOUND") {
       notFound();
     }

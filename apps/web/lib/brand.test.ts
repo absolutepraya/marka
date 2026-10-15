@@ -8,6 +8,12 @@ describe("MARKA", () => {
       name: "Marka",
       description:
         "A self-hostable library for links, notes, images, and web pages.",
+      socialImage: {
+        url: "/brand/marka/marka-social.png",
+        width: 1200,
+        height: 630,
+        alt: "Marka, a self-hostable personal library",
+      },
       wordmark: {
         navy: "/brand/marka/marka-wordmark-navy.png",
         white: "/brand/marka/marka-wordmark-white.png",

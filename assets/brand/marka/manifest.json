@@ -67,6 +67,13 @@
       ]
     },
     {
+      "source": "assets/brand/marka/source/marka-social.png",
+      "preserveArtwork": true,
+      "outputs": [
+        { "path": "apps/web/public/brand/marka/marka-social.png", "width": 1200, "height": 630, "source": "assets/brand/marka/source/marka-social.png", "preserveArtwork": true, "copySource": true }
+      ]
+    },
+    {
       "source": "assets/brand/marka/source/marka-white-app-icon.png",
       "crop": { "left": 258, "top": 251, "width": 739, "height": 751 },
       "foreground": "#FFFFFF",

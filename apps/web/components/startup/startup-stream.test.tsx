@@ -53,7 +53,10 @@ vi.mock("@tanstack/react-query-devtools", () => ({
   ReactQueryDevtools: () => null,
 }));
 vi.mock("sonner", () => ({ Toaster: () => null }));
-vi.mock("@karakeep/shared/config", () => ({ clientConfig: {} }));
+vi.mock("@karakeep/shared/config", () => ({
+  clientConfig: {},
+  default: { publicUrl: "http://localhost:3000" },
+}));
 
 import RootLayout from "@/app/layout";
 import { getServerAuthSession } from "@/server/auth";
