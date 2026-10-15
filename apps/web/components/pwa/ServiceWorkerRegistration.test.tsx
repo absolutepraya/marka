@@ -330,27 +330,55 @@ describe("ServiceWorkerRegistration", () => {
     expect(go).not.toHaveBeenCalled();
   });
 
-  it("checks again when an existing document returns to the foreground", async () => {
-    renderRegistration();
+  it("does not recheck during navigation or when an existing document resumes", async () => {
+    const rendered = renderRegistration(<div>Home</div>);
 
     await waitFor(() => {
       expect(mocks.fetch).toHaveBeenCalledTimes(1);
     });
-    mocks.fetch.mockClear();
-
-    act(() => {
+    await act(async () => {
+      window.history.pushState({}, "", "/dashboard/lists");
+      window.dispatchEvent(new Event("popstate"));
+      rendered.rerender(
+        <ServiceWorkerRegistration>
+          <div>Lists</div>
+        </ServiceWorkerRegistration>,
+      );
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        value: "hidden",
+      });
       document.dispatchEvent(new Event("visibilitychange"));
-    });
-
-    await waitFor(() => {
-      expect(mocks.fetch).toHaveBeenCalledWith(
-        "/api/version",
-        expect.objectContaining({
-          cache: "no-store",
-          signal: expect.any(AbortSignal),
-        }),
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        value: "visible",
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(
+        new PageTransitionEvent("pageshow", { persisted: true }),
       );
     });
+
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.register).toHaveBeenCalledTimes(1);
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("checks again for a fresh app load", async () => {
+    mocks.fetch.mockImplementation(
+      async () => new Response(JSON.stringify({ version: "bbbbbbb" })),
+    );
+    const rendered = renderRegistration();
+    await waitFor(() => {
+      expect(mocks.register).toHaveBeenCalledWith("/sw.js?v=bbbbbbb", {
+        scope: "/",
+        updateViaCache: "none",
+      });
+    });
+    rendered.unmount();
+    renderRegistration();
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2));
   });
 
   it("cleans up an installing worker state handler when the provider unmounts", async () => {
@@ -385,20 +413,14 @@ describe("ServiceWorkerRegistration", () => {
   });
 
   it("does not mark a later deployed worker ready because the previous deploy is waiting", async () => {
-    const registrationModule = await import("./ServiceWorkerRegistration");
-    const usePwaLifecycle = (
-      registrationModule as typeof registrationModule & {
-        usePwaLifecycle: () => {
-          appBuild: string;
-          deployedBuild: string | null;
-          updateStatus: string;
-        };
-      }
-    ).usePwaLifecycle;
-
     function Probe() {
       const state = usePwaLifecycle();
-      return <span data-testid="update-status">{state.updateStatus}</span>;
+      return (
+        <>
+          <span data-testid="update-status">{state.updateStatus}</span>
+          <button onClick={() => void state.checkForUpdate()}>Check</button>
+        </>
+      );
     }
 
     const waitingBuildB = {
@@ -445,7 +467,7 @@ describe("ServiceWorkerRegistration", () => {
     });
 
     act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
+      screen.getByRole("button", { name: "Check" }).click();
     });
 
     await waitFor(() => {

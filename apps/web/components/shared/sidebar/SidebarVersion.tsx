@@ -43,7 +43,7 @@ export default function SidebarVersion({
       ? "development"
       : "unknown";
   const visibleVersion = serverRelease
-    ? `v${serverRelease} · ${serverCommitShort ?? visibleBuild}`
+    ? `v${serverRelease}`
     : (serverCommitShort ?? visibleBuild);
   const containerClassName =
     placement === "profile"
@@ -64,11 +64,11 @@ export default function SidebarVersion({
       : "truncate";
   const updateSlotClassName =
     placement === "profile"
-      ? "flex h-7 w-32 shrink-0 items-center justify-end gap-1 overflow-hidden font-mono text-[11px] leading-4 text-muted-foreground"
+      ? "flex h-7 max-w-32 shrink-0 items-center justify-end gap-1 overflow-hidden font-mono text-[11px] leading-4 text-muted-foreground"
       : "flex min-w-0 shrink-0 items-center justify-end gap-1 font-mono text-xs text-muted-foreground";
   const updateButtonClassName =
     placement === "profile"
-      ? "h-7 w-full min-w-0 gap-1.5 rounded-md px-2 py-1 font-mono text-[11px] leading-4 text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+      ? "h-auto min-w-0 gap-1 rounded-md px-1.5 py-1 font-mono text-[11px] leading-4 text-muted-foreground hover:bg-accent/70 hover:text-foreground"
       : "h-auto gap-1 px-1.5 py-1 font-mono text-xs text-muted-foreground";
   const updateStatusClassName =
     placement === "profile" ? "min-w-0 truncate" : undefined;

@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import ServiceWorkerRegistration from "./ServiceWorkerRegistration";
+import ServiceWorkerRegistration, {
+  usePwaLifecycle,
+} from "./ServiceWorkerRegistration";
 
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
@@ -60,7 +62,7 @@ describe("ServiceWorkerRegistration version timeout", () => {
     mocks.worker.postMessage.mockReset();
   });
 
-  it("aborts a hung version check and allows the next foreground check", async () => {
+  it("aborts a hung version check and allows a manual retry", async () => {
     const setTimeoutSpy = vi.spyOn(window, "setTimeout");
     mocks.fetch.mockImplementationOnce(
       (_input: RequestInfo | URL, init?: RequestInit) =>
@@ -73,7 +75,16 @@ describe("ServiceWorkerRegistration version timeout", () => {
         }),
     );
 
-    render(<ServiceWorkerRegistration />);
+    function Probe() {
+      const { checkForUpdate } = usePwaLifecycle();
+      return <button onClick={() => void checkForUpdate()}>Retry</button>;
+    }
+
+    render(
+      <ServiceWorkerRegistration>
+        <Probe />
+      </ServiceWorkerRegistration>,
+    );
 
     await waitFor(() => {
       expect(mocks.fetch).toHaveBeenCalledTimes(1);
@@ -94,7 +105,7 @@ describe("ServiceWorkerRegistration version timeout", () => {
     });
 
     act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
+      screen.getByRole("button", { name: "Retry" }).click();
     });
 
     await waitFor(() => {

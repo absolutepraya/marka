@@ -99,13 +99,17 @@ describe("SidebarVersion", () => {
     ).toBeNull();
   });
 
-  it("shows the release and short commit when release metadata is available", () => {
+  it("shows only the release while retaining the commit link", () => {
     mocks.clientConfig.serverRelease = "0.1.0";
     mocks.clientConfig.serverCommitShort = "aaaaaaa";
 
     const { container } = render(<SidebarVersion />);
 
-    expect(container.textContent).toContain("Build v0.1.0 · aaaaaaa");
+    expect(container.textContent).toContain("Build v0.1.0");
+    expect(container.textContent).not.toContain("aaaaaaa");
+    expect(container.querySelector("a")?.getAttribute("href")).toBe(
+      "https://github.com/absolutepraya/marka/commit/aaaaaaa",
+    );
   });
 
   it("shows an available update before its worker is ready", () => {
