@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Bibliotheksnavigation",
+    "section_navigation": "Bereichsnavigation",
     "url": "URL",
     "name": "Name",
     "email": "E-Mail",

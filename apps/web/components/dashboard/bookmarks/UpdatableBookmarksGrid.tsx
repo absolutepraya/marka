@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import BookmarksGridSkeleton from "@/components/dashboard/bookmarks/BookmarksGridSkeleton";
 import {
@@ -13,8 +19,9 @@ import {
   queryBookmarks,
 } from "@/lib/offline-library/repository";
 import type { OfflineBookmarkQuery } from "@/lib/offline-library/repository";
+import { useSavedQuery } from "@/lib/offline-library/use-saved-query";
 import { useSortOrderStore } from "@/lib/store/useSortOrderStore";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { liveQuery } from "dexie";
 
 import type {
@@ -31,9 +38,11 @@ import OfflineLibraryUnavailable from "./OfflineLibraryUnavailable";
 
 interface UpdatableBookmarksGridProps {
   query: Omit<ZGetBookmarksRequest, "sortOrder" | "includeContent">;
-  bookmarks: ZGetBookmarksResponse;
+  bookmarks?: ZGetBookmarksResponse;
   showEditorCard?: boolean;
   itemsPerPage?: number;
+  preferLocalData?: boolean;
+  allowLocalReplica?: boolean;
 }
 
 interface LocalBookmarkPagination {
@@ -282,27 +291,34 @@ function ServerBookmarksGrid({
   query,
   initialBookmarks,
   showEditorCard,
+  canReadLocal = false,
+  persistResults = false,
 }: Pick<UpdatableBookmarksGridProps, "query"> & {
-  initialBookmarks: ZGetBookmarksResponse;
+  initialBookmarks?: ZGetBookmarksResponse;
   showEditorCard: boolean;
+  canReadLocal?: boolean;
+  persistResults?: boolean;
 }) {
   const api = useTRPC();
+  const queryClient = useQueryClient();
   let sortOrder = useSortOrderStore((state) => state.sortOrder);
   if (sortOrder === "relevance") {
     // Relevance is not supported in the `getBookmarks` endpoint.
     sortOrder = "desc";
   }
 
-  const finalQuery = { ...query, sortOrder, includeContent: false };
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
-    useInfiniteQuery(
+  const queryOptions = useMemo(
+    () =>
       api.bookmarks.getBookmarks.infiniteQueryOptions(
-        { ...finalQuery, useCursorV2: true },
+        { ...query, sortOrder, includeContent: false, useCursorV2: true },
         {
-          initialData: () => ({
-            pages: [initialBookmarks],
-            pageParams: [query.cursor ?? null],
-          }),
+          initialData:
+            initialBookmarks && sortOrder === "desc"
+              ? () => ({
+                  pages: [initialBookmarks],
+                  pageParams: [query.cursor ?? null],
+                })
+              : undefined,
           initialCursor: null,
           getNextPageParam: (lastPage) => lastPage.nextCursor,
           refetchOnMount: true,
@@ -314,10 +330,50 @@ function ServerBookmarksGrid({
               : false,
         },
       ),
-    );
+    [api, query, sortOrder, initialBookmarks],
+  );
+  useSavedQuery(queryOptions.queryKey, { enabled: persistResults });
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, error } =
+    useInfiniteQuery(queryOptions);
+
   useEffect(() => {
-    refetch();
-  }, [sortOrder, refetch]);
+    if (!canReadLocal || queryClient.getQueryData(queryOptions.queryKey))
+      return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        // Ownership is verified by the provider. A complete snapshot is also
+        // required: an empty or partial first sync must not become initial data.
+        if (!(await isOfflineReplicaReady()) || cancelled) return;
+        const page = await queryBookmarks(toOfflineQuery(query, sortOrder));
+        if (cancelled) return;
+        queryClient.setQueryData<{
+          pages: ZGetBookmarksResponse[];
+          pageParams: (ZCursor | null)[];
+        }>(
+          queryOptions.queryKey,
+          (current) =>
+            current
+              ? undefined
+              : {
+                  pages: [
+                    { bookmarks: page.bookmarks, nextCursor: page.nextCursor },
+                  ],
+                  pageParams: [query.cursor ?? null],
+                },
+          { updatedAt: 0 },
+        );
+      } catch {
+        // IndexedDB can be unavailable or evicted. The server query remains
+        // active and supplies the screen without depending on local storage.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canReadLocal, queryClient, queryOptions.queryKey, query, sortOrder]);
+  if (error && !data) throw error;
+  if (!data) return <BookmarksGridSkeleton />;
 
   const serverBookmarks = data.pages.flatMap((page) => page.bookmarks);
 
@@ -336,6 +392,8 @@ export default function UpdatableBookmarksGrid({
   query,
   bookmarks: initialBookmarks,
   showEditorCard = false,
+  preferLocalData = false,
+  allowLocalReplica = true,
 }: UpdatableBookmarksGridProps) {
   const status = useOfflineLibraryStatus();
   const canReadOfflineReplica = useCanReadOfflineReplica();
@@ -358,6 +416,10 @@ export default function UpdatableBookmarksGrid({
       <ServerBookmarksGrid
         query={query}
         initialBookmarks={initialBookmarks}
+        canReadLocal={
+          preferLocalData && allowLocalReplica && canReadOfflineReplica
+        }
+        persistResults={preferLocalData && !allowLocalReplica}
         showEditorCard={showEditorCard}
       />
     );

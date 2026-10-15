@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Navegación da biblioteca",
+    "section_navigation": "Navegación das seccións",
     "action": "Acción",
     "roles": {
       "user": "Usuario",

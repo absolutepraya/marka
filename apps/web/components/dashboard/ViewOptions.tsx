@@ -7,7 +7,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { ButtonWithTooltip } from "@/components/ui/button";
+import { EditingButton } from "@/components/ui/editing-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -129,13 +129,14 @@ export default function ViewOptions() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <ButtonWithTooltip
+        <EditingButton
           tooltip={t("view_options.title")}
-          delayDuration={100}
+          aria-label={t("view_options.title")}
+          ignoreDemoMode
           variant="ghost"
         >
-          <Settings size={18} />
-        </ButtonWithTooltip>
+          <Settings size={16} />
+        </EditingButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56">
         <div className="px-2 py-1.5 text-sm font-semibold">

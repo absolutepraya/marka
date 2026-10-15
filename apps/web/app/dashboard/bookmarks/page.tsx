@@ -16,11 +16,13 @@ export default async function BookmarksPage() {
           title={t("common.home")}
           icon={<Home />}
           titleAction={<GlobalActions />}
+          className="flex-wrap"
         />
       }
       query={{ archived: false }}
       showDivider={true}
       showEditorCard={true}
+      deferInitialFetch
     />
   );
 }

@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Biblioteksnavigering",
+    "section_navigation": "Avsnittsnavigering",
     "url": "URL",
     "email": "Email",
     "password": "Lösenord",

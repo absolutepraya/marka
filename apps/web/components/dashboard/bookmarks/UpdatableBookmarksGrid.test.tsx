@@ -33,12 +33,13 @@ const mocks = vi.hoisted(() => ({
   countBookmarks: vi.fn(),
   isOfflineReplicaReady: vi.fn(),
   canReadOfflineReplica: true,
-  getBookmarks: vi.fn(),
+  getBookmarks: vi.fn(() => ({ queryKey: ["bookmarks"] })),
   liveQuerySubscribers: [] as {
     next: (value: unknown) => void;
     error: (reason: unknown) => void;
   }[],
   useInfiniteQuery: vi.fn(),
+  queryClient: { getQueryData: vi.fn(), setQueryData: vi.fn() },
 }));
 
 vi.mock("@/lib/offline-library/provider", () => ({
@@ -59,6 +60,7 @@ vi.mock("@/lib/store/useSortOrderStore", () => ({
 
 vi.mock("@tanstack/react-query", () => ({
   useInfiniteQuery: mocks.useInfiniteQuery,
+  useQueryClient: () => mocks.queryClient,
 }));
 
 vi.mock("dexie", () => ({
@@ -118,6 +120,10 @@ vi.mock("./BookmarksGrid", () => ({
     </div>
   ),
 }));
+vi.mock("@/lib/offline-library/use-saved-query", () => ({
+  useSavedQuery: vi.fn(),
+}));
+
 import UpdatableBookmarksGrid from "./UpdatableBookmarksGrid";
 
 const serverPage = {
@@ -137,6 +143,7 @@ afterEach(() => {
   mocks.isOfflineReplicaReady.mockReset();
   mocks.canReadOfflineReplica = true;
   mocks.getBookmarks.mockReset();
+  mocks.getBookmarks.mockReturnValue({ queryKey: ["bookmarks"] });
   mocks.liveQuerySubscribers.length = 0;
   mocks.useInfiniteQuery.mockReset();
   Object.defineProperty(navigator, "onLine", {
@@ -146,6 +153,37 @@ afterEach(() => {
 });
 
 describe("UpdatableBookmarksGrid", () => {
+  it("renders every cached page on tab return without forcing a refetch", () => {
+    mocks.status = { kind: "initializing" };
+    const refetch = vi.fn();
+    mocks.useInfiniteQuery.mockReturnValue({
+      data: {
+        pages: [
+          { bookmarks: [{ id: "first-page" }], nextCursor: "next" },
+          { bookmarks: [{ id: "second-page" }], nextCursor: null },
+        ],
+      },
+      refetch,
+    });
+    render(<UpdatableBookmarksGrid query={{ archived: false }} />);
+
+    expect(screen.getByText("first-page")).toBeTruthy();
+    expect(screen.getByText("second-page")).toBeTruthy();
+    expect(refetch).not.toHaveBeenCalled();
+    expect(mocks.getBookmarks).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ initialData: undefined }),
+    );
+  });
+
+  it("shows a skeleton on a cold online tab instead of an empty grid", () => {
+    mocks.status = { kind: "initializing" };
+    mocks.useInfiniteQuery.mockReturnValue({ data: undefined });
+    render(<UpdatableBookmarksGrid query={{ archived: false }} />);
+    expect(screen.getByText("Loading offline library")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
   it("renders the local replica while offline instead of calling getBookmarks", async () => {
     mocks.queryBookmarks.mockResolvedValue({
       bookmarks: [{ id: "cached-bookmark" }],

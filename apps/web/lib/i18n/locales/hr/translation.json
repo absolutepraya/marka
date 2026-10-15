@@ -175,6 +175,8 @@
     "list": "Popis"
   },
   "common": {
+    "library_navigation": "Navigacija bibliotekom",
+    "section_navigation": "Navigacija odjeljcima",
     "roles": {
       "admin": "Administrator",
       "user": "Korisnik"

@@ -3,7 +3,8 @@
 import { Fragment, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import GlobalActions from "@/components/dashboard/GlobalActions";
+import { EditingButton } from "@/components/ui/editing-button";
 import { useTranslation } from "@/lib/i18n/client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ChevronRight, MoreHorizontal, Sparkles } from "lucide-react";
@@ -63,9 +64,9 @@ export default function ListHeader({
   }
 
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 flex-1 items-start gap-4">
-        <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-muted text-4xl">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-1 basis-40 items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center text-4xl">
           {list.icon}
         </span>
         <div className="min-w-0 flex-1">
@@ -133,11 +134,12 @@ export default function ListHeader({
           </div>
         </div>
       </div>
-      <div className="flex shrink-0 items-center">
+      <div className="flex max-w-full flex-wrap items-center gap-1">
+        <GlobalActions />
         <ListOptions list={list}>
-          <Button variant="ghost">
+          <EditingButton tooltip={t("actions.more")} ignoreDemoMode>
             <MoreHorizontal />
-          </Button>
+          </EditingButton>
         </ListOptions>
       </div>
     </div>

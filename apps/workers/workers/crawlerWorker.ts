@@ -40,6 +40,10 @@ import {
   redactBrowserConnectionUrl,
 } from "../browserlessConnector";
 import { z } from "zod";
+import {
+  BrowserConnectionManager,
+  createBrowserContextWithAbort,
+} from "../browserConnectionManager";
 
 import type { ZCrawlLinkRequest } from "@karakeep/shared-server";
 import { db } from "@karakeep/db";
@@ -203,9 +207,16 @@ function getPlaywrightProxyConfig(
 }
 
 let globalBrowser: Browser | undefined;
+let browserShuttingDown = false;
 let globalBlocker: PlaywrightBlocker | undefined;
 let globalCookies: Cookie[] = [];
 const browserMutex = new Mutex();
+const reusableBrowser = new BrowserConnectionManager(
+  startBrowserInstance,
+  (error) => {
+    logger.warn(`[Crawler] Shared browser disconnect failed: ${error}`);
+  },
+);
 
 const activeContexts = new Map<
   string,
@@ -281,6 +292,7 @@ async function startBrowserInstance() {
     const connectionUrl = buildBrowserlessWebSocketUrl(
       serverConfig.crawler.browserlessUrl,
       serverConfig.crawler.browserlessToken,
+      serverConfig.crawler.browserReuseConnection,
     );
     logger.info(
       `[Crawler] Connecting to shared Browserless instance: ${redactBrowserConnectionUrl(connectionUrl)}`,
@@ -315,6 +327,7 @@ async function startBrowserInstance() {
 }
 
 async function launchBrowser() {
+  if (browserShuttingDown) return;
   globalBrowser = undefined;
   await browserMutex.runExclusive(async () => {
     const globalBrowserResult = await tryCatch(startBrowserInstance());
@@ -322,7 +335,7 @@ async function launchBrowser() {
       logger.error(
         `[Crawler] Failed to connect to the browser instance, will retry in 5 secs: ${globalBrowserResult.error.stack}`,
       );
-      if (exitAbortController.signal.aborted) {
+      if (exitAbortController.signal.aborted || browserShuttingDown) {
         logger.info("[Crawler] We're shutting down so won't retry.");
         return;
       }
@@ -331,9 +344,13 @@ async function launchBrowser() {
       }, 5000);
       return;
     }
+    if (browserShuttingDown) {
+      await globalBrowserResult.data?.close().catch(() => undefined);
+      return;
+    }
     globalBrowser = globalBrowserResult.data;
     globalBrowser?.on("disconnected", () => {
-      if (exitAbortController.signal.aborted) {
+      if (exitAbortController.signal.aborted || browserShuttingDown) {
         logger.info(
           "[Crawler] The Playwright browser got disconnected. But we're shutting down so won't restart it.",
         );
@@ -391,6 +408,14 @@ export class CrawlerWorker {
       })();
     }
     return CrawlerWorker.initPromise;
+  }
+
+  static async shutdown() {
+    browserShuttingDown = true;
+    await reusableBrowser.stop();
+    await globalBrowser?.close().catch((error: unknown) => {
+      logger.warn(`[Crawler] Browser shutdown failed: ${error}`);
+    });
   }
 
   static async build(queue: Queue<ZCrawlLinkRequest>) {
@@ -610,333 +635,422 @@ async function crawlPage(
         return browserlessCrawlPage(jobId, url, abortSignal, runProxy);
       }
 
+      let browserLease:
+        | Awaited<ReturnType<typeof reusableBrowser.acquire>>
+        | undefined;
       const browser = await withSpan(
         tracer,
         "crawlerWorker.crawlPage.getBrowserInstance",
         { attributes: { "job.id": jobId } },
         async () => {
           if (serverConfig.crawler.browserConnectOnDemand) {
+            if (serverConfig.crawler.browserReuseConnection) {
+              browserLease = await reusableBrowser.acquire(abortSignal);
+              setSpanAttributes({
+                "crawler.browser.reused": browserLease.reused,
+              });
+              return browserLease.browser;
+            }
             return startBrowserInstance();
           }
           return globalBrowser;
         },
       );
       if (!browser) {
+        browserLease?.release();
         return browserlessCrawlPage(jobId, url, abortSignal, runProxy);
       }
 
-      const proxyConfig = getPlaywrightProxyConfig(runProxy);
-      const isRunningInProxyContext =
-        proxyConfig !== undefined &&
-        !matchesNoProxy(url, proxyConfig.bypass?.split(",") ?? []);
-      const context = await withSpan(
-        tracer,
-        "crawlerWorker.crawlPage.createContext",
-        { attributes: { "job.id": jobId } },
-        async () =>
-          browser.newContext({
-            viewport: { width: 1440, height: 900 },
-            userAgent:
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            proxy: proxyConfig,
-            serviceWorkers: "block",
-          }),
-      );
-
-      activeContexts.set(jobId, { context, createdAt: Date.now() });
-      let page: Page | undefined;
       try {
-        if (globalCookies.length > 0) {
-          await context.addCookies(globalCookies);
-          logger.info(
-            `[Crawler][${jobId}] Cookies successfully loaded into browser context`,
-          );
-        }
-
-        page = await withSpan(
+        const proxyConfig = getPlaywrightProxyConfig(runProxy);
+        const isRunningInProxyContext =
+          proxyConfig !== undefined &&
+          !matchesNoProxy(url, proxyConfig.bypass?.split(",") ?? []);
+        const context = await withSpan(
           tracer,
-          "crawlerWorker.crawlPage.setupPage",
+          "crawlerWorker.crawlPage.createContext",
           { attributes: { "job.id": jobId } },
-          async () => {
-            const nextPage = await context.newPage();
-            let cdpSession: CDPSession | undefined;
-
-            try {
-              cdpSession = await context.newCDPSession(nextPage);
-              const continuePausedRequest = async (requestId: string) => {
-                await cdpSession
-                  ?.send("Fetch.continueRequest", { requestId })
-                  .catch(() => undefined);
-              };
-              const failPausedRequest = async (requestId: string) => {
-                await cdpSession
-                  ?.send("Fetch.failRequest", {
-                    requestId,
-                    errorReason: "BlockedByClient",
-                  })
-                  .catch(() => undefined);
-              };
-              cdpSession.on("Fetch.authRequired", async (event) => {
-                const authChallengeResponse =
-                  event.authChallenge.source === "Proxy" &&
-                  (proxyConfig?.username || proxyConfig?.password)
-                    ? {
-                        response: "ProvideCredentials" as const,
-                        username: proxyConfig.username ?? "",
-                        password: proxyConfig.password ?? "",
-                      }
-                    : { response: "Default" as const };
-                await cdpSession
-                  ?.send("Fetch.continueWithAuth", {
-                    requestId: event.requestId,
-                    authChallengeResponse,
-                  })
-                  .catch(() => undefined);
-              });
-              cdpSession.on("Fetch.requestPaused", async (event) => {
-                try {
-                  const status = event.responseStatusCode;
-                  if (!status || status < 300 || status >= 400) {
-                    await continuePausedRequest(event.requestId);
-                    return;
-                  }
-
-                  const location = getHeaderValue(
-                    event.responseHeaders,
-                    "location",
-                  );
-                  if (!location) {
-                    await continuePausedRequest(event.requestId);
-                    return;
-                  }
-
-                  const redirectUrl = new URL(
-                    location,
-                    event.request.url,
-                  ).toString();
-                  const redirectIsRunningInProxyContext =
-                    proxyConfig !== undefined &&
-                    !matchesNoProxy(
-                      redirectUrl,
-                      proxyConfig.bypass?.split(",") ?? [],
-                    );
-                  const validation = await validateUrl(
-                    redirectUrl,
-                    redirectIsRunningInProxyContext,
-                  );
-
-                  if (validation.ok) {
-                    await continuePausedRequest(event.requestId);
-                    return;
-                  }
-
-                  logger.warn(
-                    `[Crawler][${jobId}] Blocking redirect to disallowed URL "${redirectUrl}": ${validation.reason}`,
-                  );
-                  await failPausedRequest(event.requestId);
-                } catch (e) {
-                  logger.warn(
-                    `[Crawler][${jobId}] Blocking redirect after redirect guard failed: ${e}`,
-                  );
-                  await failPausedRequest(event.requestId);
-                }
-              });
-              await cdpSession.send("Fetch.enable", {
-                handleAuthRequests: true,
-                patterns: [
-                  { urlPattern: "*", requestStage: "Request" },
-                  { urlPattern: "*", requestStage: "Response" },
-                ],
-              });
-            } catch (e) {
-              logger.warn(
-                `[Crawler][${jobId}] Failed to install redirect guard: ${e}`,
-              );
-            }
-
-            if (globalBlocker) {
-              await globalBlocker.enableBlockingInPage(nextPage);
-            }
-
-            nextPage.on("dialog", (dialog) => {
-              dialog.dismiss().catch(() => undefined);
-            });
-
-            await nextPage.route("**/*", async (route) => {
-              if (abortSignal.aborted) {
-                await route.abort("aborted");
-                return;
-              }
-              const request = route.request();
-              const resourceType = request.resourceType();
-              if (
-                resourceType === "media" ||
-                request.headers()["content-type"]?.includes("video/") ||
-                request.headers()["content-type"]?.includes("audio/")
-              ) {
-                await route.abort("aborted");
-                return;
-              }
-
-              const requestUrl = request.url();
-              const requestIsRunningInProxyContext =
-                proxyConfig !== undefined &&
-                !matchesNoProxy(
-                  requestUrl,
-                  proxyConfig.bypass?.split(",") ?? [],
+          () =>
+            createBrowserContextWithAbort(
+              () =>
+                browser.newContext({
+                  viewport: { width: 1440, height: 900 },
+                  userAgent:
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                  proxy: proxyConfig,
+                  serviceWorkers: "block",
+                }),
+              abortSignal,
+              async (lateContext) => {
+                const entry = { context: lateContext, createdAt: Date.now() };
+                activeContexts.set(jobId, entry);
+                const closed = await raceWith(
+                  lateContext
+                    .close()
+                    .then(() => true)
+                    .catch(() => false),
+                  timeoutRace(CONTEXT_CLOSE_TIMEOUT_MS, () => false),
                 );
-              if (
-                requestUrl.startsWith("http://") ||
-                requestUrl.startsWith("https://")
-              ) {
-                const validation = await validateUrl(
-                  requestUrl,
-                  requestIsRunningInProxyContext,
-                );
-                if (!validation.ok) {
+                if (closed && activeContexts.get(jobId) === entry) {
+                  activeContexts.delete(jobId);
+                } else if (!closed) {
                   logger.warn(
-                    `[Crawler][${jobId}] Blocking sub-request to disallowed URL "${requestUrl}": ${validation.reason}`,
+                    `[Crawler][${jobId}] Late context cleanup failed or timed out; leaving in active set for reaper`,
                   );
-                  await route.abort("blockedbyclient");
-                  return;
                 }
-              }
-              await route.fallback();
-            });
-
-            abortSignal.addEventListener(
-              "abort",
-              () => {
-                cdpSession?.detach().catch(() => undefined);
-                nextPage
-                  .unrouteAll({ behavior: "ignoreErrors" })
-                  .catch(() => undefined);
               },
-              { once: true },
-            );
-
-            return nextPage;
-          },
-        );
-
-        const activePage = page;
-        const navigationValidation = await withSpan(
-          tracer,
-          "crawlerWorker.crawlPage.validateNavigationTarget",
-          {
-            attributes: {
-              "job.id": jobId,
-              "bookmark.url": url,
-              "bookmark.domain": getBookmarkDomain(url),
-            },
-          },
-          async () => validateUrl(url, isRunningInProxyContext),
-        );
-        if (!navigationValidation.ok) {
-          throw new Error(
-            `Disallowed navigation target "${truncateUrl(url)}": ${navigationValidation.reason}`,
-          );
-        }
-        const targetUrl = navigationValidation.url.toString();
-        logger.info(`[Crawler][${jobId}] Navigating to "${targetUrl}"`);
-        const response = await withSpan(
-          tracer,
-          "crawlerWorker.crawlPage.navigate",
-          {
-            attributes: {
-              "job.id": jobId,
-              "bookmark.url": targetUrl,
-              "bookmark.domain": getBookmarkDomain(targetUrl),
-            },
-          },
-          async () =>
-            raceWith(
-              activePage.goto(targetUrl, {
-                timeout: serverConfig.crawler.navigateTimeoutSec * 1000,
-                waitUntil: "domcontentloaded",
-              }),
-              abortRaceResolve(abortSignal, null),
             ),
-        );
-        setSpanAttributes({
-          "crawler.statusCode": response?.status() ?? 0,
+        ).catch(async (error: unknown) => {
+          browserLease?.retire();
+          if (serverConfig.crawler.browserConnectOnDemand && !browserLease) {
+            await browser.close().catch(() => undefined);
+          }
+          throw error;
         });
 
-        logger.info(
-          `[Crawler][${jobId}] Successfully navigated to "${targetUrl}". Waiting for the page to load ...`,
-        );
-        await withSpan(
-          tracer,
-          "crawlerWorker.crawlPage.waitForLoadState",
-          {
-            attributes: {
-              "job.id": jobId,
-              "bookmark.url": targetUrl,
-              "bookmark.domain": getBookmarkDomain(targetUrl),
-            },
-          },
-          async () => {
-            await raceWith<unknown>(
-              activePage
-                .waitForLoadState("networkidle", { timeout: 5000 })
-                .catch(() => ({})),
-              timeoutRace<unknown>(5000, () => undefined),
+        activeContexts.set(jobId, { context, createdAt: Date.now() });
+        let page: Page | undefined;
+        try {
+          if (globalCookies.length > 0) {
+            await raceWith(
+              context.addCookies(globalCookies),
               abortRace(abortSignal),
             );
-          },
-        );
-        abortSignal.throwIfAborted();
+            logger.info(
+              `[Crawler][${jobId}] Cookies successfully loaded into browser context`,
+            );
+          }
 
-        const htmlContent = await withSpan(
-          tracer,
-          "crawlerWorker.crawlPage.extractHtml",
-          { attributes: { "job.id": jobId } },
-          async () => {
-            const content = await activePage.content();
-            abortSignal.throwIfAborted();
-            return content;
-          },
-        );
+          const pageSetup = withSpan(
+            tracer,
+            "crawlerWorker.crawlPage.setupPage",
+            { attributes: { "job.id": jobId } },
+            async () => {
+              const nextPage = await context.newPage();
+              let cdpSession: CDPSession | undefined;
 
-        const officialUnfurlImageUrl = extractOfficialUnfurlImageUrl(
-          htmlContent,
-          activePage.url(),
-        );
-        let unfurlImage: DownloadedAsset | null = null;
-        if (officialUnfurlImageUrl) {
-          const unfurlAbortSignal = AbortSignal.any([
-            abortSignal,
-            AbortSignal.timeout(UNFURL_IMAGE_DOWNLOAD_TIMEOUT_MS),
-          ]);
-          unfurlImage = await downloadAndStoreImage(
-            officialUnfurlImageUrl,
-            userId,
-            jobId,
-            unfurlAbortSignal,
-            runProxy,
+              try {
+                cdpSession = await context.newCDPSession(nextPage);
+                const continuePausedRequest = async (requestId: string) => {
+                  await cdpSession
+                    ?.send("Fetch.continueRequest", { requestId })
+                    .catch(() => undefined);
+                };
+                const failPausedRequest = async (requestId: string) => {
+                  await cdpSession
+                    ?.send("Fetch.failRequest", {
+                      requestId,
+                      errorReason: "BlockedByClient",
+                    })
+                    .catch(() => undefined);
+                };
+                cdpSession.on("Fetch.authRequired", async (event) => {
+                  const authChallengeResponse =
+                    event.authChallenge.source === "Proxy" &&
+                    (proxyConfig?.username || proxyConfig?.password)
+                      ? {
+                          response: "ProvideCredentials" as const,
+                          username: proxyConfig.username ?? "",
+                          password: proxyConfig.password ?? "",
+                        }
+                      : { response: "Default" as const };
+                  await cdpSession
+                    ?.send("Fetch.continueWithAuth", {
+                      requestId: event.requestId,
+                      authChallengeResponse,
+                    })
+                    .catch(() => undefined);
+                });
+                cdpSession.on("Fetch.requestPaused", async (event) => {
+                  try {
+                    const status = event.responseStatusCode;
+                    if (!status || status < 300 || status >= 400) {
+                      await continuePausedRequest(event.requestId);
+                      return;
+                    }
+
+                    const location = getHeaderValue(
+                      event.responseHeaders,
+                      "location",
+                    );
+                    if (!location) {
+                      await continuePausedRequest(event.requestId);
+                      return;
+                    }
+
+                    const redirectUrl = new URL(
+                      location,
+                      event.request.url,
+                    ).toString();
+                    const redirectIsRunningInProxyContext =
+                      proxyConfig !== undefined &&
+                      !matchesNoProxy(
+                        redirectUrl,
+                        proxyConfig.bypass?.split(",") ?? [],
+                      );
+                    const validation = await validateUrl(
+                      redirectUrl,
+                      redirectIsRunningInProxyContext,
+                    );
+
+                    if (validation.ok) {
+                      await continuePausedRequest(event.requestId);
+                      return;
+                    }
+
+                    logger.warn(
+                      `[Crawler][${jobId}] Blocking redirect to disallowed URL "${redirectUrl}": ${validation.reason}`,
+                    );
+                    await failPausedRequest(event.requestId);
+                  } catch (e) {
+                    logger.warn(
+                      `[Crawler][${jobId}] Blocking redirect after redirect guard failed: ${e}`,
+                    );
+                    await failPausedRequest(event.requestId);
+                  }
+                });
+                await cdpSession.send("Fetch.enable", {
+                  handleAuthRequests: true,
+                  patterns: [
+                    { urlPattern: "*", requestStage: "Request" },
+                    { urlPattern: "*", requestStage: "Response" },
+                  ],
+                });
+              } catch (e) {
+                logger.warn(
+                  `[Crawler][${jobId}] Failed to install redirect guard: ${e}`,
+                );
+              }
+
+              if (globalBlocker) {
+                await globalBlocker.enableBlockingInPage(nextPage);
+              }
+
+              nextPage.on("dialog", (dialog) => {
+                dialog.dismiss().catch(() => undefined);
+              });
+
+              await nextPage.route("**/*", async (route) => {
+                if (abortSignal.aborted) {
+                  await route.abort("aborted");
+                  return;
+                }
+                const request = route.request();
+                const resourceType = request.resourceType();
+                if (
+                  resourceType === "media" ||
+                  request.headers()["content-type"]?.includes("video/") ||
+                  request.headers()["content-type"]?.includes("audio/")
+                ) {
+                  await route.abort("aborted");
+                  return;
+                }
+
+                const requestUrl = request.url();
+                const requestIsRunningInProxyContext =
+                  proxyConfig !== undefined &&
+                  !matchesNoProxy(
+                    requestUrl,
+                    proxyConfig.bypass?.split(",") ?? [],
+                  );
+                if (
+                  requestUrl.startsWith("http://") ||
+                  requestUrl.startsWith("https://")
+                ) {
+                  const validation = await validateUrl(
+                    requestUrl,
+                    requestIsRunningInProxyContext,
+                  );
+                  if (!validation.ok) {
+                    logger.warn(
+                      `[Crawler][${jobId}] Blocking sub-request to disallowed URL "${requestUrl}": ${validation.reason}`,
+                    );
+                    await route.abort("blockedbyclient");
+                    return;
+                  }
+                }
+                await route.fallback();
+              });
+
+              abortSignal.addEventListener(
+                "abort",
+                () => {
+                  cdpSession?.detach().catch(() => undefined);
+                  nextPage
+                    .unrouteAll({ behavior: "ignoreErrors" })
+                    .catch(() => undefined);
+                },
+                { once: true },
+              );
+
+              return nextPage;
+            },
+          );
+
+          page = await raceWith(pageSetup, abortRace(abortSignal));
+
+          const activePage = page;
+          const navigationValidation = await withSpan(
+            tracer,
+            "crawlerWorker.crawlPage.validateNavigationTarget",
+            {
+              attributes: {
+                "job.id": jobId,
+                "bookmark.url": url,
+                "bookmark.domain": getBookmarkDomain(url),
+              },
+            },
+            async () => validateUrl(url, isRunningInProxyContext),
+          );
+          if (!navigationValidation.ok) {
+            throw new Error(
+              `Disallowed navigation target "${truncateUrl(url)}": ${navigationValidation.reason}`,
+            );
+          }
+          const targetUrl = navigationValidation.url.toString();
+          logger.info(`[Crawler][${jobId}] Navigating to "${targetUrl}"`);
+          const response = await withSpan(
+            tracer,
+            "crawlerWorker.crawlPage.navigate",
+            {
+              attributes: {
+                "job.id": jobId,
+                "bookmark.url": targetUrl,
+                "bookmark.domain": getBookmarkDomain(targetUrl),
+              },
+            },
+            async () =>
+              raceWith(
+                activePage.goto(targetUrl, {
+                  timeout: serverConfig.crawler.navigateTimeoutSec * 1000,
+                  waitUntil: "domcontentloaded",
+                }),
+                abortRaceResolve(abortSignal, null),
+              ),
+          );
+          setSpanAttributes({
+            "crawler.statusCode": response?.status() ?? 0,
+          });
+
+          logger.info(
+            `[Crawler][${jobId}] Successfully navigated to "${targetUrl}". Waiting for the page to load ...`,
+          );
+          await withSpan(
+            tracer,
+            "crawlerWorker.crawlPage.waitForLoadState",
+            {
+              attributes: {
+                "job.id": jobId,
+                "bookmark.url": targetUrl,
+                "bookmark.domain": getBookmarkDomain(targetUrl),
+              },
+            },
+            async () => {
+              await raceWith<unknown>(
+                activePage
+                  .waitForLoadState("networkidle", { timeout: 5000 })
+                  .catch(() => ({})),
+                timeoutRace<unknown>(5000, () => undefined),
+                abortRace(abortSignal),
+              );
+            },
           );
           abortSignal.throwIfAborted();
-        }
 
-        const screenshotPromise: Promise<Buffer | undefined> =
-          serverConfig.crawler.storeScreenshot && !unfurlImage
-            ? withSpan(
-                tracer,
-                "crawlerWorker.crawlPage.captureScreenshot",
-                {
-                  attributes: {
-                    "job.id": jobId,
-                    "asset.type": "image",
+          const htmlContent = await withSpan(
+            tracer,
+            "crawlerWorker.crawlPage.extractHtml",
+            { attributes: { "job.id": jobId } },
+            async () => {
+              const content = await activePage.content();
+              abortSignal.throwIfAborted();
+              return content;
+            },
+          );
+
+          const officialUnfurlImageUrl = extractOfficialUnfurlImageUrl(
+            htmlContent,
+            activePage.url(),
+          );
+          let unfurlImage: DownloadedAsset | null = null;
+          if (officialUnfurlImageUrl) {
+            const unfurlAbortSignal = AbortSignal.any([
+              abortSignal,
+              AbortSignal.timeout(UNFURL_IMAGE_DOWNLOAD_TIMEOUT_MS),
+            ]);
+            unfurlImage = await downloadAndStoreImage(
+              officialUnfurlImageUrl,
+              userId,
+              jobId,
+              unfurlAbortSignal,
+              runProxy,
+            );
+            abortSignal.throwIfAborted();
+          }
+
+          const screenshotPromise: Promise<Buffer | undefined> =
+            serverConfig.crawler.storeScreenshot && !unfurlImage
+              ? withSpan(
+                  tracer,
+                  "crawlerWorker.crawlPage.captureScreenshot",
+                  {
+                    attributes: {
+                      "job.id": jobId,
+                      "asset.type": "image",
+                    },
                   },
-                },
-                async () => {
-                  const { data: screenshotData, error: screenshotError } =
-                    await tryCatch(
+                  async () => {
+                    const { data: screenshotData, error: screenshotError } =
+                      await tryCatch(
+                        raceWith<Buffer>(
+                          activePage.screenshot({
+                            type: "jpeg",
+                            fullPage: serverConfig.crawler.fullPageScreenshot,
+                            quality: 80,
+                          }),
+                          timeoutRace<Buffer>(
+                            serverConfig.crawler.screenshotTimeoutSec * 1000,
+                            () => {
+                              throw new Error(
+                                "TIMED_OUT, consider increasing CRAWLER_SCREENSHOT_TIMEOUT_SEC",
+                              );
+                            },
+                          ),
+                          abortRaceResolve(abortSignal, Buffer.from("")),
+                        ),
+                      );
+                    abortSignal.throwIfAborted();
+                    if (screenshotError) {
+                      logger.warn(
+                        `[Crawler][${jobId}] Failed to capture the screenshot. Reason: ${screenshotError}`,
+                      );
+                      return undefined;
+                    }
+                    setSpanAttributes({
+                      "asset.size": screenshotData.byteLength,
+                    });
+                    return screenshotData;
+                  },
+                )
+              : Promise.resolve(undefined);
+
+          const pdfPromise: Promise<Buffer | undefined> =
+            serverConfig.crawler.storePdf || forceStorePdf
+              ? withSpan(
+                  tracer,
+                  "crawlerWorker.crawlPage.capturePdf",
+                  {
+                    attributes: {
+                      "job.id": jobId,
+                      "asset.type": "pdf",
+                    },
+                  },
+                  async () => {
+                    const { data: pdfData, error: pdfError } = await tryCatch(
                       raceWith<Buffer>(
-                        activePage.screenshot({
-                          type: "jpeg",
-                          fullPage: serverConfig.crawler.fullPageScreenshot,
-                          quality: 80,
+                        activePage.pdf({
+                          format: "A4",
+                          printBackground: true,
                         }),
                         timeoutRace<Buffer>(
                           serverConfig.crawler.screenshotTimeoutSec * 1000,
@@ -949,174 +1063,137 @@ async function crawlPage(
                         abortRaceResolve(abortSignal, Buffer.from("")),
                       ),
                     );
-                  abortSignal.throwIfAborted();
-                  if (screenshotError) {
-                    logger.warn(
-                      `[Crawler][${jobId}] Failed to capture the screenshot. Reason: ${screenshotError}`,
-                    );
-                    return undefined;
-                  }
-                  setSpanAttributes({
-                    "asset.size": screenshotData.byteLength,
-                  });
-                  return screenshotData;
-                },
-              )
-            : Promise.resolve(undefined);
-
-        const pdfPromise: Promise<Buffer | undefined> =
-          serverConfig.crawler.storePdf || forceStorePdf
-            ? withSpan(
-                tracer,
-                "crawlerWorker.crawlPage.capturePdf",
-                {
-                  attributes: {
-                    "job.id": jobId,
-                    "asset.type": "pdf",
+                    abortSignal.throwIfAborted();
+                    if (pdfError) {
+                      logger.warn(
+                        `[Crawler][${jobId}] Failed to capture the PDF. Reason: ${pdfError}`,
+                      );
+                      return undefined;
+                    }
+                    setSpanAttributes({
+                      "asset.size": pdfData.byteLength,
+                    });
+                    return pdfData;
                   },
-                },
-                async () => {
-                  const { data: pdfData, error: pdfError } = await tryCatch(
-                    raceWith<Buffer>(
-                      activePage.pdf({
-                        format: "A4",
-                        printBackground: true,
-                      }),
-                      timeoutRace<Buffer>(
-                        serverConfig.crawler.screenshotTimeoutSec * 1000,
-                        () => {
-                          throw new Error(
-                            "TIMED_OUT, consider increasing CRAWLER_SCREENSHOT_TIMEOUT_SEC",
-                          );
-                        },
-                      ),
-                      abortRaceResolve(abortSignal, Buffer.from("")),
-                    ),
-                  );
-                  abortSignal.throwIfAborted();
-                  if (pdfError) {
-                    logger.warn(
-                      `[Crawler][${jobId}] Failed to capture the PDF. Reason: ${pdfError}`,
-                    );
-                    return undefined;
-                  }
-                  setSpanAttributes({
-                    "asset.size": pdfData.byteLength,
-                  });
-                  return pdfData;
-                },
-              )
-            : Promise.resolve(undefined);
+                )
+              : Promise.resolve(undefined);
 
-        const [screenshot, pdf] = await Promise.all([
-          screenshotPromise,
-          pdfPromise,
-        ] as const);
-        abortSignal.throwIfAborted();
+          const [screenshot, pdf] = await Promise.all([
+            screenshotPromise,
+            pdfPromise,
+          ] as const);
+          abortSignal.throwIfAborted();
 
-        setSpanAttributes({
-          "crawler.thumbnail.unfurlFound": !!officialUnfurlImageUrl,
-          "crawler.thumbnail.unfurlStored": !!unfurlImage,
-          "crawler.thumbnail.screenshotFallback": !!screenshot,
-        });
+          setSpanAttributes({
+            "crawler.thumbnail.unfurlFound": !!officialUnfurlImageUrl,
+            "crawler.thumbnail.unfurlStored": !!unfurlImage,
+            "crawler.thumbnail.screenshotFallback": !!screenshot,
+          });
 
-        return {
-          htmlContent,
-          statusCode: response?.status() ?? 0,
-          screenshot,
-          pdf,
-          url: activePage.url(),
-          officialUnfurlImageUrl,
-          officialUnfurlImageAttempted: officialUnfurlImageUrl !== null,
-          unfurlImage,
-        };
-      } finally {
-        await withSpan(
-          tracer,
-          "crawlerWorker.crawlPage.cleanup",
-          {
-            attributes: {
-              "job.id": jobId,
-              "crawler.cleanup.hasPage": !!page,
+          return {
+            htmlContent,
+            statusCode: response?.status() ?? 0,
+            screenshot,
+            pdf,
+            url: activePage.url(),
+            officialUnfurlImageUrl,
+            officialUnfurlImageAttempted: officialUnfurlImageUrl !== null,
+            unfurlImage,
+          };
+        } finally {
+          await withSpan(
+            tracer,
+            "crawlerWorker.crawlPage.cleanup",
+            {
+              attributes: {
+                "job.id": jobId,
+                "crawler.cleanup.hasPage": !!page,
+              },
             },
-          },
-          async () => {
-            if (page) {
-              const pageToClose = page;
-              const pageClosed = await withSpan(
+            async () => {
+              if (page) {
+                const pageToClose = page;
+                const pageClosed = await withSpan(
+                  tracer,
+                  "crawlerWorker.crawlPage.cleanup.closePage",
+                  { attributes: { "job.id": jobId } },
+                  async () =>
+                    raceWith<boolean>(
+                      pageToClose
+                        .close()
+                        .then(() => true)
+                        .catch((e: unknown) => {
+                          logger.warn(
+                            `[Crawler][${jobId}] page.close() failed: ${e}`,
+                          );
+                          return true;
+                        }),
+                      timeoutRace<boolean>(PAGE_CLOSE_TIMEOUT_MS, () => false),
+                    ),
+                );
+                setSpanAttributes({ "crawler.cleanup.pageClosed": pageClosed });
+                if (!pageClosed) {
+                  logger.warn(`[Crawler][${jobId}] page.close() timed out`);
+                }
+              }
+
+              const contextClosed = await withSpan(
                 tracer,
-                "crawlerWorker.crawlPage.cleanup.closePage",
+                "crawlerWorker.crawlPage.cleanup.closeContext",
                 { attributes: { "job.id": jobId } },
                 async () =>
                   raceWith<boolean>(
-                    pageToClose
+                    context
                       .close()
                       .then(() => true)
                       .catch((e: unknown) => {
                         logger.warn(
-                          `[Crawler][${jobId}] page.close() failed: ${e}`,
+                          `[Crawler][${jobId}] context.close() failed: ${e}`,
                         );
-                        return true;
+                        return !browser.isConnected();
                       }),
-                    timeoutRace<boolean>(PAGE_CLOSE_TIMEOUT_MS, () => false),
+                    timeoutRace<boolean>(CONTEXT_CLOSE_TIMEOUT_MS, () => false),
                   ),
               );
-              setSpanAttributes({ "crawler.cleanup.pageClosed": pageClosed });
-              if (!pageClosed) {
-                logger.warn(`[Crawler][${jobId}] page.close() timed out`);
+              setSpanAttributes({
+                "crawler.cleanup.contextClosed": contextClosed,
+              });
+
+              if (contextClosed) {
+                activeContexts.delete(jobId);
+              } else {
+                browserLease?.retire();
+                logger.warn(
+                  `[Crawler][${jobId}] context.close() timed out; leaving in active set for reaper`,
+                );
               }
-            }
 
-            const contextClosed = await withSpan(
-              tracer,
-              "crawlerWorker.crawlPage.cleanup.closeContext",
-              { attributes: { "job.id": jobId } },
-              async () =>
-                raceWith<boolean>(
-                  context
-                    .close()
-                    .then(() => true)
-                    .catch((e: unknown) => {
-                      logger.warn(
-                        `[Crawler][${jobId}] context.close() failed: ${e}`,
-                      );
-                      return true;
-                    }),
-                  timeoutRace<boolean>(CONTEXT_CLOSE_TIMEOUT_MS, () => false),
-                ),
-            );
-            setSpanAttributes({
-              "crawler.cleanup.contextClosed": contextClosed,
-            });
-
-            if (contextClosed) {
-              activeContexts.delete(jobId);
-            } else {
-              logger.warn(
-                `[Crawler][${jobId}] context.close() timed out; leaving in active set for reaper`,
-              );
-            }
-
-            if (serverConfig.crawler.browserConnectOnDemand) {
-              await withSpan(
-                tracer,
-                "crawlerWorker.crawlPage.cleanup.closeBrowser",
-                { attributes: { "job.id": jobId } },
-                async () =>
-                  browser
-                    .close()
-                    .then(() => {
-                      activeContexts.delete(jobId);
-                    })
-                    .catch((e: unknown) => {
-                      logger.warn(
-                        `[Crawler][${jobId}] browser.close() failed: ${e}`,
-                      );
-                    }),
-              );
-            }
-          },
-        );
+              if (
+                serverConfig.crawler.browserConnectOnDemand &&
+                !browserLease
+              ) {
+                await withSpan(
+                  tracer,
+                  "crawlerWorker.crawlPage.cleanup.closeBrowser",
+                  { attributes: { "job.id": jobId } },
+                  async () =>
+                    browser
+                      .close()
+                      .then(() => {
+                        activeContexts.delete(jobId);
+                      })
+                      .catch((e: unknown) => {
+                        logger.warn(
+                          `[Crawler][${jobId}] browser.close() failed: ${e}`,
+                        );
+                      }),
+                );
+              }
+            },
+          );
+        }
+      } finally {
+        browserLease?.release();
       }
     },
   );

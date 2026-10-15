@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Навигация по библиотеке",
+    "section_navigation": "Навигация по разделам",
     "roles": {
       "user": "Пользователь",
       "admin": "Администратор"

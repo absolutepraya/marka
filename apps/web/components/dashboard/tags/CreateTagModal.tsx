@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
+import { EditingButton } from "@/components/ui/editing-button";
 import {
   Dialog,
   DialogClose,
@@ -90,10 +91,9 @@ export function CreateTagModal() {
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" className="bg-background px-3">
-          <Plus className="size-4 sm:mr-2" />
-          <span className="hidden sm:inline">{t("tags.create_tag")}</span>
-        </Button>
+        <EditingButton tooltip={t("tags.create_tag")} ignoreDemoMode>
+          <Plus />
+        </EditingButton>
       </DialogTrigger>
       <ResponsiveDialogContent>
         <Form {...form}>

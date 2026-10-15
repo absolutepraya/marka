@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Kütüphane gezintisi",
+    "section_navigation": "Bölüm gezintisi",
     "url": "URL",
     "name": "İsim",
     "email": "E-posta",

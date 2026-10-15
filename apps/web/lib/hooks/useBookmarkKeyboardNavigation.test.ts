@@ -80,6 +80,10 @@ vi.mock("@karakeep/shared-react/hooks/bookmarks", () => ({
     mutateAsync: mocks.recrawlMutateAsync,
     isPending: false,
   }),
+  useRefreshBookmark: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock("@karakeep/shared-react/hooks/lists", () => ({

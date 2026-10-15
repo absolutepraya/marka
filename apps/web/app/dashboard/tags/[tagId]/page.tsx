@@ -52,6 +52,7 @@ export default async function TagPage(props: {
     <Bookmarks
       header={<TagHeader initialData={tag} />}
       showDivider={true}
+      deferInitialFetch
       query={{
         tagId: tag.id,
         archived: !includeArchived ? false : undefined,

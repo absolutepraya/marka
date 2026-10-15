@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense, useEffect } from "react";
+import GlobalActions from "@/components/dashboard/GlobalActions";
 import BookmarksGrid from "@/components/dashboard/bookmarks/BookmarksGrid";
 import BookmarksGridSkeleton from "@/components/dashboard/bookmarks/BookmarksGridSkeleton";
 import {
@@ -88,7 +89,14 @@ function SearchComp() {
     return () => setInSearchPage(false);
   }, [setInSearchPage]);
 
-  return <SearchResults />;
+  return (
+    <>
+      <div className="mb-3 flex justify-end">
+        <GlobalActions />
+      </div>
+      <SearchResults />
+    </>
+  );
 }
 
 export default function SearchPage() {

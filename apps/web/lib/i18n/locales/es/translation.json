@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Navegación de la biblioteca",
+    "section_navigation": "Navegación por secciones",
     "tags": "Etiquetas",
     "roles": {
       "user": "Usuario",

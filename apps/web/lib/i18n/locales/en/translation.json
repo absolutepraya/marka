@@ -8,6 +8,8 @@
     "noScript": "Enable JavaScript to open Marka, then reload this page."
   },
   "common": {
+    "library_navigation": "Library navigation",
+    "section_navigation": "Section navigation",
     "default": "Default",
     "id": "ID",
     "url": "URL",

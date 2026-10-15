@@ -1,5 +1,7 @@
 {
   "common": {
+    "library_navigation": "Bibliotheeknavigatie",
+    "section_navigation": "Sectienavigatie",
     "created_at": "Gemaakt op",
     "archive": "Archiveer",
     "url": "URL",

@@ -48,6 +48,33 @@ function listEvents(
 }
 
 describe("recursive shared-list offline sync", () => {
+  test<CustomTestContext>("snapshots preserve visible shared-list parents without exposing private ancestors", async ({
+    apiCallers,
+  }) => {
+    const owner = apiCallers[0];
+    const collaborator = apiCallers[1];
+    const { parent, child, grandchild } = await createNestedLists(owner);
+    const { invitationId } = await inviteRecursively(
+      owner,
+      collaborator,
+      child.id,
+    );
+    await collaborator.lists.acceptInvitation({ invitationId });
+
+    const snapshot = await collaborator.offlineSync.snapshot();
+    const live = await collaborator.lists.list();
+    expect(snapshot.lists).toEqual(expect.arrayContaining(live.lists));
+    expect(snapshot.lists).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: parent.id })]),
+    );
+    expect(snapshot.lists).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: child.id, parentId: null }),
+        expect.objectContaining({ id: grandchild.id, parentId: child.id }),
+      ]),
+    );
+  });
+
   test<CustomTestContext>("accepting a recursive invitation creates every inherited list offline", async ({
     apiCallers,
   }) => {
