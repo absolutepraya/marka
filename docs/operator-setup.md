@@ -142,6 +142,24 @@ This uses Node 24.18.1 on Debian, separate Linux dependency/data volumes, the sa
 
 If an agent runner terminates detached descendants when a command exits, run the foreground launcher inside a persistent terminal or tmux session. If `next dev` crashes with a stale Turbopack/instrumentation issue, clear `apps/web/.next` and restart. Infra helpers refuse occupied ports belonging to unknown services.
 
+### Validate browser connection reuse locally
+
+With the shared renderer idle and no builds running in parallel, run:
+
+```bash
+pnpm dev:infra:up
+pnpm dev:test:browserless
+pnpm dev:test:browserless --with-baseline
+```
+
+The opt-in suite uses only `marka-dev-browserless`, synthetic routed pages, and its private local token. It requires no production credentials and does not change worker settings or create bookmarks. The wrapper redacts the local token from test output. Ordinary worker tests skip this suite.
+
+Each phase runs 24 jobs and creates a fresh isolated context per job. One job deliberately fails and another navigation deliberately times out before recovering. Reuse phases cover concurrency 1, 2, and 4, verify a single connection per phase and no leftover job contexts, then exercise a lease beyond Browserless's 60-second session default, canceled context reclamation, server-side disconnect/reconnect, the 30-second idle disconnect, and shutdown.
+
+`--with-baseline` adds a matched concurrency-1 phase with reuse off. The output reports connection counts, aggregate acquisition wait, median acquisition wait, job durations, native test-process RSS changes, and sampled renderer memory peaks. These synthetic jobs isolate connection/context overhead and do not represent full page captures or proxy latency. Sampled peaks can miss brief spikes, and shared-renderer activity can affect measurements.
+
+The crawler's five-second connection deadline is retained. On Apple Silicon, multiple separate emulated browser sessions can exhaust the local renderer's 1 GiB cap and miss that deadline; a failed baseline is a failed comparison, not evidence to enable production reuse. For throughput/capacity decisions, repeat against an isolated Linux deployment on representative hardware. Keep production reuse disabled until its separately approved validation and rollout. See the [local validation record](validation/browserless-reuse.md) for measured results and failed comparisons.
+
 ### Verify the offline iPhone PWA
 
 1. Open Marka in Safari on an iPhone and use **Add to Home Screen**.

@@ -212,6 +212,7 @@ Standard commands:
 - `pnpm test`
 
 Additional tooling used in this repository:
+- `pnpm dev:test:browserless` - opt-in local Browserless reuse, isolation, cancellation, reconnect, lifetime, and cleanup validation; `--with-baseline` adds a sequential comparison
 - `pnpm knip` - unused files / deps / exports
 - `pnpm doctor` - React health scan via react.doctor
 - `pnpm doctor:staged` - staged-file React scan

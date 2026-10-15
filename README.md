@@ -119,6 +119,8 @@ pnpm dev:start
 
 `pnpm dev:start` runs this worktree's web and workers with local Browserless at `127.0.0.1:9251` and Meilisearch at `127.0.0.1:7700`. The renderer image matches the personal production renderer. Defaults are `WORKER_PROFILE=screenshot-first`, `CRAWLER_NUM_WORKERS=2`, and on-demand browser connections. Set `BROWSER_REUSE_CONNECTION=true` to test reuse locally. Startup waits for web health and worker readiness. Each worktree keeps separate SQLite/assets, web/worker ports, and search indexes.
 
+Use `pnpm dev:test:browserless` for opt-in lifecycle validation against the local renderer, or add `--with-baseline` for a matched sequential connection comparison.
+
 Native development uses macOS workers with hot reload. It reproduces the crawler connection path, but does not establish Linux binary or VPS memory parity. See [operator setup](docs/operator-setup.md) for the isolated Linux development stack and optional integrations.
 
 The repository is supported by [`wt`](https://github.com/absolutepraya/wt):
