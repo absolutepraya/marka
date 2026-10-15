@@ -44,7 +44,7 @@ import { getServerAuthSession } from "@/server/auth";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "sonner";
 
-import { clientConfig } from "@karakeep/shared/config";
+import serverConfig, { clientConfig } from "@karakeep/shared/config";
 
 // Inter + JetBrains Mono are variable fonts, so we load the full weight range
 // (no `weight` needed). Theme preset fonts; emoji stays in the fallback chain.
@@ -255,9 +255,23 @@ const readerFontVariables = [
   .join(" ");
 
 export const metadata: Metadata = {
+  metadataBase: new URL(serverConfig.publicUrl),
   title: MARKA.name,
   applicationName: MARKA.name,
   description: MARKA.description,
+  openGraph: {
+    type: "website",
+    siteName: MARKA.name,
+    title: MARKA.name,
+    description: MARKA.description,
+    images: [MARKA.socialImage],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: MARKA.name,
+    description: MARKA.description,
+    images: [MARKA.socialImage],
+  },
   appleWebApp: {
     capable: true,
     title: MARKA.name,

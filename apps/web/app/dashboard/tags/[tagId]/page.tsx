@@ -15,6 +15,13 @@ export async function generateMetadata(props: {
       title: `${tag.name} | Marka`,
     };
   } catch (e) {
+    // Keep the inherited preview when the tag title is not accessible.
+    if (
+      e instanceof TRPCError &&
+      (e.code === "UNAUTHORIZED" || e.code === "FORBIDDEN")
+    ) {
+      return {};
+    }
     if (e instanceof TRPCError && e.code === "NOT_FOUND") {
       notFound();
     }
