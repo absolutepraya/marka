@@ -139,13 +139,13 @@ On provider mount:
 
 A worker that becomes waiting because of step 6 is not force-activated during the same document. It remains ready for the next safe handoff.
 
-### Foreground check
+### Checks after startup
 
-When `document.visibilityState` becomes `visible`, perform a fresh deployed-build check.
+Automatically check once on a fresh document load, including a reload, new tab, or cold installed-PWA launch. Client-side navigation, returning to an existing tab, and resuming an already open PWA do not initiate another check.
 
-If the foregrounded document discovers a newer build, install it in the background but do not activate it in that document.
+Further checks are user initiated through the version control. A newly discovered build installs in the background and remains ready for manual activation or a later safe load.
 
-Repeated foreground checks should be deduplicated while a previous check or installation for the same target build is still in progress.
+Deduplicate manual checks while a previous check is still in progress.
 
 ### Natural activation after full close
 
@@ -302,7 +302,8 @@ Add or update focused tests covering:
 
 - registration with the current app build;
 - no-store deployed-version fetch on initial load;
-- no-store deployed-version fetch when the document returns to the foreground;
+- no repeat deployed-version fetch during client-side navigation, foregrounding, or history restoration;
+- a new deployed-version fetch on a fresh app load or manual check;
 - no duplicate check while one is already in flight;
 - detecting a newer deployed commit;
 - registering `/sw.js?v=<deployedBuild>` for that commit;
