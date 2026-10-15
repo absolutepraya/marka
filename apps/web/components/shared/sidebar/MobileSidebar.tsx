@@ -18,14 +18,14 @@ export default async function MobileSidebar({
 }) {
   // oxlint-disable-next-line rules-of-hooks
   const { t } = await useTranslation();
-  // Lift the floating bar clear of the phone's home-indicator / gesture
+  // Lift the navigation buttons clear of the phone's home-indicator / gesture
   // handle: the device safe-area inset when it resolves (iOS standalone), plus
   // a comfortable static gap so there's breathing room even in plain browser
   // tabs where `env()` reports 0.
   const navigation = (
     <MobileNavSelection>
       <nav
-        className="fixed inset-x-3 bottom-0 z-40 sm:hidden"
+        className="mobile-footer-frost fixed inset-x-0 bottom-0 isolate z-40 px-3 sm:hidden"
         aria-label={
           dashboardTabs
             ? t("common.library_navigation")
@@ -36,8 +36,8 @@ export default async function MobileSidebar({
         {/* Horizontally scrollable so dense navs (e.g. settings, 13 items) don't
           overflow the viewport; the few-item dashboard nav still spreads to
           fill since each item can grow past its basis. Scrollbar is hidden for
-          the clean floating-bar look. */}
-        <ul className="mx-auto flex max-w-md items-center gap-0.5 overflow-x-auto overscroll-x-contain rounded-[18px] border border-border bg-background/95 p-1 shadow-sm backdrop-blur-xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          the clean floating-button look. */}
+        <ul className="mx-auto flex max-w-md items-center gap-0.5 overflow-x-auto overscroll-x-contain p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {items(t).map((item) => (
             <MobileSidebarItem
               key={item.name}
@@ -50,6 +50,7 @@ export default async function MobileSidebar({
           ))}
           <MobileAddButton />
         </ul>
+        <span aria-hidden="true" className="mobile-footer-frost-layer" />
       </nav>
     </MobileNavSelection>
   );

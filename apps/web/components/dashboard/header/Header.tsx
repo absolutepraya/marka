@@ -14,7 +14,7 @@ export default async function Header() {
   }
 
   return (
-    <header className="bg-sidebar/95 sticky left-0 right-0 top-0 z-50">
+    <header className="mobile-header-frost sm:bg-sidebar/95 sticky left-0 right-0 top-0 isolate z-50">
       <div className="flex h-16 items-center gap-3 overflow-x-auto overflow-y-hidden px-3 sm:px-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
         <div className="hidden shrink-0 items-center sm:flex">
           <Link
@@ -34,6 +34,10 @@ export default async function Header() {
           </div>
         </div>
       </div>
+      <span
+        aria-hidden="true"
+        className="mobile-header-frost-layer sm:hidden"
+      />
     </header>
   );
 }
