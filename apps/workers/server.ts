@@ -7,17 +7,30 @@ import logger from "@karakeep/shared/logger";
 
 import { printMetrics } from "./metrics";
 
-const app = new Hono()
-  .get("/health", (c) =>
-    c.json({ status: "ok", timestamp: new Date().toISOString() }),
-  )
-  .get(
-    "/metrics",
-    bearerAuth({ token: serverConfig.prometheus.metricsToken }),
-    printMetrics,
-  );
+export function createWorkerApp() {
+  let ready = false;
+  const app = new Hono()
+    .get("/health", (c) =>
+      c.json({ status: "ok", timestamp: new Date().toISOString() }),
+    )
+    .get("/ready", (c) =>
+      c.json({ status: ready ? "ready" : "starting" }, ready ? 200 : 503),
+    )
+    .get(
+      "/metrics",
+      bearerAuth({ token: serverConfig.prometheus.metricsToken }),
+      printMetrics,
+    );
+  return {
+    app,
+    setReady: (value: boolean) => {
+      ready = value;
+    },
+  };
+}
 
 export function buildServer() {
+  const { app, setReady } = createWorkerApp();
   const server = serve(
     {
       fetch: app.fetch,
@@ -30,8 +43,10 @@ export function buildServer() {
   );
   return {
     _server: server,
+    setReady,
     stop: () =>
       new Promise<void>((resolve, reject) => {
+        setReady(false);
         server.close((err) => {
           if (err) {
             reject(err);
@@ -47,5 +62,3 @@ export function buildServer() {
       }),
   };
 }
-
-export default app;

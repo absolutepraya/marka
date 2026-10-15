@@ -8,6 +8,8 @@ on:
       - "scripts/setup-worktree.sh"
       - "scripts/dev-infra.sh"
       - "scripts/dev-infra.test.sh"
+      - "scripts/copy-dev-state*.mjs"
+      - "scripts/check-dev*.mjs"
       - "scripts/pull-prod-state.sh"
       - "scripts/pull-prod-state.test.sh"
       - "packages/plugins/lib/meiliIndexName.ts"
@@ -25,6 +27,8 @@ on:
       - "scripts/setup-worktree.sh"
       - "scripts/dev-infra.sh"
       - "scripts/dev-infra.test.sh"
+      - "scripts/copy-dev-state*.mjs"
+      - "scripts/check-dev*.mjs"
       - "scripts/pull-prod-state.sh"
       - "scripts/pull-prod-state.test.sh"
       - "packages/plugins/lib/meiliIndexName.ts"
@@ -56,6 +60,9 @@ jobs:
 
       - name: Run shared dev infrastructure tests
         run: bash scripts/dev-infra.test.sh
+
+      - name: Run dev diagnostics and SQLite snapshot tests
+        run: node --test scripts/check-dev.test.mjs scripts/copy-dev-state.test.mjs
 
       - name: Run production-state pull tests
         run: bash scripts/pull-prod-state.test.sh

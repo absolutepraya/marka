@@ -6,7 +6,9 @@ if ! command -v mise >/dev/null 2>&1; then
   exit 1
 fi
 
-node_root="$(mise where node@24)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+node_version="$(cat "$SCRIPT_DIR/../.nvmrc")"
+node_root="$(mise where "node@$node_version")"
 if [[ -z "$node_root" || ! -x "$node_root/bin/node" ]]; then
   echo "error: Node 24.18.1 is not installed through Mise" >&2
   exit 1
@@ -14,8 +16,8 @@ fi
 
 export PATH="$node_root/bin:$PATH"
 
-if [[ "$(node -p 'process.versions.node.split(".")[0]')" != "24" ]]; then
-  echo "error: expected Node 24, got $(node --version)" >&2
+if [[ "$(node -p 'process.versions.node')" != "$node_version" ]]; then
+  echo "error: expected Node $node_version, got $(node --version)" >&2
   exit 1
 fi
 

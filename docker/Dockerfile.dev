@@ -1,13 +1,14 @@
-FROM node:24-alpine
+FROM node:24.18.1-slim
 
 WORKDIR /app
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat make g++ py3-pip linux-headers git
-
-RUN corepack enable
+# Match the production Node and Debian libc family for native modules.
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y make g++ python3 python3-pip git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN npm install -g corepack@latest && corepack enable pnpm
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1

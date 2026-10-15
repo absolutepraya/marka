@@ -17,12 +17,12 @@
 - Runtime: Node.js 24.18.1 from `.nvmrc`, normally selected through Mise; pnpm 11.2.1 through Corepack.
 - Install with `pnpm install`, create the documented `.env` symlinks, then run `pnpm db:migrate`.
 - Start local development with `pnpm dev:start`. Use `pnpm dev:start -d` for detached mode and `pnpm dev:stop` to stop only that workspace.
-- Shared local infrastructure is machine-level: one Meilisearch at `http://127.0.0.1:7700` and one Chrome/CDP at `http://127.0.0.1:9250` by default. Override the Chrome host port with `MARKA_DEV_CHROME_PORT`.
+- Shared local infrastructure is machine-level: one Meilisearch at `http://127.0.0.1:7700` and one token-protected Browserless at `http://127.0.0.1:9251` by default. Override its port with `MARKA_DEV_BROWSERLESS_PORT`.
 - Parallel worktrees keep separate SQLite/assets data and unique web ports. `scripts/setup-worktree.sh` assigns each worktree a unique `MEILI_INDEX_PREFIX`; both `bookmarks` and `bookmarks_vectors` use that namespace on the shared Meilisearch server.
 - This repository supports [`wt`](https://github.com/absolutepraya/wt) for worktree creation and lifecycle. Use `wt new <name>` and `wt ls`; `.wt/config.toml` owns the setup, slot, and port-offset rules.
 - T3 Code can import the root `t3.json`; import its project actions in T3 settings.
   T3 and WT use `scripts/dev-worktree.sh` for shared dependency, environment,
-  production-state, and dev-server setup. T3 runs the target worktree's copy;
+  local-state, and dev-server setup. WT and T3 run the target worktree's copy;
   `.wt/config.toml` still owns WT-specific paths, slots, branches, and teardown
   timing.
 - `pnpm dev:start` defaults the main workspace namespace to `main_`. An unset `MEILI_INDEX_PREFIX` is a compatibility fallback for the original `bookmarks` and `bookmarks_vectors` names; manual `web` or `workers` starts outside `pnpm dev:start` must set an explicit unique prefix.
@@ -129,44 +129,38 @@ Useful variants:
 - `pnpm dev:start` - foreground
 - `pnpm dev:start -d` - detached
 - `pnpm dev:stop` - stop only this workspace's web/workers processes
-- `pnpm dev:infra:up` - explicitly start/reuse shared Meilisearch + Chrome
+- `pnpm dev:infra:up` - explicitly start/reuse shared Meilisearch + Browserless
 - `pnpm dev:infra:status` - inspect shared dev infrastructure
 - `pnpm dev:infra:down` - explicitly remove shared containers while preserving Meilisearch data
 
 Local-dev ownership model:
 - `web` + `workers` run natively per workspace
 - one machine-level Meilisearch container is shared at `http://127.0.0.1:7700`
-- one machine-level Chrome container is shared at `http://127.0.0.1:9250` by default; `MARKA_DEV_CHROME_PORT` changes this endpoint
+- one machine-level Browserless container is shared at `http://127.0.0.1:9251`; `MARKA_DEV_BROWSERLESS_PORT` changes this endpoint
 - `pnpm dev:start` automatically ensures those shared containers exist
 - `pnpm dev:stop` never stops shared infrastructure because other worktrees may still use it
-- the shared Chrome image is `ghcr.io/karakeep-app/karakeep-chrome:release`
+- the default renderer is the pinned production Browserless v1 image documented in `scripts/dev-infra.sh`; it runs as linux/amd64, including on Apple Silicon
 - no local SMTP or mail container is started by this workflow; email behavior uses the configured external SMTP settings when present
 
 Parallel-worktree isolation:
 - every worktree keeps its own `.data/local` SQLite/assets state and unique web port
-- `scripts/setup-worktree.sh` points all worktrees at shared Meilisearch/Chrome endpoints
+- `scripts/setup-worktree.sh` points all worktrees at shared Meilisearch/Browserless endpoints
 - `WT_PORT_BASE` comes from the `wt` slot and is added to the base web port `3000`; slot 1 therefore uses `3100`
-- worktree offsets do not apply to shared Chrome or Meilisearch, which intentionally keep stable machine-level endpoints
+- worktree offsets do not apply to shared Browserless or Meilisearch, which intentionally keep stable machine-level endpoints
 - every worktree receives a safe unique `MEILI_INDEX_PREFIX` derived from its normalized workspace name plus `WT_PORT_BASE`
 - both `bookmarks` and `bookmarks_vectors` use that prefix, so separate SQLite states never share Meilisearch documents
 - `pnpm dev:start` defaults the main workspace prefix to `main_`
 - an unset `MEILI_INDEX_PREFIX` is a compatibility fallback; manual starts outside `pnpm dev:start` must set an explicit unique prefix for the workspace
 
-### Direct commands
+### Worker and renderer parity
 
-When bypassing `pnpm dev:start`, manual starts **must** set an explicit unique `MEILI_INDEX_PREFIX` for that workspace before starting web or workers. Use `main_` only for the main workspace; parallel worktrees need distinct prefixes.
+`pnpm dev:start` selects `WORKER_PROFILE=screenshot-first`, `CRAWLER_NUM_WORKERS=2`, and `BROWSER_CONNECT_ONDEMAND=true`. It preserves the `BROWSER_REUSE_CONNECTION` toggle, supplies the local renderer token privately, and waits for both web health and worker `/ready`. Worker ports default to web + 10000. The launcher forces local search, renderer, asset storage, and app URLs; `DATA_DIR` must be inside the workspace.
 
-```bash
-export MEILI_INDEX_PREFIX=main_
-pnpm dev:infra:up
-pnpm web
-pnpm workers
-```
+Use the managed launcher for the complete local environment. Manual `pnpm web` and `pnpm workers` require explicit endpoints, credentials, and a unique `MEILI_INDEX_PREFIX`. `WORKER_PROFILE=full` is an explicit alternative. `MARKA_DEV_RENDERER=chrome` retains the legacy plain-CDP image at port 9250 for compatibility.
 
-Notes:
-- Meilisearch and headless Chrome are optional for booting the app, but required for full search/crawling behavior.
-- shared infra binds only to IPv4 loopback; if the configured ports `7700` or `MARKA_DEV_CHROME_PORT` are occupied by something else, the helper fails rather than silently reusing an unknown service
-- If `next dev` crashes with a stale Turbopack/instrumentation issue, clear `apps/web/.next`.
+WT/T3 setup preserves existing local data or copies the main local snapshot by default. Use an explicit production-state pull when fresh production data is needed. Native macOS workers do not prove VPS memory limits or Linux binary parity. `docker/docker-compose.dev.yml` provides an isolated Debian/Node Linux source-development stack; it uses separate volumes and no production network.
+
+Validate lifecycle changes with `bash scripts/dev-infra.test.sh` and `bash scripts/start-dev.test.sh`.
 
 ### Pull prod state to local dev
 
