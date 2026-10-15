@@ -210,7 +210,11 @@ describe("list switcher", () => {
       screen.getByText("C").closest("a")?.getAttribute("aria-current"),
     ).toBe("page");
     expect(screen.queryByText("Far away")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Toggle E" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: i18next.t("lists.navigation.toggle_list", { name: "E" }),
+      }),
+    );
     expect(screen.getByText("Far away")).toBeTruthy();
     const search = screen.getByRole("searchbox", { name: "Search lists" });
     fireEvent.change(search, { target: { value: "Far away" } });
@@ -218,6 +222,26 @@ describe("list switcher", () => {
     expect(screen.getByText("Far away")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(screen.getByText("A")).toBeTruthy();
+  });
+
+  it("translates the shared picker heading and named controls", async () => {
+    i18next.addResourceBundle("id", "translation", {
+      lists: {
+        navigation: {
+          heading: "Daftar",
+          toggle_list: "Buka atau tutup {{name}}",
+          list_options: "Opsi untuk {{name}}",
+        },
+      },
+    });
+    await i18next.changeLanguage("id");
+    render(<AllLists initialData={{ lists: mocks.lists }} />);
+    expect(screen.getByText("Daftar")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Buka atau tutup E" }));
+    expect(screen.getByText("Far away")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Opsi untuk Far away" }),
+    ).toBeTruthy();
   });
 });
 

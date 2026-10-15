@@ -129,6 +129,7 @@ function DroppableListSidebarItem({
   setSelectedListId: (id: string | null) => void;
   onNavigate?: () => void;
 }) {
+  const { t } = useTranslation();
   const canDrop =
     node.item.type === "manual" &&
     (node.item.userRole === "owner" || node.item.userRole === "editor");
@@ -145,7 +146,7 @@ function DroppableListSidebarItem({
             triggerClassName="m-0"
             className="size-4"
             open={open}
-            label={`Toggle ${node.item.name}`}
+            label={t("lists.navigation.toggle_list", { name: node.item.name })}
           />
         ) : (
           <span className="size-6" />
@@ -174,7 +175,9 @@ function DroppableListSidebarItem({
           <Button
             size="none"
             variant="ghost"
-            aria-label={`More options for ${node.item.name}`}
+            aria-label={t("lists.navigation.list_options", {
+              name: node.item.name,
+            })}
             className="relative h-8 min-w-8 shrink-0 rounded-none rounded-r-xl bg-transparent px-1.5 hover:bg-transparent focus-visible:ring-inset"
           >
             <MoreHorizontal
@@ -335,7 +338,7 @@ export default function ListTreePicker({
         {showHeader && (
           <div className="flex justify-between pb-3">
             <p className="pl-2 text-xs uppercase tracking-wider text-muted-foreground">
-              Lists
+              {t("lists.navigation.heading")}
             </p>
             <EditListModal>
               <Button
