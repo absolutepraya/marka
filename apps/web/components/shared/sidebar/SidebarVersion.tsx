@@ -68,8 +68,8 @@ export default function SidebarVersion({
       : "flex min-w-0 shrink-0 items-center justify-end gap-1 font-mono text-xs text-muted-foreground";
   const updateButtonClassName =
     placement === "profile"
-      ? "h-auto min-w-0 gap-1 rounded-md p-1 font-mono text-[11px] leading-4 text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-      : "h-auto gap-1 p-1 font-mono text-xs text-muted-foreground";
+      ? "h-auto min-w-0 gap-1 rounded-md px-1.5 py-1 font-mono text-[11px] leading-4 text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+      : "h-auto gap-1 px-1.5 py-1 font-mono text-xs text-muted-foreground";
   const updateStatusClassName =
     placement === "profile" ? "min-w-0 truncate" : undefined;
 
