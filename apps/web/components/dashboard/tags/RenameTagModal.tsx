@@ -103,7 +103,7 @@ export function RenameTagModal({
                 )}
               />
             </div>
-            <DialogFooter>
+            <DialogFooter equalColumns={2}>
               <DialogClose asChild>
                 <Button type="button" variant="outline">
                   {t("actions.cancel")}

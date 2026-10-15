@@ -29,6 +29,7 @@ import { useBookmarkListContext } from "@karakeep/shared-react/hooks/bookmark-li
 import BookmarkCard from "./BookmarkCard";
 import EditorCard from "./EditorCard";
 import UnknownCard from "./UnknownCard";
+import { getBookmarkGridBreakpointConfig } from "./bookmarkGridColumns";
 
 function StyledBookmarkCard({
   children,
@@ -75,28 +76,6 @@ const BookmarkGridItem = memo(function BookmarkGridItem({
     </ErrorBoundary>
   );
 });
-
-function getBreakpointConfig(userColumns: number, isMobile: boolean) {
-  const phoneColumns = Math.max(1, Math.min(userColumns, 2));
-  const breakpointColumnsObj: { [key: number]: number; default: number } = {
-    // `default` is what react-masonry-css renders before it can measure the
-    // viewport — i.e. the server-rendered first paint. On phones the server
-    // can't know the width, so seed it with the phone column count to avoid a
-    // 3->2 column flash on load; the client still measures and adjusts below.
-    default: isMobile ? phoneColumns : userColumns,
-  };
-
-  // Responsive behavior: reduce columns on smaller screens. Phones keep up to
-  // 2 columns (instead of collapsing to 1) so masonry stays two-up by default.
-  const lgColumns = Math.max(1, Math.min(userColumns, userColumns - 1));
-  const mdColumns = phoneColumns;
-  const smColumns = phoneColumns;
-
-  breakpointColumnsObj[SCREENS.lg] = lgColumns;
-  breakpointColumnsObj[SCREENS.md] = mdColumns;
-  breakpointColumnsObj[SCREENS.sm] = smColumns;
-  return breakpointColumnsObj;
-}
 
 function getColumnsForViewport(userColumns: number, viewportWidth: number) {
   const { sm, md, lg } = SCREENS;
@@ -190,7 +169,7 @@ export default function BookmarksGrid({
     );
   }, [bookmarks, pendingBookmarkIds]);
   const breakpointConfig = useMemo(
-    () => getBreakpointConfig(gridColumns, serverIsMobile),
+    () => getBookmarkGridBreakpointConfig(gridColumns, serverIsMobile),
     [gridColumns, serverIsMobile],
   );
   const { ref: loadMoreRef, inView: loadMoreButtonInView } = useInView();

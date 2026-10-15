@@ -53,7 +53,7 @@ export function BookmarkContentConflictDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <DialogFooter equalColumns={2}>
           <Button
             type="button"
             variant="secondary"
