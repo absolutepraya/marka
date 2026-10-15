@@ -30,7 +30,7 @@ services:
   workers:
     image: ${KARAKEEP_WORKERS_IMAGE:-ghcr.io/absolutepraya/marka:workers-stable}
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 1g
     depends_on:
       web:
         condition: service_healthy

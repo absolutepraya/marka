@@ -389,7 +389,7 @@ Key parameters:
 - `KARAKEEP_ENV_FILE`
 - `KARAKEEP_WORKERS_ENV_FILE`
 
-Each service sets a `mem_limit` (web `512m`, workers `512m`, meilisearch `512m`, watchtower `128m`) as a ceiling to keep the stack from ballooning and thrashing swap on the shared 8GB VPS. These are caps, not reservations; raise a value if a service is legitimately OOM-killed.
+Each service sets a `mem_limit` (web `512m`, workers `1g`, meilisearch `512m`, watchtower `128m`) as a ceiling to keep the stack from ballooning and thrashing swap on the shared 8GB VPS. These are caps, not reservations. Workers have extra headroom because the normal and low-priority crawler queues can run simultaneously. Validate host memory, crawl failures, and both queues before increasing crawler concurrency; the higher memory limit alone does not establish safe capacity.
 
 The web container binds to localhost and is expected to sit behind nginx.
 
