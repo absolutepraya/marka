@@ -1,4 +1,4 @@
-# Local Browserless reuse validation
+# Browserless reuse validation
 
 Related issue: [#37](https://github.com/absolutepraya/marka/issues/37).
 
@@ -37,8 +37,35 @@ An initial lifecycle run passed. A later run finished all four benchmark phases 
 
 Although sampled peaks stayed below the cap, the cgroup `max` counter rose from 31,946 to 32,087 over the standalone validation window. That records additional memory-limit pressure which the periodic samples can miss. `oom` and `oom_kill` stayed zero, and the container restart count stayed zero. Passing this run does not establish safe production memory headroom. The runner reports cgroup memory events when available on future runs.
 
+## Isolated Linux queued-crawl validation
+
+The 2026-10-15 Linux run used separate test containers on the Debian 12 x86_64 VPS, with fresh SQLite/assets state, a synthetic account, a separate Docker network, and no published ports. It used the configured working crawler proxy, supplied privately on the VPS. Production containers, data, settings, and the shared production renderer were not modified. The host itself remained shared with production services.
+
+The cached worker image was pinned to `sha256:944770ac93431ec57665458b173c9f684a0807611988f43a94daad1092f3cd51`, source revision `4e38ff15d88831893846dad7366a1aa4a7bc1bea`. The renderer used the pinned Browserless v1 digest above. Each test container had a 1 GiB memory cap, no additional swap allowance, and a one-CPU limit. Only the crawler worker was enabled; web, search, AI, email, and the other workers were excluded. Queue seeding/status helpers ran inside the worker's memory limit. These measurements validate the crawler path rather than whole-stack capacity.
+
+The controller checked host available memory and cgroup memory every two seconds, with a 1 GiB host-memory stop threshold, OOM/restart checks, per-batch deadlines, and an independent 45-minute deadline with cleanup. Traces stayed in local test logs. An initial startup attempt stalled downloading the adblock list before any jobs were queued. The measured run used a read-only, checksum-matched copy of the existing production adblock cache, representing a warm worker. The cold-download problem remains outside these measurements.
+
+Each matched phase queued 12 crawls through the bundled Liteque implementation, rotating `https://example.com/`, `https://homebrew.page/app/PPSA99581/`, and `https://github.com/D3ATHLY/blackbox`. Containers were recreated between phases. Every phase finished with 12 successful crawls, nonempty titles, successful HTTP status codes, and 12 preview assets whose saved file sizes matched the database. Example.com exercised screenshot fallback. The three saved preview images from the reuse-on/concurrency-2 batch were also opened and visually checked; all contained visible content. Bookmark rows were seeded directly, so timings exclude the bookmark-creation API and UI.
+
+| Reuse | Concurrency | Browser launches | Retried failed attempts | Median acquisition | Successful crawl median / p95 | Sampled worker peak | Sampled renderer peak |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Off | 1 | 14 | 2 | 861 ms | 14.954 / 37.424 s | 364 MiB | 379 MiB |
+| On | 1 | 1 | 0 | 0.177 ms | 16.794 / 41.147 s | 363 MiB | 363 MiB |
+| Off | 2 | 12 | 0 | 1,286 ms | 21.433 / 32.583 s | 426 MiB | 479 MiB |
+| On | 2 | 1 | 0 | 0.149 ms | 15.995 / 41.880 s | 373 MiB | 394 MiB |
+
+Acquisition figures include the cold first acquisition and concurrent callers waiting for it. Their p95 values were 2,428 ms, 2,041 ms, 1,791 ms, and 1,966 ms in table order. Successful crawl spans exclude failed attempts and queue wait; p95 uses the nearest-rank sample. Container peaks are sampled cgroup charged memory, including cache and helper processes, rather than Node RSS alone. All four matched phases recorded zero cgroup `max`, `oom`, and `oom_kill` events.
+
+These small, ordered public-site batches demonstrate connection reuse and lower acquisition overhead. They do not establish a fixed end-to-end speedup: the sequential successful-job median and both successful-job p95 values were higher with reuse, while navigation/proxy response times varied. The two baseline navigation timeouts recovered through normal queue retries. No batch was rerun to improve its result.
+
+Batch elapsed times, including queueing, retries, and status polling, were 298.290 s, 231.135 s, 132.922 s, and 118.914 s in table order. Those single-run differences cannot separate the effect of reuse from upstream variation and retries. Provider-billed proxy bandwidth was not metered.
+
+The reuse-on/concurrency-2 soak submitted 16 additional jobs one minute apart and passed in 913.748 s from first submission through final verification. All 16 produced successful status codes, titles, and saved previews, with no failed attempts. Its 14 browser launches for 16 jobs exercised repeated idle disconnect/reconnect as well as reuse when a connection remained active. Acquisition median/p95 was 915/1,988 ms, below the existing five-second deadline. Sampled worker/renderer peaks were 351/336 MiB. This was periodic traffic with idle gaps, not sustained saturation.
+
+Across all 64 successful crawls and the approximately 29-minute measured run, no cgroup memory-limit, OOM, or OOM-kill events were recorded, and the restart watchdog did not trigger. Minimum host available memory was 2,199 MiB. Test containers and their network were removed afterward. Production web/worker container IDs and states matched their initial values; web remained healthy and workers remained running. Private logs, metrics, and the three inspected previews were retained under this worktree's `.data/`, with a check that exported logs did not contain the proxy password. The test directory and results also remain on the VPS.
+
 ## Rollout boundary
 
 These tests supplement the local real-bookmark checks performed for PR #121, where both affected URLs and a screenshot-fallback page produced downloadable previews with reuse off and on. They preserve the production defaults: crawler concurrency 2 and browser reuse disabled.
 
-Before a production enablement decision, validate an isolated Linux deployment on representative hardware with real queued crawls, the configured proxy, worker/container resource limits, long-running load, and before/after crawler tracing. Issue #37 remains open until the outstanding validation and rollout decision are completed.
+The isolated Linux run adds real queued-crawl, proxy, resource-limit, idle-reconnect, and before/after tracing evidence at concurrency 2. It supports a monitored production trial at that concurrency; it does not validate concurrency 4 or whole-stack saturation. Production remains at concurrency 2 with reuse disabled. Issue #37 remains open pending the production rollout decision.
