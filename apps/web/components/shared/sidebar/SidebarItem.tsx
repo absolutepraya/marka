@@ -19,6 +19,8 @@ export default function SidebarItem({
   onDragOver,
   onDragEnter,
   onDragLeave,
+  onNavigate,
+  as: Component = "li",
 }: {
   name: string;
   logo: React.ReactNode;
@@ -33,12 +35,14 @@ export default function SidebarItem({
   onDragOver?: React.DragEventHandler;
   onDragEnter?: React.DragEventHandler;
   onDragLeave?: React.DragEventHandler;
+  onNavigate?: () => void;
+  as?: "li" | "div";
 }) {
   const currentPath = usePathname();
   const isActive = path == currentPath;
 
   return (
-    <li
+    <Component
       className={cn(
         "ease-(--ease-out) group relative flex min-w-0 items-center justify-between overflow-hidden rounded-xl text-sm transition-[background-color,color,box-shadow,ring-color] duration-150",
         isActive
@@ -58,8 +62,10 @@ export default function SidebarItem({
         {collapseButton}
         <Link
           href={path}
+          aria-current={isActive ? "page" : undefined}
+          onNavigate={onNavigate}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-x-2 rounded-[inherit] px-3 py-2.5",
+            "flex min-w-0 flex-1 items-center gap-x-2 rounded-[inherit] px-3 py-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground",
             linkClassName,
           )}
         >
@@ -77,6 +83,6 @@ export default function SidebarItem({
         </Link>
       </div>
       {right}
-    </li>
+    </Component>
   );
 }

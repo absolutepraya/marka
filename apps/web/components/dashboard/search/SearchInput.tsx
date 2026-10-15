@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { searchFieldSurfaceClassName } from "@/components/ui/search-field";
 import {
   Command,
   CommandGroup,
@@ -184,7 +185,10 @@ const SearchInput = React.forwardRef<
       <div className="min-w-0 flex-1">
         <Command
           shouldFilter={false}
-          className="shadow-xs ease-(--ease-out) relative rounded-xl border border-input/80 bg-background/90 transition-[border-color,box-shadow,background-color] duration-150 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/25 [&_[cmdk-input-wrapper]]:border-0"
+          className={cn(
+            searchFieldSurfaceClassName,
+            "[&_[cmdk-input-wrapper]]:border-0",
+          )}
           onKeyDown={handleCommandKeyDown}
         >
           <Popover

@@ -18,6 +18,18 @@ _Avoid_: confusing a capture destination with a bookmark's content permissions.
 
 ## Content model
 
+**List**:
+A collection of bookmarks that may also contain nested lists.
+_Avoid_: treating a folder as a separate kind of collection.
+
+**Sublist**:
+A list directly nested inside another list, its parent list.
+_Avoid_: using sublist to mean every descendant at any depth.
+
+**Sibling lists**:
+Lists with the same immediate parent. Top-level lists are siblings at the library root.
+_Avoid_: treating lists at the same depth under different parents as siblings.
+
 **Bookmark type**:
 A top-level classification of a bookmark as a link, text, asset, or unknown content.
 _Avoid_: making media or Office files separate top-level bookmark types.

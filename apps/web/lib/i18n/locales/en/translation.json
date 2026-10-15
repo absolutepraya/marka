@@ -935,6 +935,16 @@
     "summary_bookmark_other": "{{count}} bookmarks",
     "items_count_one": "{{count}} item",
     "items_count_other": "{{count}} items",
+    "navigation": {
+      "sublists": "Sublists",
+      "show_more_one": "Show {{count}} more sublist",
+      "show_more_other": "Show {{count}} more sublists",
+      "show_fewer": "Show fewer sublists",
+      "switch_list": "Switch list",
+      "show_ancestors": "Show earlier ancestors",
+      "load_error": "Unable to load list navigation. Try again.",
+      "loading": "Loading list navigation"
+    },
     "collaboration": {
       "stable_description": "Invite people to this list and optionally include current and future nested lists.",
       "invitation_role": "Invitation role",
