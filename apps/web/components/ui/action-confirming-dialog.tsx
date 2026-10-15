@@ -4,6 +4,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -50,16 +51,17 @@ export default function ActionConfirmingDialog({
             {description}
           </DialogDescription>
         </div>
-        <div className="sticky bottom-0 flex gap-2 border-t border-border/70 bg-card px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:px-6 sm:py-4">
+        <DialogFooter
+          equalColumns={2}
+          className="sticky bottom-0 border-t border-border/70 bg-card px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:px-6 sm:py-4"
+        >
           <DialogClose asChild>
-            <Button type="button" variant="secondary" className="h-11 flex-1">
+            <Button type="button" variant="secondary">
               {t("actions.cancel")}
             </Button>
           </DialogClose>
-          <div className="flex-1 [&>button]:h-11 [&>button]:w-full">
-            {actionButton(setDialogOpen)}
-          </div>
-        </div>
+          <div className="min-w-0">{actionButton(setDialogOpen)}</div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

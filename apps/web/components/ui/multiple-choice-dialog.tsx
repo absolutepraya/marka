@@ -46,7 +46,7 @@ export default function MultipleChoiceDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         {description}
-        <DialogFooter className="sm:justify-end">
+        <DialogFooter equalColumns={actionButtons.length === 2 ? 2 : undefined}>
           {actionButtons.map((actionButton) => actionButton(setDialogOpen))}
         </DialogFooter>
       </DialogContent>

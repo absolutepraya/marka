@@ -3,14 +3,20 @@
 import React from "react";
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import ActionConfirmingDialog from "./action-confirming-dialog";
 
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogTitle,
   revealFocusedTextEntry,
 } from "./dialog";
+
+vi.mock("@/lib/i18n/client", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
 
 class MockVisualViewport extends EventTarget {
   height = 844;
@@ -206,6 +212,67 @@ describe("DialogContent bottom sheets", () => {
 
     expect(view.getByRole("dialog").className).toContain(
       "dialog-vv-bottom-safe-area",
+    );
+  });
+});
+
+describe("DialogFooter equal action columns", () => {
+  it("keeps ActionConfirmingDialog actions in equal, wrapping tracks", () => {
+    const view = render(
+      React.createElement(ActionConfirmingDialog, {
+        open: true,
+        title: "Delete item",
+        description: "This action cannot be undone.",
+        actionButton: () =>
+          React.createElement("button", { type: "button" }, "Delete"),
+      }),
+    );
+
+    const dialog = view.getByRole("dialog");
+    const footer = Array.from(dialog.querySelectorAll("div")).find(
+      (element) =>
+        (element as HTMLDivElement).style.gridTemplateColumns ===
+        "repeat(2, minmax(0, 1fr))",
+    ) as HTMLDivElement;
+
+    expect(footer).toBeTruthy();
+    expect(footer.className).toContain("[&_button]:h-full");
+    expect(footer.className).toContain("[&_button]:min-h-11");
+    expect(footer.className).toContain("[&_button]:whitespace-normal");
+    expect(footer.className).toContain("[&_button]:[overflow-wrap:anywhere]");
+    expect(view.getByRole("button", { name: "actions.cancel" })).toBeTruthy();
+    expect(view.getByRole("button", { name: "Delete" })).toBeTruthy();
+  });
+
+  it("supports three equal tracks without forcing two columns", () => {
+    const view = render(
+      React.createElement(
+        DialogFooter,
+        { equalColumns: 3 },
+        React.createElement("button", null, "One"),
+        React.createElement("button", null, "Two"),
+        React.createElement("button", null, "Three"),
+      ),
+    );
+    const footer = view.container.firstElementChild as HTMLDivElement;
+    expect(footer.style.gridTemplateColumns).toBe("repeat(3, minmax(0, 1fr))");
+    view.unmount();
+
+    const defaultLayout = render(
+      React.createElement(
+        DialogFooter,
+        null,
+        React.createElement("button", null, "Close"),
+        React.createElement("button", null, "Save"),
+        React.createElement("button", null, "Delete"),
+      ),
+    );
+    expect(
+      (defaultLayout.container.firstElementChild as HTMLDivElement).style
+        .gridTemplateColumns,
+    ).toBe("");
+    expect(defaultLayout.container.firstElementChild?.className).toContain(
+      "flex-col-reverse",
     );
   });
 });

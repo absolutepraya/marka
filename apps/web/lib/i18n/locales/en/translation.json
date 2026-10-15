@@ -1120,6 +1120,7 @@
       "drop_here": "Drop to add files",
       "drop_hint": "Review your items, then save.",
       "pending_items": "Pending items",
+      "pending_text_items": "Pending links and notes",
       "show_older_files": "Show {{count}} older files",
       "show_older_file": "Show 1 older file",
       "collapse_files": "Collapse files",

@@ -7,8 +7,8 @@ default_base = "origin/main"
 
 # WT and T3 share the repository-owned development worktree lifecycle.
 setup = [
-  "bash \"$WT_ROOT_PATH/scripts/dev-worktree.sh\" setup",
+  "bash \"$WT_WORKSPACE_PATH/scripts/dev-worktree.sh\" setup",
 ]
 teardown = [
-  "bash \"$WT_ROOT_PATH/scripts/dev-worktree.sh\" stop",
+  "bash \"$WT_WORKSPACE_PATH/scripts/dev-worktree.sh\" stop",
 ]

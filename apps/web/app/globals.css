@@ -428,6 +428,12 @@ textarea,
   select {
     font-size: 16px;
   }
+
+  /* The capture composer uses a denser writing surface. Keep this exception
+     scoped so other phone forms retain their focus-zoom protection. */
+  textarea[data-capture-input] {
+    font-size: 14px;
+  }
 }
 
 /* Keep bottom toasts above the floating mobile navigation. */

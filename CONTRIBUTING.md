@@ -42,13 +42,15 @@ pnpm db:migrate
 pnpm dev:start
 ```
 
-This repository supports [`wt`](https://github.com/absolutepraya/wt) for isolated worktrees. Use `wt new <name>` before making a parallel change; the project configuration prepares separate local data and web ports while sharing the machine-level Chrome and Meilisearch services.
+This repository supports [`wt`](https://github.com/absolutepraya/wt) for isolated worktrees. Use `wt new <name>` before making a parallel change; the project configuration prepares separate local data and web ports while sharing the machine-level Browserless and Meilisearch services.
 
 T3 Code can import the checked-in [`t3.json`](t3.json) actions through Project
-settings. WT and T3 use `scripts/dev-worktree.sh` for the shared production-state
-pull, isolated environment setup, and detached development server flow. T3 runs
-the copy from its target worktree, while each tool retains its own worktree
+settings. WT and T3 use `scripts/dev-worktree.sh` for the shared local-state
+setup, isolated environment configuration, and detached development server flow. Both run
+the copy from the target worktree, while each tool retains its own worktree
 allocation rules.
+
+Local worker defaults match the personal deployment profile: screenshot-first, concurrency 2, and on-demand Browserless connections. Set `BROWSER_REUSE_CONNECTION=true` before `pnpm dev:start` to test reuse. Run `bash scripts/dev-infra.test.sh` and `bash scripts/start-dev.test.sh` when changing the dev lifecycle.
 
 For the full workflow, detached mode, and production deploy notes, use:
 - [`docs/operator-setup.md`](docs/operator-setup.md)
@@ -182,3 +184,4 @@ AI review is advisory:
 See [`docs/ai-code-review.md`](docs/ai-code-review.md) for the current reviewer policy, rejected-candidate history, permissions ceiling, and future evaluation criteria.
 
 Human review cadence is best-effort rather than community-SLA driven.
+

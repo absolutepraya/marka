@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Stop only the Karakeep web/workers processes for this workspace.
-# Shared Meilisearch + Chrome are machine-level infrastructure and stay running.
+# Shared Meilisearch + renderers are machine-level infrastructure and stay running.
 
 DEV_DIR=".dev"
 
@@ -34,4 +34,4 @@ stop_proc "web app" "web.pid"
 stop_proc "workers" "workers.pid"
 
 echo "Done. This workspace is stopped."
-echo "Shared Meilisearch + Chrome are still running. Stop them explicitly with: pnpm dev:infra:down"
+echo "Shared Meilisearch + renderers are still running. Stop them explicitly with: pnpm dev:infra:down"

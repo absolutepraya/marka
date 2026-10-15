@@ -173,7 +173,7 @@ export function FeedsEditorDialog() {
             />
           </form>
         </Form>
-        <DialogFooter>
+        <DialogFooter equalColumns={2}>
           <DialogClose asChild>
             <Button type="button" variant="secondary">
               Close
@@ -323,7 +323,7 @@ export function EditFeedDialog({ feed }: { feed: ZFeed }) {
             />
           </form>
         </Form>
-        <DialogFooter>
+        <DialogFooter equalColumns={2}>
           <DialogClose asChild>
             <Button type="button" variant="secondary">
               {t("actions.close")}

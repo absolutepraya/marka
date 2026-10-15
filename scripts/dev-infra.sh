@@ -3,13 +3,19 @@ set -Eeuo pipefail
 
 MEILI_CONTAINER="marka-dev-meilisearch"
 CHROME_CONTAINER="marka-dev-chrome"
+BROWSERLESS_CONTAINER="marka-dev-browserless"
 LEGACY_MEILI_CONTAINER="karakeep-dev-meilisearch"
 LEGACY_CHROME_CONTAINER="karakeep-dev-chrome"
 MEILI_VOLUME="marka-dev-meilisearch-data"
 MEILI_PORT="7700"
 CHROME_PORT="${MARKA_DEV_CHROME_PORT:-9250}"
+BROWSERLESS_PORT="${MARKA_DEV_BROWSERLESS_PORT:-9251}"
+RENDERER="${MARKA_DEV_RENDERER:-browserless}"
 MEILI_IMAGE="getmeili/meilisearch:v1.41.0"
 CHROME_IMAGE="ghcr.io/karakeep-app/karakeep-chrome:release"
+# Same Browserless v1 build as the personal production renderer. Apple Silicon
+# runs this amd64 image through the Docker runtime's emulation support.
+BROWSERLESS_IMAGE="browserless/chrome@sha256:57d19e414d9fe4ae9d2ab12ba768c97f38d51246c5b31af55a009205c136012f"
 CHROME_CONTAINER_WAS_ADOPTED=false
 
 info() { printf '==> %s\n' "$*"; }
@@ -21,6 +27,13 @@ fi
 if ((10#$CHROME_PORT < 1 || 10#$CHROME_PORT > 65535)); then
   die "MARKA_DEV_CHROME_PORT must be between 1 and 65535."
 fi
+if ! [[ "$BROWSERLESS_PORT" =~ ^[0-9]+$ ]] || ((10#$BROWSERLESS_PORT < 1 || 10#$BROWSERLESS_PORT > 65535)); then
+  die "MARKA_DEV_BROWSERLESS_PORT must be between 1 and 65535."
+fi
+case "$RENDERER" in
+  browserless|chrome) ;;
+  *) die "MARKA_DEV_RENDERER must be browserless or chrome." ;;
+esac
 
 require_docker() {
   command -v docker >/dev/null 2>&1 || die "Docker is not installed. Install Docker first."
@@ -135,10 +148,54 @@ ensure_chrome() {
   info "Started shared Chrome on http://127.0.0.1:$CHROME_PORT"
 }
 
+ensure_browserless() {
+  if container_exists "$BROWSERLESS_CONTAINER"; then
+    local existing_port existing_image
+    existing_port="$(docker inspect -f '{{(index (index .HostConfig.PortBindings "3000/tcp") 0).HostPort}}' "$BROWSERLESS_CONTAINER")"
+    existing_image="$(docker inspect -f '{{.Config.Image}}' "$BROWSERLESS_CONTAINER")"
+    [[ "$existing_port" == "$BROWSERLESS_PORT" ]] || die "Existing $BROWSERLESS_CONTAINER is mapped to host port $existing_port, but port $BROWSERLESS_PORT is configured. Stop shared infrastructure explicitly before changing its port."
+    [[ "$existing_image" == "$BROWSERLESS_IMAGE" ]] || die "Existing $BROWSERLESS_CONTAINER uses a different image. Stop shared infrastructure explicitly before changing its image."
+    if ! container_running "$BROWSERLESS_CONTAINER"; then
+      ensure_available_port "$BROWSERLESS_PORT" "$BROWSERLESS_CONTAINER"
+      docker start "$BROWSERLESS_CONTAINER" >/dev/null
+    fi
+  else
+    ensure_available_port "$BROWSERLESS_PORT" "$BROWSERLESS_CONTAINER"
+    local generated_token
+    generated_token="$(openssl rand -hex 24)"
+    # Pass the token by environment name, never as a command argument or log.
+    TOKEN="$generated_token" docker run -d \
+      --name "$BROWSERLESS_CONTAINER" \
+      --platform linux/amd64 \
+      --restart unless-stopped \
+      --memory 1g \
+      -p "127.0.0.1:$BROWSERLESS_PORT:3000" \
+      --env TOKEN \
+      -e CONNECTION_TIMEOUT=60000 \
+      --health-cmd 'node -e "fetch(\"http://127.0.0.1:3000/pressure?token=\"+encodeURIComponent(process.env.TOKEN)).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"' \
+      --health-interval 2s --health-timeout 3s --health-start-period 20s \
+      "$BROWSERLESS_IMAGE" >/dev/null || die "Failed to start local Browserless."
+  fi
+  local attempt health
+  for ((attempt=0; attempt<90; attempt++)); do
+    container_running "$BROWSERLESS_CONTAINER" || die "Local Browserless stopped during startup. Inspect its container logs."
+    health="$(docker inspect -f '{{.State.Health.Status}}' "$BROWSERLESS_CONTAINER")"
+    if [[ "$health" == healthy ]]; then
+      info "Local Browserless is ready on http://127.0.0.1:$BROWSERLESS_PORT"
+      return
+    fi
+    sleep 1
+  done
+  die "Local Browserless did not become healthy within 90 seconds."
+}
+
 up() {
   require_docker
   ensure_meilisearch
-  ensure_chrome
+  case "$RENDERER" in
+    browserless) ensure_browserless ;;
+    chrome) ensure_chrome ;;
+  esac
 }
 
 status_one() {
@@ -156,6 +213,7 @@ status() {
   require_docker
   status_one "$MEILI_CONTAINER" "http://127.0.0.1:$MEILI_PORT"
   status_one "$CHROME_CONTAINER" "http://127.0.0.1:$CHROME_PORT"
+  status_one "$BROWSERLESS_CONTAINER" "http://127.0.0.1:$BROWSERLESS_PORT"
 }
 
 down() {
@@ -169,6 +227,10 @@ down() {
     docker rm -f "$CHROME_CONTAINER" >/dev/null
     removed=1
   fi
+  if container_exists "$BROWSERLESS_CONTAINER"; then
+    docker rm -f "$BROWSERLESS_CONTAINER" >/dev/null
+    removed=1
+  fi
   if ((removed)); then
     info "Stopped shared Marka dev infrastructure. Meilisearch data volume $MEILI_VOLUME was preserved."
   else
@@ -180,9 +242,12 @@ usage() {
   cat <<'EOF'
 Usage: scripts/dev-infra.sh up|status|down
 
-  up      Start or reuse the shared local Meilisearch and Chrome containers.
+  up      Start or reuse shared Meilisearch and production-compatible Browserless.
   status  Show whether the shared containers are running.
   down    Remove the shared containers while preserving the Meilisearch volume.
+
+MARKA_DEV_BROWSERLESS_PORT defaults to 9251. The renderer is token-protected
+and bound to loopback. MARKA_DEV_RENDERER=chrome selects the legacy CDP service.
 EOF
 }
 

@@ -1,28 +1,18 @@
 import type { BookmarksLayoutTypes } from "@/lib/userLocalSettings/types";
+import type { CSSProperties } from "react";
 import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SCREENS } from "@/lib/breakpoints";
+import { useServerIsMobile } from "@/lib/serverHints";
 import {
   bookmarkLayoutSwitch,
   useBookmarkLayout,
   useGridColumns,
 } from "@/lib/userLocalSettings/bookmarksLayout";
-import Masonry from "react-masonry-css";
 
-function getBreakpointConfig(userColumns: number) {
-  const breakpointColumnsObj: { [key: number]: number; default: number } = {
-    default: userColumns,
-  };
+import { getBookmarkGridColumnPolicy } from "./bookmarkGridColumns";
 
-  const lgColumns = Math.max(1, Math.min(userColumns, userColumns - 1));
-  const mdColumns = Math.max(1, Math.min(userColumns, 2));
-  const smColumns = 1;
-
-  breakpointColumnsObj[SCREENS.lg] = lgColumns;
-  breakpointColumnsObj[SCREENS.md] = mdColumns;
-  breakpointColumnsObj[SCREENS.sm] = smColumns;
-  return breakpointColumnsObj;
-}
+const responsiveGridClassName =
+  "-ml-2 grid w-auto grid-cols-[repeat(var(--bookmark-grid-columns),minmax(0,1fr))] sm:-ml-3 [--bookmark-grid-columns:var(--bookmark-grid-columns-sm)] min-[641px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-md)] min-[769px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-lg)] min-[1025px]:[--bookmark-grid-columns:var(--bookmark-grid-columns-default)]";
 
 // Each skeleton mirrors the geometry of the real card for its layout so the
 // load -> loaded transition doesn't jump.
@@ -74,33 +64,37 @@ export default function BookmarksGridSkeleton({
 }) {
   const layout = useBookmarkLayout();
   const gridColumns = useGridColumns();
-  const breakpointConfig = useMemo(
-    () => getBreakpointConfig(gridColumns),
-    [gridColumns],
+  const serverIsMobile = useServerIsMobile();
+  const columnPolicy = useMemo(
+    () => getBookmarkGridColumnPolicy(gridColumns, serverIsMobile),
+    [gridColumns, serverIsMobile],
   );
+  const gridColumnStyle = {
+    "--bookmark-grid-columns-default": columnPolicy.default,
+    "--bookmark-grid-columns-sm": columnPolicy.sm,
+    "--bookmark-grid-columns-md": columnPolicy.md,
+    "--bookmark-grid-columns-lg": columnPolicy.lg,
+  } as CSSProperties;
 
   const children = Array.from({ length: count }, (_, i) => (
     <CardSkeleton key={i} layout={layout} />
   ));
+  const masonryChildren = children.map((child, index) => (
+    <div key={index} className="pl-2 sm:pl-3">
+      {child}
+    </div>
+  ));
 
   return bookmarkLayoutSwitch(layout, {
     masonry: (
-      <Masonry
-        className="-ml-4 flex w-auto"
-        columnClassName="pl-4"
-        breakpointCols={breakpointConfig}
-      >
-        {children}
-      </Masonry>
+      <div className={responsiveGridClassName} style={gridColumnStyle}>
+        {masonryChildren}
+      </div>
     ),
     grid: (
-      <Masonry
-        className="-ml-4 flex w-auto"
-        columnClassName="pl-4"
-        breakpointCols={breakpointConfig}
-      >
-        {children}
-      </Masonry>
+      <div className={responsiveGridClassName} style={gridColumnStyle}>
+        {masonryChildren}
+      </div>
     ),
     list: <div className="grid grid-cols-1">{children}</div>,
     compact: <div className="grid grid-cols-1">{children}</div>,

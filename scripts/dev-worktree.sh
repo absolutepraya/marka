@@ -25,7 +25,7 @@ case "$action" in
     ln -sfn ../../.env apps/workers/.env
     ln -sfn ../../.env packages/db/.env
 
-    WT_DATA_SOURCE=prod bash "$WT_ROOT_PATH/scripts/setup-worktree.sh"
+    WT_DATA_SOURCE="${WT_DATA_SOURCE:-main}" bash "$SCRIPT_DIR/setup-worktree.sh"
     NO_COLOR=false "$SCRIPT_DIR/run-pnpm.sh" dev:start -d
     ;;
   start)

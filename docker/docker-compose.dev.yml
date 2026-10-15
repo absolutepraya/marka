@@ -1,112 +1,106 @@
+# Isolated Linux source-development stack. Never joins production networks.
+x-app: &app
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile.dev
+  env_file:
+    - ../.env
+  volumes:
+    - ..:/app
+    - node_modules:/app/node_modules
+    - pnpm-store:/pnpm
+    - data:/data
+  working_dir: /app
+  environment: &environment
+    DATA_DIR: /data
+    ASSETS_DIR: /data/assets
+    ASSET_STORE_S3_ENDPOINT: ""
+    MEILI_ADDR: http://meilisearch:7700
+    MEILI_MASTER_KEY: ""
+    MEILI_VECTOR_ADDR: ""
+    MEILI_VECTOR_MASTER_KEY: ""
+    MEILI_INDEX_PREFIX: dev_
+    BROWSER_WEB_URL: ""
+    BROWSER_WEBSOCKET_URL: ""
+    BROWSERLESS_URL: ws://browserless:3000
+    BROWSERLESS_TOKEN: ${MARKA_DEV_BROWSERLESS_TOKEN:-local-development-only}
+    BROWSER_CONNECT_ONDEMAND: "true"
+    BROWSER_REUSE_CONNECTION: ${BROWSER_REUSE_CONNECTION:-false}
+    WORKER_PROFILE: ${WORKER_PROFILE:-screenshot-first}
+    CRAWLER_NUM_WORKERS: ${CRAWLER_NUM_WORKERS:-2}
+    WORKERS_HOST: 0.0.0.0
+    WORKERS_PORT: "3001"
+    API_URL: http://web:3000
+    NEXTAUTH_URL: http://localhost:${KARAKEEP_PORT:-3000}
+    NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-local-development-only}
+    NO_COLOR: "false"
+  depends_on:
+    prep:
+      condition: service_completed_successfully
+    meilisearch:
+      condition: service_started
+    browserless:
+      condition: service_healthy
+
 services:
   web:
-    build:
-      dockerfile: Dockerfile.dev
-    restart: unless-stopped
-    volumes:
-      - ..:/app
-      - node_modules:/app/node_modules
-      - pnpm-store:/pnpm
-      # By default, the data is stored in a docker volume called "data".
-      # If you want to mount a custom directory, change the volume mapping to:
-      # - /path/to/your/directory:/data
-      - data:${DATA_DIR:-/data}
+    <<: *app
     ports:
-      - 3000:3000
+      - 127.0.0.1:${KARAKEEP_PORT:-3000}:3000
     environment:
-      # Override any of these via .env if you need custom paths or secrets
-
-      MEILI_ADDR: ${MEILI_ADDR:-http://meilisearch:7700}
-      BROWSER_WEB_URL: ${BROWSER_WEB_URL:-http://chrome:9222}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-super-secure-nextauth-secret}
-      # You almost never want to change the value of the DATA_DIR variable.
-      # If you want to mount a custom directory, change the volume mapping above instead.
-      DATA_DIR: ${DATA_DIR:-/data}
-      # OPENAI_API_KEY: ...
-
+      <<: *environment
       HOSTNAME: 0.0.0.0
-      # https://github.com/vercel/next.js/issues/71622
-      # https://github.com/vercel/next.js/issues/36774
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
+    command: [pnpm, web]
+  workers:
+    <<: *app
+    # Source development includes the watcher. Use a production image to measure VPS capacity.
+    command: [pnpm, workers]
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3001/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+  prep:
+    <<: *app
+    depends_on: {}
     command:
-      - pnpm
-      - web
-    working_dir: /app
-    depends_on:
-      prep:
-        condition: service_completed_successfully
-      meilisearch:
-        condition: service_started
-      chrome:
-        condition: service_started
-  chrome:
-    image: gcr.io/zenika-hub/alpine-chrome:124
-    restart: unless-stopped
-    ports:
-      - 127.0.0.1:9222:9222
-    command:
-      - --no-sandbox
-      - --disable-gpu
-      - --disable-dev-shm-usage
-      - --remote-debugging-address=0.0.0.0
-      - --remote-debugging-port=9222
-      - --hide-scrollbars
+      [
+        /bin/sh,
+        -c,
+        "mkdir -p /data && pnpm install --frozen-lockfile && pnpm run db:migrate",
+      ]
+  browserless:
+    image: browserless/chrome@sha256:57d19e414d9fe4ae9d2ab12ba768c97f38d51246c5b31af55a009205c136012f
+    platform: linux/amd64
+    mem_limit: 1g
+    environment:
+      TOKEN: ${MARKA_DEV_BROWSERLESS_TOKEN:-local-development-only}
+      CONNECTION_TIMEOUT: "60000"
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/pressure?token='+encodeURIComponent(process.env.TOKEN)).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      start_period: 20s
   meilisearch:
     image: getmeili/meilisearch:v1.41.0
-    restart: unless-stopped
     environment:
       MEILI_NO_ANALYTICS: "true"
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-}
     volumes:
       - meilisearch:/meili_data
-  workers:
-    build:
-      dockerfile: Dockerfile.dev
-    restart: unless-stopped
-    volumes:
-      - ..:/app
-      - node_modules:/app/node_modules
-      - pnpm-store:/pnpm
-      - data:${DATA_DIR:-/data}
-    working_dir: /app
-    environment:
-      DATA_DIR: ${DATA_DIR:-/data}
-      MEILI_ADDR: ${MEILI_ADDR:-http://meilisearch:7700}
-      BROWSER_WEB_URL: ${BROWSER_WEB_URL:-http://chrome:9222}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-super-secure-nextauth-secret}
-      # OPENAI_API_KEY: ...
-    command:
-      - pnpm
-      - workers
-    depends_on:
-      prep:
-        condition: service_completed_successfully
-      meilisearch:
-        condition: service_started
-      chrome:
-        condition: service_started
-  prep:
-    build:
-      dockerfile: Dockerfile.dev
-    restart: "no"
-    working_dir: /app
-    environment:
-      DATA_DIR: ${DATA_DIR:-/data}
-      MEILI_ADDR: ${MEILI_ADDR:-http://meilisearch:7700}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-super-secure-nextauth-secret}
-    volumes:
-      - ..:/app
-      - node_modules:/app/node_modules
-      - pnpm-store:/pnpm
-      - data:${DATA_DIR:-/data}
-    command:
-      - /bin/sh
-      - -c
-      - mkdir -p "${DATA_DIR:-/data}" && pnpm install --frozen-lockfile && pnpm run db:migrate
 
 volumes:
   meilisearch:
