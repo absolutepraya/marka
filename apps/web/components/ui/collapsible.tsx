@@ -55,17 +55,22 @@ function CollapsibleTriggerChevron({
   open,
   className,
   label = "Toggle",
+  triggerClassName,
 }: {
   open: boolean;
   className?: string;
   label?: string;
+  triggerClassName?: string;
 }) {
   return (
     <CollapsibleTrigger asChild>
       <button
         type="button"
         aria-label={label}
-        className="-m-1 flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className={cn(
+          "-m-1 flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+          triggerClassName,
+        )}
       >
         <ChevronRight
           className={cn(

@@ -370,6 +370,19 @@
 @layer components {
   /* Layer decreasing blur strengths toward content without boosting its colors. */
   @media (max-width: 639px) {
+    .mobile-header-frost::before,
+    .mobile-header-frost::after,
+    .mobile-header-frost-layer {
+      opacity: 0;
+      transition: opacity 180ms ease-out;
+    }
+
+    .mobile-header-frost[data-scrolled="true"]::before,
+    .mobile-header-frost[data-scrolled="true"]::after,
+    .mobile-header-frost[data-scrolled="true"] .mobile-header-frost-layer {
+      opacity: 1;
+    }
+
     .mobile-footer-frost {
       --frost-direction: to top;
       --frost-soft-inset: -4.5rem 0 0;
