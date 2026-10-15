@@ -7,6 +7,8 @@ import { SearchInput } from "@/components/dashboard/search/SearchInput";
 import MarkaLogo from "@/components/MarkaLogo";
 import { getServerAuthSession } from "@/server/auth";
 
+import HeaderSurface from "./HeaderSurface";
+
 export default async function Header() {
   const session = await getServerAuthSession();
   if (!session) {
@@ -14,7 +16,7 @@ export default async function Header() {
   }
 
   return (
-    <header className="mobile-header-frost sm:bg-sidebar/95 sticky left-0 right-0 top-0 isolate z-50">
+    <HeaderSurface>
       <div className="flex h-16 items-center gap-3 overflow-x-auto overflow-y-hidden px-3 sm:px-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
         <div className="hidden shrink-0 items-center sm:flex">
           <Link
@@ -38,6 +40,6 @@ export default async function Header() {
         aria-hidden="true"
         className="mobile-header-frost-layer sm:hidden"
       />
-    </header>
+    </HeaderSurface>
   );
 }

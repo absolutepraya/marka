@@ -200,8 +200,7 @@ export default function AllListsView({
 
   return (
     <div className="space-y-6">
-      {/* Keep list search and creation reachable while the tree scrolls. */}
-      <div className="sticky top-16 z-20 flex items-center gap-2 bg-background pb-2 pt-2 sm:top-0">
+      <div className="flex items-center gap-2 pb-2 pt-2">
         <Input
           type="search"
           value={query}

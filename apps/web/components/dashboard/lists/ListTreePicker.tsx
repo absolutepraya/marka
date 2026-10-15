@@ -332,63 +332,6 @@ export default function ListTreePicker({
       aria-label={t("lists.all_lists")}
       className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-col"
     >
-      {/* Pinned header: the "Lists" label + search stay put while the list
-          scrolls underneath them. */}
-      <div className="shrink-0">
-        {showHeader && (
-          <div className="flex justify-between pb-3">
-            <p className="pl-2 text-xs uppercase tracking-wider text-muted-foreground">
-              {t("lists.navigation.heading")}
-            </p>
-            <EditListModal>
-              <Button
-                variant="ghost"
-                size="none"
-                aria-label={t("lists.new_list")}
-              >
-                <Plus
-                  className="mr-2 size-4 text-muted-foreground"
-                  strokeWidth={1.5}
-                />
-              </Button>
-            </EditListModal>
-          </div>
-        )}
-        {lists.data.length > 0 && (
-          <div className="px-1 pb-2">
-            <div className={searchFieldSurfaceClassName}>
-              <Input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("lists.search_placeholder", {
-                  defaultValue: "Search lists",
-                })}
-                aria-label={t("lists.search_placeholder", {
-                  defaultValue: "Search lists",
-                })}
-                startIcon={
-                  <Search className="size-3.5 text-muted-foreground" />
-                }
-                endIcon={
-                  query ? (
-                    <button
-                      type="button"
-                      aria-label={t("actions.clear", { defaultValue: "Clear" })}
-                      onClick={() => setQuery("")}
-                      className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  ) : undefined
-                }
-                className="h-8 rounded-[inherit] border-0 bg-transparent text-base shadow-none focus-visible:ring-0 sm:text-sm [&::-webkit-search-cancel-button]:appearance-none"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Scroll viewport with gradient fades top + bottom, so content melts
           into the sidebar at both edges instead of cutting off hard. */}
       <div className="relative min-h-0 flex-1">
@@ -403,6 +346,62 @@ export default function ListTreePicker({
           onScroll={syncEdges}
           className="sidebar-scrollbar h-full space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-contain pr-2 text-sm"
         >
+          <div className="shrink-0">
+            {showHeader && (
+              <div className="flex justify-between pb-3">
+                <p className="pl-2 text-xs uppercase tracking-wider text-muted-foreground">
+                  {t("lists.navigation.heading")}
+                </p>
+                <EditListModal>
+                  <Button
+                    variant="ghost"
+                    size="none"
+                    aria-label={t("lists.new_list")}
+                  >
+                    <Plus
+                      className="mr-2 size-4 text-muted-foreground"
+                      strokeWidth={1.5}
+                    />
+                  </Button>
+                </EditListModal>
+              </div>
+            )}
+            {lists.data.length > 0 && (
+              <div className="px-1 pb-2">
+                <div className={searchFieldSurfaceClassName}>
+                  <Input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={t("lists.search_placeholder", {
+                      defaultValue: "Search lists",
+                    })}
+                    aria-label={t("lists.search_placeholder", {
+                      defaultValue: "Search lists",
+                    })}
+                    startIcon={
+                      <Search className="size-3.5 text-muted-foreground" />
+                    }
+                    endIcon={
+                      query ? (
+                        <button
+                          type="button"
+                          aria-label={t("actions.clear", {
+                            defaultValue: "Clear",
+                          })}
+                          onClick={() => setQuery("")}
+                          className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      ) : undefined
+                    }
+                    className="h-8 rounded-[inherit] border-0 bg-transparent text-base shadow-none focus-visible:ring-0 sm:text-sm [&::-webkit-search-cancel-button]:appearance-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           {isPending && (
             <div role="status" className="px-2 text-xs text-muted-foreground">
               {t("lists.navigation.loading")}
