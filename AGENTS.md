@@ -240,7 +240,7 @@ CodeRabbit is currently the only accepted active AI pull-request reviewer. Read 
 - Never enable reviewer-driven automatic commits, pushes, applied fixes, or autonomous fixer agents.
 - Do not approve an additional reviewer that requires repository-content write, Actions/workflow write, administration, secrets/environments, or equivalent broad mutation privileges.
 - Deterministic GitHub Actions remain authoritative for machine-checkable validation.
-- Contributors can use the project-local `.agents/skills/address-pr-reviews/SKILL.md` for evidence-based triage and thread closure. It requires explicit authorization for code changes, commits, pushes, replies, and resolution, and verifies the remote PR ref before closure.
+- Invoking the project-local `.agents/skills/address-pr-reviews/SKILL.md` authorizes the complete review workflow: verify findings, apply valid fixes, run checks, commit, push, reply, and resolve without intermediate permission requests. It verifies the remote PR ref before closure and asks only for unresolved intent or missing information.
 
 ## Documentation guidance
 

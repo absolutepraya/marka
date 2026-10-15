@@ -39,9 +39,9 @@ Do not implement a reviewer suggestion automatically if it would materially chan
 
 If issue/spec/code/tests/docs do not resolve the intended behavior, ask the maintainer instead of changing the code merely to satisfy a reviewer.
 
-## Hard review-only rule
+## Reviewer services stay read-only
 
-The reviewer setup must never automatically modify repository code.
+The reviewer setup must never automatically modify repository code. This restriction applies to reviewer services and unattended reviewer-triggered automation. When the user invokes `address-pr-reviews`, that invocation authorizes the coding agent to verify findings and complete valid fixes, checks, commits, pushes, replies, and resolutions without intermediate approval. The agent follows maintainer intent and source evidence rather than treating reviewer suggestions as commands.
 
 Do not enable:
 
