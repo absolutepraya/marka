@@ -370,19 +370,30 @@
 @layer components {
   /* Layer decreasing blur strengths toward content without boosting its colors. */
   @media (max-width: 639px) {
+    .mobile-footer-frost {
+      --frost-direction: to top;
+      --frost-soft-inset: -4.5rem 0 0;
+      --frost-medium-inset: -3rem 0 0;
+      --frost-strong-inset: -1.125rem 0 0;
+    }
+
     .mobile-header-frost::before,
     .mobile-header-frost::after,
-    .mobile-header-frost-layer {
+    .mobile-header-frost-layer,
+    .mobile-footer-frost::before,
+    .mobile-footer-frost::after,
+    .mobile-footer-frost-layer {
       content: "";
       position: absolute;
       z-index: -1;
       pointer-events: none;
     }
 
-    .mobile-header-frost::before {
-      inset: 0 0 -3rem;
+    .mobile-header-frost::before,
+    .mobile-footer-frost::before {
+      inset: var(--frost-soft-inset, 0 0 -3rem);
       background: linear-gradient(
-        to bottom,
+        var(--frost-direction, to bottom),
         color-mix(in oklab, var(--background) 76%, transparent),
         color-mix(in oklab, var(--background) 42%, transparent) 52%,
         transparent
@@ -390,49 +401,51 @@
       -webkit-backdrop-filter: blur(4px);
       backdrop-filter: blur(4px);
       -webkit-mask-image: linear-gradient(
-        to bottom,
+        var(--frost-direction, to bottom),
         black 0%,
         black 45%,
         transparent 100%
       );
       mask-image: linear-gradient(
-        to bottom,
+        var(--frost-direction, to bottom),
         black 0%,
         black 45%,
         transparent 100%
       );
     }
 
-    .mobile-header-frost-layer {
-      inset: 0 0 -2rem;
+    .mobile-header-frost-layer,
+    .mobile-footer-frost-layer {
+      inset: var(--frost-medium-inset, 0 0 -2rem);
       -webkit-backdrop-filter: blur(12px);
       backdrop-filter: blur(12px);
       -webkit-mask-image: linear-gradient(
-        to bottom,
+        var(--frost-direction, to bottom),
         black 0%,
         black 25%,
         transparent 100%
       );
       mask-image: linear-gradient(
-        to bottom,
+        var(--frost-direction, to bottom),
         black 0%,
         black 25%,
         transparent 100%
       );
     }
 
-    .mobile-header-frost::after {
-      inset: 0 0 -0.75rem;
+    .mobile-header-frost::after,
+    .mobile-footer-frost::after {
+      inset: var(--frost-strong-inset, 0 0 -0.75rem);
       -webkit-backdrop-filter: blur(28px);
       backdrop-filter: blur(28px);
       -webkit-mask-image: linear-gradient(
-        to bottom,
+        var(--frost-direction, to bottom),
         black 0%,
         black 15%,
         transparent 100%
       );
       mask-image: linear-gradient(
-        to bottom,
+        var(--frost-direction, to bottom),
         black 0%,
         black 15%,
         transparent 100%

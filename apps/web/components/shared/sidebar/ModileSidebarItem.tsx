@@ -92,7 +92,7 @@ function TabContent({
       aria-busy={pending}
       className="relative flex items-center justify-center"
     >
-      <span className="flex size-6 items-center justify-center [&_svg]:size-[22px] [&_svg]:stroke-[1.5]">
+      <span className="flex size-6 items-center justify-center [&_svg]:size-[22px] [&_svg]:stroke-2">
         {logo}
       </span>
       {isActive && <LoadingUnderline pending={pending} />}
@@ -150,8 +150,8 @@ export default function MobileSidebarItem({
         className={cn(
           "ease-(--ease-out) relative flex min-h-[52px] w-full items-center justify-center rounded-[14px] px-1.5 py-2 transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:scale-[0.96] motion-reduce:transition-none",
           isActive
-            ? "bg-primary/[0.07] text-foreground shadow-inner shadow-primary/10 ring-1 ring-inset ring-primary/30"
-            : "text-muted-foreground",
+            ? "bg-primary/15 text-foreground shadow-inner shadow-primary/25 ring-1 ring-inset ring-primary/40"
+            : "text-foreground/80",
         )}
       >
         <TabContent logo={logo} isActive={isActive} path={path} />
