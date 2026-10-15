@@ -11,6 +11,8 @@ const BRAND_NAVY = [3, 19, 47];
 const BRAND_WHITE = [255, 255, 255];
 const COMPOSER_SOURCE = "assets/brand/marka/source/marka-ios-app-icon-dark.png";
 const SOURCE_HASHES = {
+  "assets/brand/marka/source/marka-social.png":
+    "05722bd2e82c890dd2ef7d52ae13b454a0a660984663f1e0ad21be79f79ff755",
   [COMPOSER_SOURCE]:
     "23144032b5366b56a9ae0cc502b058f10c08ddcb61872025f1f5fbc542258357",
   "assets/brand/marka/source/marka-navy-app-icon.png":
@@ -65,7 +67,7 @@ test("preserves the supplied Marka source PNG bytes", async () => {
   }
 });
 
-test("uses the preserved Composer artwork for the 1024px installed-app icon", async () => {
+test("preserves the supplied installed-app icon and social-preview artwork", async () => {
   const outputRoot = await mkdtemp(join(tmpdir(), "marka-assets-"));
   await generateAssets({ outputRoot, writeIco: false });
   const expected = createHash("sha256")
@@ -83,6 +85,12 @@ test("uses the preserved Composer artwork for the 1024px installed-app icon", as
     .digest("hex");
 
   assert.equal(actual, expected);
+  assert.deepEqual(
+    await readFile(
+      join(outputRoot, "apps/web/public/brand/marka/marka-social.png"),
+    ),
+    await readFile("assets/brand/marka/source/marka-social.png"),
+  );
 });
 
 test("generates every declared Marka PNG at its manifest dimensions", async () => {
@@ -241,7 +249,11 @@ test("generates favicon tiles with transparent backgrounds", async () => {
 
     for (const x of [0, info.width - 1]) {
       for (let y = 0; y < info.height; y += 1) {
-        assert.equal(pixelAt(data, info, x, y)[3], 0, `${name} edge at ${x},${y}`);
+        assert.equal(
+          pixelAt(data, info, x, y)[3],
+          0,
+          `${name} edge at ${x},${y}`,
+        );
       }
     }
 
@@ -250,7 +262,13 @@ test("generates favicon tiles with transparent backgrounds", async () => {
       alphaValues.push(data[index + 3]);
     }
 
-    assert.ok(alphaValues.some((alpha) => alpha === 0), `${name} background`);
-    assert.ok(alphaValues.some((alpha) => alpha > 0), `${name} logo`);
+    assert.ok(
+      alphaValues.some((alpha) => alpha === 0),
+      `${name} background`,
+    );
+    assert.ok(
+      alphaValues.some((alpha) => alpha > 0),
+      `${name} logo`,
+    );
   }
 });

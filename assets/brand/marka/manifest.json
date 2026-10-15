@@ -60,11 +60,17 @@
         { "path": "docs/static/img/brand/marka/marka-wordmark-navy.png", "width": 598, "height": 166, "source": "assets/brand/marka/source/marka-white-wordmark.png", "foreground": "#03132F", "background": "transparent", "trim": true },
         { "path": "apps/web/public/brand/marka/marka-wordmark-white.png", "width": 598, "height": 166, "source": "assets/brand/marka/source/marka-white-wordmark.png", "background": "transparent", "trim": true },
         { "path": "screenshots/marka-social.png", "width": 1200, "height": 630, "source": "assets/brand/marka/source/marka-white-wordmark.png" },
-        { "path": "apps/web/public/brand/marka/marka-social.png", "width": 1200, "height": 630, "source": "assets/brand/marka/source/marka-white-wordmark.png" },
         { "path": "apps/landing/public/brand/marka/marka-wordmark-white.png", "width": 598, "height": 166, "source": "assets/brand/marka/source/marka-white-wordmark.png", "background": "transparent", "trim": true },
         { "path": "apps/landing/public/brand/marka/marka-social.png", "width": 1200, "height": 630, "source": "assets/brand/marka/source/marka-white-wordmark.png" },
         { "path": "docs/static/img/brand/marka/marka-wordmark-white.png", "width": 598, "height": 166, "source": "assets/brand/marka/source/marka-white-wordmark.png", "background": "transparent", "trim": true },
         { "path": "docs/static/img/brand/marka/marka-social.png", "width": 1200, "height": 630, "source": "assets/brand/marka/source/marka-white-wordmark.png" }
+      ]
+    },
+    {
+      "source": "assets/brand/marka/source/marka-social.png",
+      "preserveArtwork": true,
+      "outputs": [
+        { "path": "apps/web/public/brand/marka/marka-social.png", "width": 1200, "height": 630, "source": "assets/brand/marka/source/marka-social.png", "preserveArtwork": true, "copySource": true }
       ]
     },
     {
