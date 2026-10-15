@@ -348,8 +348,8 @@ function GridView({
           {img}
         </div>
       )}
-      <div className="flex h-full flex-col justify-between gap-1 overflow-hidden p-2 pb-1 sm:gap-2.5 sm:p-3.5">
-        <div className="grow-1 flex flex-col gap-1.5 overflow-hidden sm:gap-2">
+      <div className="flex h-full flex-col justify-between gap-1 overflow-hidden p-2 pb-1 sm:gap-0 sm:p-0">
+        <div className="grow-1 flex flex-col gap-1.5 overflow-hidden sm:gap-2 sm:p-3">
           {showTitle && title && (
             <div className="line-clamp-2 flex-none shrink-0 overflow-hidden text-ellipsis break-words text-sm font-semibold leading-snug tracking-tight sm:text-lg">
               {title}
@@ -376,7 +376,7 @@ function GridView({
             row (date left, actions right). Desktop: url + date inline on the
             left, actions on the right. The date is rendered in both spots and
             toggled per breakpoint since it regroups between the two. */}
-        <div className="flex w-full shrink-0 flex-col gap-0.5 border-t border-border/60 pt-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:pt-2.5 sm:text-sm">
+        <div className="flex w-full shrink-0 flex-col gap-0.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:border-t sm:border-border/60 sm:px-3 sm:py-1.5 sm:text-sm">
           <div
             className={cn(
               "flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2",
