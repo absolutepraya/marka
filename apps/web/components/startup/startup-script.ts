@@ -12,20 +12,23 @@ export const startupScript = `(() => {
   let timer;
   const finish = () => {
     root.dataset.startupReady = 'true';
+    delete root.dataset.startupRecovery;
     document.getElementById('marka-startup-content')?.removeAttribute('inert');
     clearTimeout(timer);
     window.removeEventListener('marka:startup-ready', finish);
     window.removeEventListener('pageshow', resume);
   };
-  const resume = event => { if (event.persisted) finish(); };
+  const recover = () => {
+    if (root.dataset.startupReady === 'true') return;
+    const recovery = navigator.onLine === false ? 'offline' : 'slow';
+    root.dataset.startupRecovery = recovery;
+    const message = document.getElementById('marka-startup-message');
+    if (message?.dataset[recovery]) message.textContent = message.dataset[recovery];
+  };
+  // History restoration is not proof that a suspended destination hydrated.
+  const resume = event => { if (event.persisted) recover(); };
   window.addEventListener('marka:startup-ready', finish);
   window.addEventListener('pageshow', resume);
-  timer = setTimeout(() => {
-    if (root.dataset.startupReady !== 'true') {
-      const recovery = navigator.onLine === false ? 'offline' : 'slow';
-      root.dataset.startupRecovery = recovery;
-      const message = document.getElementById('marka-startup-message');
-      if (message?.dataset[recovery]) message.textContent = message.dataset[recovery];
-    }
-  }, 15000);
+  if (root.dataset.startupReady === 'true') finish();
+  else timer = setTimeout(recover, 15000);
 })();`;

@@ -158,6 +158,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // A cold installed launch starts at /. It has no session-bound document
+  // cache yet, but can still show the public offline page without caching auth.
+  if (
+    event.request.mode === "navigate" &&
+    url.origin === self.location.origin &&
+    url.pathname === "/"
+  ) {
+    event.respondWith(handleStartupNavigation(event.request));
+    return;
+  }
+
   if (isStaticAsset({ url })) {
     event.respondWith(handleStaticAsset(event.request));
     return;
@@ -208,10 +219,19 @@ async function handleStaticAsset(request) {
   return response;
 }
 
+async function handleStartupNavigation(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    const cache = await caches.open(KARAKEEP_SHELL_CACHE);
+    return await cache.match("/offline.html");
+  }
+}
+
 async function handleNavigation(event) {
   const sessionId = documentCacheSessions.get(event.clientId);
   if (!sessionId) {
-    return await fetch(event.request);
+    return await handleStartupNavigation(event.request);
   }
 
   const cache = await caches.open(KARAKEEP_SHELL_CACHE);
