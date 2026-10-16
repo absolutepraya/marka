@@ -21,7 +21,7 @@ This repository maintains Marka's product, operator workflow, and repository-spe
 
 Marka uses:
 - Node 24.18.1 (`.nvmrc`; temporarily pinned to avoid the Node 24.19 native-addon cleanup regression)
-- `pnpm@11.2.1` via corepack
+- `pnpm@11.25.0` via corepack
 - Docker-compatible local runtime, such as OrbStack on macOS
 - [`wt`](https://github.com/absolutepraya/wt) for isolated worktrees
 - root `.env` symlinked into `apps/web`, `apps/workers`, and `packages/db`
