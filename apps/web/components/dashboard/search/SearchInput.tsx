@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import React, {
   useCallback,
   useEffect,
@@ -30,12 +31,11 @@ import { cn } from "@/lib/utils";
 import { useSearchHistory } from "@karakeep/shared-react/hooks/search-history";
 
 import { EditListModal } from "../lists/EditListModal";
+import { SearchFilters } from "./SearchFilters";
 import { useSearchAutocomplete } from "./useSearchAutocomplete";
 
 function useFocusSearchOnKeyPress(
   inputRef: React.RefObject<HTMLInputElement | null>,
-  value: string,
-  setValue: (value: string) => void,
   setPopoverOpen: React.Dispatch<React.SetStateAction<boolean>>,
 ) {
   useEffect(() => {
@@ -51,18 +51,13 @@ function useFocusSearchOnKeyPress(
         inputRef.current.setSelectionRange(length, length);
         setPopoverOpen(true);
       }
-      if (e.code === "Escape" && e.target == inputRef.current && value !== "") {
-        e.preventDefault();
-        inputRef.current.blur();
-        setValue("");
-      }
     }
 
     document.addEventListener("keydown", handleKeyPress);
     return () => {
       document.removeEventListener("keydown", handleKeyPress);
     };
-  }, [inputRef, value, setValue, setPopoverOpen]);
+  }, [inputRef, setPopoverOpen]);
 }
 
 const SearchInput = React.forwardRef<
@@ -77,6 +72,7 @@ const SearchInput = React.forwardRef<
     debounceSearch,
     searchQuery,
     doSearch,
+    cancelSearch,
     parsedSearchQuery,
     isInSearchPage,
   } = useDoBookmarkSearch();
@@ -107,8 +103,9 @@ const SearchInput = React.forwardRef<
   );
 
   const handleCompositionStart = useCallback(() => {
+    cancelSearch();
     isComposing.current = true;
-  }, []);
+  }, [cancelSearch]);
 
   const handleCompositionEnd = useCallback(
     (e: React.CompositionEvent<HTMLInputElement>) => {
@@ -134,6 +131,10 @@ const SearchInput = React.forwardRef<
     setIsPopoverOpen,
     t,
     history,
+    onSubmit: () => {
+      doSearch(value);
+      addTerm(value);
+    },
   });
 
   const handleHistorySelect = useCallback(
@@ -148,14 +149,17 @@ const SearchInput = React.forwardRef<
     [doSearch, addTerm],
   );
 
-  useFocusSearchOnKeyPress(inputRef, value, setValue, setIsPopoverOpen);
+  useFocusSearchOnKeyPress(inputRef, setIsPopoverOpen);
   useImperativeHandle(ref, () => inputRef.current!);
 
   useEffect(() => {
     if (!isInSearchPage) {
       setValue("");
+      cancelSearch();
+    } else if (document.activeElement !== inputRef.current) {
+      setValue(searchQuery);
     }
-  }, [isInSearchPage]);
+  }, [isInSearchPage, searchQuery, cancelSearch]);
 
   const handleFocus = useCallback(() => {
     setIsPopoverOpen(true);
@@ -201,18 +205,51 @@ const SearchInput = React.forwardRef<
             }}
           >
             <PopoverAnchor asChild>
-              <div className="relative">
-                <CommandInput
-                  ref={inputRef}
-                  placeholder={t("common.search")}
-                  value={value}
-                  onValueChange={handleValueChange}
-                  onCompositionStart={handleCompositionStart}
-                  onCompositionEnd={handleCompositionEnd}
-                  onFocus={handleFocus}
-                  onBlur={handleBlur}
-                  className="h-10"
-                  {...props}
+              <div className="flex items-center pe-1">
+                <div className="min-w-0 flex-1">
+                  <CommandInput
+                    ref={inputRef}
+                    placeholder={t("search.placeholder")}
+                    aria-label={t("search.placeholder")}
+                    value={value}
+                    onValueChange={handleValueChange}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    className="h-10"
+                    {...props}
+                  />
+                </div>
+                {value && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-9 shrink-0 rounded-lg"
+                    aria-label={t("actions.clear", {
+                      defaultValue: "Clear search",
+                    })}
+                    onClick={() => {
+                      setValue("");
+                      doSearch("");
+                      inputRef.current?.focus();
+                    }}
+                  >
+                    <X className="size-4" aria-hidden />
+                  </Button>
+                )}
+                <SearchFilters
+                  query={value}
+                  offline={
+                    offlineLibraryStatus.kind === "offline" || browserIsOffline
+                  }
+                  onOpen={() => setIsPopoverOpen(false)}
+                  onApply={(nextQuery) => {
+                    setValue(nextQuery);
+                    doSearch(nextQuery);
+                    setIsPopoverOpen(false);
+                  }}
                 />
               </div>
             </PopoverAnchor>

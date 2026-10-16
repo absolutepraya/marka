@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 export default function SidebarItem({
   name,
+  description,
   logo,
   path,
   className,
@@ -23,6 +24,7 @@ export default function SidebarItem({
   as: Component = "li",
 }: {
   name: string;
+  description?: string;
   logo: React.ReactNode;
   path: string;
   style?: React.CSSProperties;
@@ -77,8 +79,18 @@ export default function SidebarItem({
           >
             {logo}
           </span>
-          <span title={name} className="min-w-0 truncate font-medium">
-            {name}
+          <span className="flex min-w-0 flex-col">
+            <span title={name} className="truncate font-medium">
+              {name}
+            </span>
+            {description && (
+              <span
+                title={description}
+                className="truncate text-xs text-muted-foreground"
+              >
+                {description}
+              </span>
+            )}
           </span>
         </Link>
       </div>

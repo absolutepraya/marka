@@ -29,7 +29,17 @@ import type { ZBookmarkList } from "@karakeep/shared/types/lists";
 
 import ListTreePicker from "./ListTreePicker";
 
-export function SublistNavigation({ lists }: { lists: ZBookmarkList[] }) {
+export function SublistNavigation({
+  lists,
+  heading,
+  getDescription,
+  searchResults = false,
+}: {
+  lists: ZBookmarkList[];
+  heading?: string;
+  searchResults?: boolean;
+  getDescription?: (list: ZBookmarkList) => string | undefined;
+}) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const id = useId();
@@ -39,7 +49,7 @@ export function SublistNavigation({ lists }: { lists: ZBookmarkList[] }) {
   return (
     <section aria-labelledby={`${id}-heading`} className="space-y-1.5">
       <h2 id={`${id}-heading`} className="text-xs font-medium">
-        {t("lists.navigation.sublists")}{" "}
+        {heading ?? t("lists.navigation.sublists")}{" "}
         <span className="ms-2 tabular-nums text-muted-foreground">
           {lists.length}
         </span>
@@ -49,6 +59,7 @@ export function SublistNavigation({ lists }: { lists: ZBookmarkList[] }) {
           <SidebarItem
             key={list.id}
             name={list.name}
+            description={getDescription?.(list)}
             path={`/dashboard/lists/${list.id}`}
             logo={
               <span className="text-lg" aria-hidden>
@@ -81,8 +92,17 @@ export function SublistNavigation({ lists }: { lists: ZBookmarkList[] }) {
                 <ChevronDown className="size-3.5" aria-hidden />
               )}
               {expanded
-                ? t("lists.navigation.show_fewer")
-                : t("lists.navigation.show_more", { count: lists.length - 3 })}
+                ? t(
+                    searchResults
+                      ? "search.show_fewer_lists"
+                      : "lists.navigation.show_fewer",
+                  )
+                : t(
+                    searchResults
+                      ? "search.show_more_lists"
+                      : "lists.navigation.show_more",
+                    { count: lists.length - 3 },
+                  )}
             </Button>
           </li>
         )}

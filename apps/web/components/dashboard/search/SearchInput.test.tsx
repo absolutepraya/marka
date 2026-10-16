@@ -1,10 +1,26 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SearchInput } from "./SearchInput";
+
+const mocks = vi.hoisted(() => ({
+  debounceSearch: vi.fn(),
+  doSearch: vi.fn(),
+  cancelSearch: vi.fn(),
+}));
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 class ResizeObserver {
   observe() {
@@ -24,9 +40,10 @@ vi.stubGlobal("ResizeObserver", ResizeObserver);
 
 vi.mock("@/lib/hooks/bookmark-search", () => ({
   useDoBookmarkSearch: () => ({
-    debounceSearch: vi.fn(),
+    debounceSearch: mocks.debounceSearch,
     searchQuery: "",
-    doSearch: vi.fn(),
+    doSearch: mocks.doSearch,
+    cancelSearch: mocks.cancelSearch,
     parsedSearchQuery: { result: "empty" },
     isInSearchPage: false,
   }),
@@ -84,7 +101,7 @@ describe("SearchInput", () => {
   it("keeps the input focused when opening autocomplete suggestions", async () => {
     render(<SearchInput />);
 
-    const input = screen.getByPlaceholderText("common.search");
+    const input = screen.getByPlaceholderText("search.placeholder");
     expect(fireEvent.pointerDown(input, { button: 0, ctrlKey: false })).toBe(
       true,
     );
@@ -94,4 +111,25 @@ describe("SearchInput", () => {
       expect(document.activeElement).toBe(input);
     });
   });
+});
+
+it("puts the filter control inside the search surface and clears the query immediately", () => {
+  render(<SearchInput />);
+  const input = screen.getByRole("combobox");
+  const filters = screen.getByRole("button", { name: "search.filters" });
+  expect(input.closest("[cmdk-root]")?.contains(filters)).toBe(true);
+  fireEvent.change(input, { target: { value: "react" } });
+  fireEvent.click(screen.getByRole("button", { name: "actions.clear" }));
+  expect(mocks.doSearch).toHaveBeenCalledWith("");
+  expect((input as HTMLInputElement).value).toBe("");
+});
+
+it("does not search partial IME composition", () => {
+  render(<SearchInput />);
+  const input = screen.getByRole("combobox");
+  fireEvent.compositionStart(input);
+  fireEvent.change(input, { target: { value: "日本" } });
+  expect(mocks.debounceSearch).not.toHaveBeenCalled();
+  fireEvent.compositionEnd(input);
+  expect(mocks.debounceSearch).toHaveBeenCalledWith("日本");
 });

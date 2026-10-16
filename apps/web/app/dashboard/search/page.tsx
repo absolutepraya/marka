@@ -1,11 +1,16 @@
 "use client";
 
 import React, { Suspense, useEffect } from "react";
+import {
+  OnlineSearchListResults,
+  OfflineSearchListResults,
+} from "@/components/dashboard/search/SearchListResults";
 import GlobalActions from "@/components/dashboard/GlobalActions";
 import BookmarksGrid from "@/components/dashboard/bookmarks/BookmarksGrid";
 import BookmarksGridSkeleton from "@/components/dashboard/bookmarks/BookmarksGridSkeleton";
 import {
   useLocalBookmarkSearch,
+  useSearchQuery,
   useServerBookmarkSearch,
 } from "@/lib/hooks/bookmark-search";
 import {
@@ -15,12 +20,13 @@ import {
 import { useInSearchPageStore } from "@/lib/store/useInSearchPageStore";
 import { useSortOrderStore } from "@/lib/store/useSortOrderStore";
 
-function OfflineSearchResults() {
+function OfflineSearchResults({ text }: { text: string }) {
   const { data, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useLocalBookmarkSearch();
 
   return (
     <div className="flex flex-col gap-3">
+      <OfflineSearchListResults text={text} />
       {data ? (
         <BookmarksGrid
           hasNextPage={hasNextPage}
@@ -35,12 +41,13 @@ function OfflineSearchResults() {
   );
 }
 
-function OnlineSearchResults() {
+function OnlineSearchResults({ text }: { text: string }) {
   const { data, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useServerBookmarkSearch();
 
   return (
     <div className="flex flex-col gap-3">
+      <OnlineSearchListResults text={text} />
       {data ? (
         <BookmarksGrid
           hasNextPage={hasNextPage}
@@ -56,6 +63,9 @@ function OnlineSearchResults() {
 }
 
 function SearchResults() {
+  const { parsedSearchQuery } = useSearchQuery();
+  const text =
+    parsedSearchQuery.result === "full" ? parsedSearchQuery.text : "";
   const status = useOfflineLibraryStatus();
   const canReadOfflineReplica = useCanReadOfflineReplica();
   const browserIsOffline =
@@ -63,7 +73,7 @@ function SearchResults() {
 
   if (status.kind === "offline" || browserIsOffline) {
     return canReadOfflineReplica ? (
-      <OfflineSearchResults />
+      <OfflineSearchResults text={text} />
     ) : (
       <div className="flex flex-col gap-3">
         <BookmarksGridSkeleton />
@@ -71,7 +81,7 @@ function SearchResults() {
     );
   }
 
-  return <OnlineSearchResults />;
+  return <OnlineSearchResults text={text} />;
 }
 
 function SearchComp() {

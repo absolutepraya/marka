@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { OfflineLibraryStatus } from "@/lib/offline-library/sync";
@@ -19,7 +19,19 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/hooks/bookmark-search", () => ({
   useLocalBookmarkSearch: mocks.useLocalBookmarkSearch,
+  useSearchQuery: () => ({
+    parsedSearchQuery: { result: "full", text: "test" },
+  }),
   useServerBookmarkSearch: mocks.useServerBookmarkSearch,
+}));
+
+vi.mock("@/components/dashboard/GlobalActions", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/components/dashboard/search/SearchListResults", () => ({
+  OnlineSearchListResults: () => <div>Server lists</div>,
+  OfflineSearchListResults: () => <div>Local lists</div>,
 }));
 
 vi.mock("@/lib/offline-library/provider", () => ({
@@ -58,6 +70,7 @@ const emptySearch = {
 };
 
 afterEach(() => {
+  cleanup();
   mocks.status = {
     kind: "online",
     lastSyncedAt: new Date(),
@@ -95,6 +108,8 @@ describe("SearchPage", () => {
     view.rerender(<SearchPage />);
 
     expect(screen.getByText("local-result")).toBeTruthy();
+    expect(screen.getByText("Local lists")).toBeTruthy();
+    expect(screen.queryByText("Server lists")).toBeNull();
     expect(mocks.useServerBookmarkSearch).toHaveBeenCalledTimes(1);
     expect(mocks.useLocalBookmarkSearch).toHaveBeenCalledTimes(1);
   });
@@ -130,5 +145,7 @@ describe("SearchPage", () => {
 
     expect(mocks.useLocalBookmarkSearch).not.toHaveBeenCalled();
     expect(mocks.useServerBookmarkSearch).not.toHaveBeenCalled();
+    expect(screen.queryByText("Local lists")).toBeNull();
+    expect(screen.queryByText("Server lists")).toBeNull();
   });
 });
