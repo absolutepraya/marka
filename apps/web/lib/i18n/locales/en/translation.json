@@ -1050,7 +1050,20 @@
     "tags": "Tags",
     "lists": "Lists",
     "feeds": "Feeds",
-    "no_suggestions": "No suggestions"
+    "no_suggestions": "No suggestions",
+    "placeholder": "Search bookmarks and lists",
+    "filters_hint": "Add filters to the current search. Filters apply to bookmarks; lists match the search text.",
+    "filters_offline": "Advanced bookmark filters need a connection. You can still search saved bookmarks and lists by name.",
+    "content_type": "Content type",
+    "status": "Status",
+    "any": "Any",
+    "links": "Links",
+    "notes": "Notes",
+    "media": "Media",
+    "apply_filters": "Apply filters",
+    "show_more_lists_one": "Show {{count}} more list",
+    "show_more_lists_other": "Show {{count}} more lists",
+    "show_fewer_lists": "Show fewer lists"
   },
   "preview": {
     "view_original": "View Original",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { searchBookmarks } from "@/lib/offline-library/repository";
 import { useSortOrderStore } from "@/lib/store/useSortOrderStore";
@@ -11,7 +11,7 @@ import { parseSearchQuery } from "@karakeep/shared/searchQueryParser";
 
 import { useInSearchPageStore } from "../store/useInSearchPageStore";
 
-function useSearchQuery() {
+export function useSearchQuery() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("q") ?? "";
   const pathname = usePathname();
@@ -48,23 +48,33 @@ export function useDoBookmarkSearch() {
     };
   }, [timeoutId]);
 
-  const doSearch = (val: string) => {
+  const cancelSearch = useCallback(() => {
+    clearTimeout(timeoutId.current ?? undefined);
     timeoutId.current = null;
-    router.replace(`/dashboard/search?q=${encodeURIComponent(val)}`);
-  };
+  }, []);
 
-  const debounceSearch = (val: string) => {
-    if (timeoutId.current) {
-      clearTimeout(timeoutId.current);
-    }
-    timeoutId.current = setTimeout(() => {
-      doSearch(val);
-    }, 10);
-  };
+  const doSearch = useCallback(
+    (val: string) => {
+      cancelSearch();
+      router.replace(`/dashboard/search?q=${encodeURIComponent(val)}`, {
+        scroll: false,
+      });
+    },
+    [cancelSearch, router],
+  );
+
+  const debounceSearch = useCallback(
+    (val: string) => {
+      cancelSearch();
+      timeoutId.current = setTimeout(() => doSearch(val), 250);
+    },
+    [cancelSearch, doSearch],
+  );
 
   return {
     doSearch,
     debounceSearch,
+    cancelSearch,
     searchQuery,
     parsedSearchQuery,
     isInSearchPage,
@@ -127,31 +137,21 @@ export function useServerBookmarkSearch() {
   const api = useTRPC();
   const { searchQuery } = useSearchQuery();
   const sortOrder = useSortOrderStore((state) => state.sortOrder);
-  const {
-    data,
-    error,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-    refetch,
-  } = useInfiniteQuery(
-    api.bookmarks.searchBookmarks.infiniteQueryOptions(
-      {
-        text: searchQuery,
-        sortOrder,
-      },
-      {
-        placeholderData: keepPreviousData,
-        gcTime: 0,
-        initialCursor: null,
-        getNextPageParam: (lastPage) => lastPage.nextCursor,
-      },
-    ),
-  );
-
-  useEffect(() => {
-    void refetch();
-  }, [refetch, sortOrder]);
+  const { data, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useInfiniteQuery(
+      api.bookmarks.searchBookmarks.infiniteQueryOptions(
+        {
+          text: searchQuery,
+          sortOrder,
+        },
+        {
+          placeholderData: keepPreviousData,
+          gcTime: 60_000,
+          initialCursor: null,
+          getNextPageParam: (lastPage) => lastPage.nextCursor,
+        },
+      ),
+    );
 
   if (error) {
     throw error;

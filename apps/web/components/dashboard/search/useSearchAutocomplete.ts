@@ -164,6 +164,7 @@ interface UseSearchAutocompleteParams {
   setIsPopoverOpen: React.Dispatch<React.SetStateAction<boolean>>;
   t: TFunction;
   history: string[];
+  onSubmit?: () => void;
 }
 
 const useParsedSearchState = (value: string): ParsedSearchState => {
@@ -270,7 +271,7 @@ const useTagSuggestions = (
   const { data: tagResults } = useTagAutocomplete({
     nameContains: debouncedTagSearchTerm,
     select: (data) => data.tags,
-    enabled: parsed.activeToken.length > 0,
+    enabled: shouldSuggestTags,
   });
 
   const tagSuggestions = useMemo<AutocompleteSuggestionItem[]>(() => {
@@ -310,7 +311,7 @@ const useFeedSuggestions = (
   const normalizedFeedSearchTerm = feedSearchTerm.toLowerCase();
   const { data: feedResults } = useQuery(
     api.feeds.list.queryOptions(undefined, {
-      enabled: parsed.activeToken.length > 0,
+      enabled: shouldSuggestFeeds,
     }),
   );
 
@@ -363,7 +364,7 @@ const useListSuggestions = (
   const listSearchTerm = stripSurroundingQuotes(listSearchTermRaw);
   const normalizedListSearchTerm = listSearchTerm.toLowerCase();
   const { data: listResults } = useBookmarkLists(undefined, {
-    enabled: parsed.activeToken.length > 0,
+    enabled: shouldSuggestLists,
   });
 
   const listSuggestions = useMemo<AutocompleteSuggestionItem[]>(() => {
@@ -502,6 +503,7 @@ export const useSearchAutocomplete = ({
   setIsPopoverOpen,
   t,
   history,
+  onSubmit,
 }: UseSearchAutocompleteParams) => {
   const parsedState = useParsedSearchState(value);
   const qualifierSuggestions = useQualifierSuggestions(parsedState, t);
@@ -615,14 +617,19 @@ export const useSearchAutocomplete = ({
 
   const handleCommandKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.target !== inputRef.current || e.nativeEvent.isComposing) return;
       if (e.key === "Enter") {
-        const selectedItem = document.querySelector(
-          '[cmdk-item][data-selected="true"]',
-        );
+        const listId = inputRef.current?.getAttribute("aria-controls");
+        const selectedItem = listId
+          ? document
+              .getElementById(listId)
+              ?.querySelector('[cmdk-item][data-selected="true"]')
+          : null;
         const isPlaceholderSelected =
           selectedItem?.getAttribute("data-value") === "-";
         if (!selectedItem || isPlaceholderSelected) {
           e.preventDefault();
+          onSubmit?.();
           setIsPopoverOpen(false);
           inputRef.current?.blur();
         }
@@ -632,7 +639,7 @@ export const useSearchAutocomplete = ({
         inputRef.current?.blur();
       }
     },
-    [setIsPopoverOpen, inputRef],
+    [setIsPopoverOpen, inputRef, onSubmit],
   );
 
   return {

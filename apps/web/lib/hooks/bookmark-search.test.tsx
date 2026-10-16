@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
 
-import { useLocalBookmarkSearch } from "./bookmark-search";
+import { useDoBookmarkSearch, useLocalBookmarkSearch } from "./bookmark-search";
 
 const mocks = vi.hoisted(() => ({
   liveQuerySubscribers: [] as {
@@ -13,11 +13,12 @@ const mocks = vi.hoisted(() => ({
     error: (reason: unknown) => void;
   }[],
   searchBookmarks: vi.fn(),
+  replace: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard/search",
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: mocks.replace }),
   useSearchParams: () => new URLSearchParams("q=offline"),
 }));
 
@@ -48,6 +49,8 @@ vi.mock("dexie", () => ({
 afterEach(() => {
   mocks.liveQuerySubscribers.length = 0;
   mocks.searchBookmarks.mockReset();
+  mocks.replace.mockReset();
+  vi.useRealTimers();
 });
 
 test("refreshes local search results after an optimistic replica write", async () => {
@@ -71,4 +74,40 @@ test("refreshes local search results after an optimistic replica write", async (
       "Edited offline",
     );
   });
+});
+
+test("coalesces typing and lets an explicit submit cancel older work", () => {
+  vi.useFakeTimers();
+  const { result } = renderHook(() => useDoBookmarkSearch());
+  act(() => {
+    result.current.debounceSearch("r");
+    vi.advanceTimersByTime(100);
+    result.current.debounceSearch("react");
+    vi.advanceTimersByTime(249);
+  });
+  expect(mocks.replace).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(1));
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(
+    "/dashboard/search?q=react",
+    { scroll: false },
+  );
+  act(() => {
+    result.current.debounceSearch("stale");
+    result.current.doSearch("list:React");
+    vi.advanceTimersByTime(500);
+  });
+  expect(mocks.replace).toHaveBeenCalledTimes(2);
+  expect(mocks.replace).toHaveBeenLastCalledWith(
+    "/dashboard/search?q=list%3AReact",
+    { scroll: false },
+  );
+});
+
+test("cancels pending navigation on unmount", () => {
+  vi.useFakeTimers();
+  const { result, unmount } = renderHook(() => useDoBookmarkSearch());
+  act(() => result.current.debounceSearch("stale"));
+  unmount();
+  act(() => vi.advanceTimersByTime(500));
+  expect(mocks.replace).not.toHaveBeenCalled();
 });
