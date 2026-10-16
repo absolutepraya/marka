@@ -14,7 +14,7 @@
 ## Repository operations
 
 - Monorepo: Next.js, React, TypeScript, Hono, tRPC, Drizzle, SQLite, Meilisearch, pnpm, and Turborepo.
-- Runtime: Node.js 24.18.1 from `.nvmrc`, normally selected through Mise; pnpm 11.2.1 through Corepack.
+- Runtime: Node.js 24.18.1 from `.nvmrc`, normally selected through Mise; pnpm 11.25.0 through Corepack.
 - Install with `pnpm install`, create the documented `.env` symlinks, then run `pnpm db:migrate`.
 - Start local development with `pnpm dev:start`. Use `pnpm dev:start -d` for detached mode and `pnpm dev:stop` to stop only that workspace.
 - Shared local infrastructure is machine-level: one Meilisearch at `http://127.0.0.1:7700` and one token-protected Browserless at `http://127.0.0.1:9251` by default. Override its port with `MARKA_DEV_BROWSERLESS_PORT`.
@@ -103,7 +103,7 @@ bash scripts/install.test.sh
 
 ### Runtime
 - Node.js 24.18.1 (`.nvmrc`)
-- `pnpm@11.2.1` via corepack
+- `pnpm@11.25.0` via corepack
 - Docker-compatible local runtime, such as OrbStack on macOS
 - [`wt`](https://github.com/absolutepraya/wt) for isolated worktrees
 

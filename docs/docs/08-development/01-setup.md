@@ -49,7 +49,7 @@ If you want the full operator-oriented notes for this fork’s local dev and dep
 
 ### Node and pnpm
 
-This repo currently pins Node 24.18.1 in `.nvmrc` and uses `pnpm@11.2.1` via corepack. The exact Node patch is temporary: Node 24.19.0 has a native-addon cleanup regression tracked in [nodejs/node#65042](https://github.com/nodejs/node/pull/65042).
+This repo currently pins Node 24.18.1 in `.nvmrc` and uses `pnpm@11.25.0` via corepack. The exact Node patch is temporary: Node 24.19.0 has a native-addon cleanup regression tracked in [nodejs/node#65042](https://github.com/nodejs/node/pull/65042).
 
 ```bash
 nvm install

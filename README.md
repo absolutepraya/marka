@@ -12,7 +12,7 @@
   <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/absolutepraya/marka?label=CodeRabbit%20Reviews&labelColor=171717&color=FF570A" alt="CodeRabbit Reviews" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/absolutepraya/marka" alt="License" /></a>
   <a href="./.nvmrc"><img src="https://img.shields.io/badge/Node.js-24.18.1-339933?logo=nodedotjs&logoColor=white" alt="Node.js 24.18.1" /></a>
-  <a href="./package.json"><img src="https://img.shields.io/badge/pnpm-11.2.1-F69220?logo=pnpm&logoColor=white" alt="pnpm 11.2.1" /></a>
+  <a href="./package.json"><img src="https://img.shields.io/badge/pnpm-11.25.0-F69220?logo=pnpm&logoColor=white" alt="pnpm 11.25.0" /></a>
 </p>
 
 Marka is a self-hosted personal library for everything you want to remember or revisit, not just browser bookmarks. Keep the things that would otherwise be scattered across apps, tabs, and devices in one visual library you control.
@@ -107,7 +107,7 @@ Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution rules and [`doc
 The supported local development runtime is:
 
 - Node.js 24.18.1 from [`.nvmrc`](.nvmrc)
-- pnpm 11.2.1 through Corepack, as pinned in [`package.json`](package.json)
+- pnpm 11.25.0 through Corepack, as pinned in [`package.json`](package.json)
 - Git and a Docker-compatible runtime, such as OrbStack on macOS
 - [`wt`](https://github.com/absolutepraya/wt) for isolated worktrees
 
