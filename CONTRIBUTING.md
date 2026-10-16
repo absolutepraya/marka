@@ -50,6 +50,8 @@ setup, isolated environment configuration, and detached development server flow.
 the copy from the target worktree, while each tool retains its own worktree
 allocation rules.
 
+Crawler lifecycle changes can be validated with `pnpm dev:test:browserless` against the local renderer. The optional `--with-baseline` mode measures a sequential before/after comparison; see operator setup for scope and hardware limits.
+
 Local worker defaults match the personal deployment profile: screenshot-first, concurrency 2, and on-demand Browserless connections. Set `BROWSER_REUSE_CONNECTION=true` before `pnpm dev:start` to test reuse. Run `bash scripts/dev-infra.test.sh` and `bash scripts/start-dev.test.sh` when changing the dev lifecycle.
 
 For the full workflow, detached mode, and production deploy notes, use:

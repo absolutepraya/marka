@@ -7,6 +7,7 @@
     "build": "turbo --no-daemon build",
     "dev": "turbo --no-daemon dev --parallel",
     "dev:start": "bash start-dev.sh",
+    "dev:test:browserless": "node scripts/test-browserless-reuse.mjs",
     "dev:check": "node scripts/check-dev.mjs",
     "dev:stop": "bash stop-dev.sh",
     "dev:infra:up": "bash scripts/dev-infra.sh up",
