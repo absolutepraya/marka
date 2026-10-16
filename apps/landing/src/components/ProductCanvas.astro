@@ -1,0 +1,61 @@
+---
+import { landing } from "../content/landing";
+
+const showcaseCards = landing.sourceCards.filter(({ id }) =>
+  ["movies", "wishlist", "places"].includes(id),
+);
+---
+
+<section
+  class="product-canvas"
+  data-page-section="product-preview"
+  aria-labelledby="product-preview-title"
+>
+  <h2 class="visually-hidden" id="product-preview-title">
+    {landing.preview.title}
+  </h2>
+  <figure class="product-canvas__figure">
+    {
+      landing.preview.status === "ready" ? (
+        <picture>
+          <img
+            class="product-canvas__screen"
+            src={landing.preview.image}
+            alt={landing.preview.alt}
+            width="2400"
+            height="1500"
+            fetchpriority="high"
+            decoding="async"
+          />
+        </picture>
+      ) : (
+        <div
+          class="product-canvas__artwork"
+          role="img"
+          aria-label={landing.preview.illustrationAlt}
+        >
+          {showcaseCards.map((card) => (
+            <div class="product-canvas__card" data-preview-card={card.id}>
+              <img
+                src={card.image}
+                alt=""
+                width="1120"
+                height="720"
+                loading="eager"
+                decoding="async"
+              />
+              <span>{card.title}</span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+    <figcaption class="product-canvas__caption">
+      {
+        landing.preview.status === "ready"
+          ? landing.preview.caption
+          : landing.preview.illustrationCaption
+      }
+    </figcaption>
+  </figure>
+</section>
