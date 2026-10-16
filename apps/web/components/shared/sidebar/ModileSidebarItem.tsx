@@ -3,70 +3,12 @@
 import React, { useEffect, useRef } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import LineLoader from "@/components/ui/line-loader";
 import { haptic } from "@/lib/haptic";
 import { cn } from "@/lib/utils";
 
 import { useSaveTabPosition } from "./MobileTabNavigation";
 import { useMobileNavSelection } from "./MobileNavSelection";
-
-function LoadingUnderline({ pending }: { pending: boolean }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const settling = useRef<Animation | null>(null);
-
-  useEffect(() => {
-    settling.current?.cancel();
-    const element = ref.current;
-    if (
-      !pending ||
-      !element?.animate ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return () => settling.current?.cancel();
-    }
-
-    const loading = element.animate(
-      [
-        { left: "0px", right: "0px" },
-        { left: "0px", right: "18px" },
-        { left: "0px", right: "0px" },
-        { left: "18px", right: "0px" },
-        { left: "0px", right: "0px" },
-      ],
-      {
-        duration: 600,
-        delay: 200,
-        iterations: Infinity,
-        easing: "ease-in-out",
-      },
-    );
-
-    return () => {
-      // Capture the moving endpoints before cancelling so completion grows
-      // smoothly from the current shape to the full-width resting line.
-      const { left, right } = getComputedStyle(element);
-      const started =
-        typeof loading.currentTime === "number" && loading.currentTime >= 200;
-      loading.cancel();
-      if (element.isConnected && started) {
-        settling.current = element.animate(
-          [
-            { left, right },
-            { left: "0px", right: "0px" },
-          ],
-          { duration: 180, easing: "ease-out" },
-        );
-      }
-    };
-  }, [pending]);
-
-  return (
-    <span
-      ref={ref}
-      aria-hidden="true"
-      className="absolute inset-x-0 -bottom-2.5 h-0.5 rounded-full bg-foreground/60"
-    />
-  );
-}
 
 function TabContent({
   logo,
@@ -95,7 +37,12 @@ function TabContent({
       <span className="flex size-6 items-center justify-center [&_svg]:size-[22px] [&_svg]:stroke-2">
         {logo}
       </span>
-      {isActive && <LoadingUnderline pending={pending} />}
+      {isActive && (
+        <LineLoader
+          pending={pending}
+          className="-bottom-2.5 bg-foreground/60"
+        />
+      )}
     </span>
   );
 }

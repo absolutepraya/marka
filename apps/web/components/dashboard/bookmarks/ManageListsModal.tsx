@@ -139,7 +139,13 @@ export default function ManageListsModal({
         </DialogHeader>
 
         {isLoading ? (
-          <LoadingSpinner className="my-12" />
+          <div
+            className="flex min-h-28 items-center justify-center"
+            role="status"
+            aria-label={t("lists.navigation.loading")}
+          >
+            <LoadingSpinner />
+          </div>
         ) : (
           <div className="space-y-5 px-4 py-4 sm:px-6 sm:py-5">
             <section className="space-y-2">

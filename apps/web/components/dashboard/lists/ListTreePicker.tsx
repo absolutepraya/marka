@@ -344,7 +344,7 @@ export default function ListTreePicker({
         <div
           ref={scrollRef}
           onScroll={syncEdges}
-          className="sidebar-scrollbar h-full space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-contain pr-2 text-sm"
+          className="sidebar-scrollbar h-full space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-contain text-sm sm:pr-2"
         >
           <div className="shrink-0">
             {showHeader && (
