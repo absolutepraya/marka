@@ -20,6 +20,88 @@ export function appendSearchFilters(query: string, filters: string[]) {
     .join(" ");
 }
 
+type FilterName =
+  | "type"
+  | "status"
+  | "list"
+  | "tag"
+  | "url"
+  | "after"
+  | "before";
+
+// Only conjunctive qualifiers are editable here. Alternatives within an OR
+// expression cannot be represented by a single control and remain in the query.
+export function readSearchFilters(query: string) {
+  const values: Record<FilterName, string> = {
+    type: "",
+    status: "",
+    list: "",
+    tag: "",
+    url: "",
+    after: "",
+    before: "",
+  };
+  if (parseSearchQuery(query).result !== "full")
+    return { values, remainder: query };
+  const tokens = query.match(/(?:[^\s()"]+|"[^"]*")+|[()]/g) ?? [];
+  let index = 0;
+  type Term = string | Term[];
+  function read(): Term[] {
+    const terms: Term[] = [];
+    while (index < tokens.length) {
+      const token = tokens[index++];
+      if (token === ")") break;
+      terms.push(token === "(" ? read() : token);
+    }
+    return terms;
+  }
+  function print(term: Term): string {
+    return typeof term === "string" ? term : `(${term.map(print).join(" ")})`;
+  }
+  function extract(terms: Term[]): string {
+    if (terms.some((term) => typeof term === "string" && /^or$/i.test(term))) {
+      return terms.map(print).join(" ");
+    }
+    return terms
+      .flatMap((term, termIndex) => {
+        if (Array.isArray(term)) {
+          const remaining = extract(term);
+          return remaining ? [`(${remaining})`] : [];
+        }
+        if (termIndex > 0 && /^and$/i.test(term)) return [];
+        let name: FilterName | undefined;
+        let value = term;
+        if (/^is:(link|text|media)$/.test(term)) name = "type";
+        else if (
+          /^(is:(fav|archived|broken)|-is:(archived|tagged))$/.test(term)
+        )
+          name = "status";
+        else {
+          const match =
+            /^(list|tag|url|after|before):(?:"([^"]+)"|([^"\s]+))$/.exec(term);
+          if (match) {
+            name = match[1] as FilterName;
+            value = match[2] ?? match[3];
+            // Keep date expressions that a native date input cannot represent.
+            if (
+              (name === "after" || name === "before") &&
+              !/^\d{4}-\d{2}-\d{2}$/.test(value)
+            )
+              name = undefined;
+          }
+        }
+        if (!name || !parseSearchQuery(term).matcher) return [term];
+        // Preserve additional conditions that cannot fit in the same control.
+        if (values[name]) return [term];
+        values[name] = value;
+        return [];
+      })
+      .join(" ");
+  }
+  const remainder = extract(read());
+  return { values, remainder };
+}
+
 export function SearchFilters({
   query,
   onApply,
@@ -34,6 +116,7 @@ export function SearchFilters({
   const { t } = useTranslation();
   const id = useId();
   const [open, setOpen] = useState(false);
+  const { values, remainder } = readSearchFilters(query);
   const hasFilters = !!parseSearchQuery(query).matcher;
   const selectClassName =
     "h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
@@ -74,10 +157,9 @@ export function SearchFilters({
           {t(offline ? "search.filters_offline" : "search.filters_hint")}
         </p>
         <form
+          key={query}
           className="space-y-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
+          action={(data) => {
             const filters: string[] = [];
             for (const name of ["type", "status"]) {
               const value = String(data.get(name) ?? "");
@@ -87,7 +169,7 @@ export function SearchFilters({
               const value = String(data.get(name) ?? "").trim();
               if (value) filters.push(`${name}:"${value}"`);
             }
-            if (filters.length) onApply(appendSearchFilters(query, filters));
+            onApply(appendSearchFilters(remainder, filters));
             setOpen(false);
           }}
         >
@@ -101,6 +183,7 @@ export function SearchFilters({
                 <select
                   id={`${id}-type`}
                   name="type"
+                  defaultValue={values.type}
                   className={selectClassName}
                 >
                   <option value="">{t("search.any")}</option>
@@ -114,6 +197,7 @@ export function SearchFilters({
                 <select
                   id={`${id}-status`}
                   name="status"
+                  defaultValue={values.status}
                   className={selectClassName}
                 >
                   <option value="">{t("search.any")}</option>
@@ -142,7 +226,12 @@ export function SearchFilters({
                 className="block space-y-1 text-sm"
               >
                 <span>{t(label)}</span>
-                <Input id={`${id}-${name}`} name={name} pattern={'[^"]*'} />
+                <Input
+                  id={`${id}-${name}`}
+                  name={name}
+                  defaultValue={values[name]}
+                  pattern={'[^"]*'}
+                />
               </label>
             ))}
             <div className="grid grid-cols-2 gap-3">
@@ -163,6 +252,7 @@ export function SearchFilters({
                     type="date"
                     id={`${id}-${name}`}
                     name={name}
+                    defaultValue={values[name]}
                   />
                 </label>
               ))}
