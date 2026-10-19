@@ -2,16 +2,32 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const directory = mkdtempSync(join(tmpdir(), "marka-packed-cli-"));
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 try {
+  // Windows cannot exec .cmd files directly. Run npm's JavaScript entry point
+  // with Node, keeping paths with spaces out of shell command parsing.
+  const windows = process.platform === "win32";
+  const npm = windows ? process.execPath : "npm";
+  const npmArgs = windows
+    ? [
+        join(
+          dirname(
+            execFileSync("where.exe", ["npm.cmd"], { encoding: "utf8" })
+              .trim()
+              .split(/\r?\n/)[0],
+          ),
+          "node_modules/npm/bin/npm-cli.js",
+        ),
+      ]
+    : [];
   const packed = JSON.parse(
     execFileSync(
       npm,
       [
+        ...npmArgs,
         "pack",
         join(root, "apps/cli"),
         "--pack-destination",
@@ -30,6 +46,7 @@ try {
   execFileSync(
     npm,
     [
+      ...npmArgs,
       "install",
       "--prefix",
       install,

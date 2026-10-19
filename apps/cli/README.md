@@ -115,6 +115,11 @@ marka --server-addr https://destination.example.com --json restore library.tar.g
 marka --json migrate --dest-server https://destination.example.com --yes
 ```
 
+Restore uses the normal configured API key. `--server-addr` changes only the
+URL, so configure `KARAKEEP_API_KEY` through the environment or a secret store
+with the destination account's key before restoring to another instance/account.
+Verify the destination connection before using `--yes`.
+
 For migration, set `KARAKEEP_DEST_API_KEY` in your environment or secret store.
 The `--dest-api-key` flag also works. The source uses the normal CLI config or
 `KARAKEEP_API_KEY` and `KARAKEEP_SERVER_ADDR`. Avoid putting keys in shell history.
@@ -132,8 +137,11 @@ The version 2 `karakeep.dump` archive contains:
   sources referenced by the exported bookmarks.
 
 Restore verifies record counts, schemas, file sizes, and checksums before its
-first server write. It streams named tar entries to stdout internally and never
-extracts archive paths onto the filesystem. A tar executable is required.
+first server write. It parses the archive once and stages regular files under
+generated names in a private temporary directory, removed after the operation.
+Archive-supplied paths are never used as filesystem destinations. Links,
+duplicate members, and unexpected paths are rejected. A tar executable is
+required for export.
 Each archive member is limited to 256 MiB; export refuses a larger member.
 Version 1 dumps remain readable as historical exports but cannot be passed to
 `restore`, because they omit data required by this preservation contract.

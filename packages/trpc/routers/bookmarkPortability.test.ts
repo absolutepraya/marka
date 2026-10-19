@@ -4,6 +4,7 @@ import {
   assets,
   AssetTypes,
   bookmarkTranscripts,
+  bookmarkLinks,
   users,
 } from "@karakeep/db/schema";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
@@ -13,6 +14,92 @@ import { defaultBeforeEach, getApiCaller } from "../testUtils";
 beforeEach<CustomTestContext>(defaultBeforeEach(true));
 
 describe("bookmark portability", () => {
+  test<CustomTestContext>("accepts HTML page archives and avoids duplicating cached HTML inline", async ({
+    apiCallers,
+    db,
+  }) => {
+    const [source, dest] = apiCallers;
+    const bookmark = await source.bookmarks.createBookmark({
+      type: BookmarkTypes.LINK,
+      url: "https://example.test/archived",
+    });
+    const snapshot = await source.bookmarkPortability.export({
+      bookmarkId: bookmark.id,
+    });
+    if (snapshot.bookmark.content.type !== "link")
+      throw new Error("Expected a link snapshot");
+    snapshot.bookmark.content.htmlContent = "<html>cached</html>";
+    snapshot.bookmark.content.contentAssetId = "source-cache";
+    const destination = await dest.users.whoami();
+    for (const [id, type] of [
+      ["cache", "linkHtmlContent"],
+      ["archive", "fullPageArchive"],
+    ] as const) {
+      snapshot.assets.push({
+        id: `source-${id}`,
+        assetType: type,
+        contentType: "text/html",
+        size: 10,
+        fileName: `${id}.html`,
+        transcriptId: null,
+      });
+      await db.insert(assets).values({
+        id: `dest-${id}`,
+        userId: destination.id,
+        assetType: AssetTypes.UNKNOWN,
+        contentType: "text/html",
+        size: 10,
+      });
+    }
+    const result = await dest.bookmarkPortability.import({
+      snapshot,
+      assetIds: {
+        "source-cache": "dest-cache",
+        "source-archive": "dest-archive",
+      },
+    });
+    expect(
+      await db.query.bookmarkLinks.findFirst({
+        where: eq(bookmarkLinks.id, result.bookmarkId),
+      }),
+    ).toMatchObject({ htmlContent: null, contentAssetId: "dest-cache" });
+    expect(
+      await db.query.assets.findFirst({ where: eq(assets.id, "dest-archive") }),
+    ).toMatchObject({
+      bookmarkId: result.bookmarkId,
+      assetType: AssetTypes.LINK_FULL_PAGE_ARCHIVE,
+    });
+  });
+
+  test<CustomTestContext>("preserves inline cached HTML when no content asset is attached", async ({
+    apiCallers,
+    db,
+  }) => {
+    const [source, dest] = apiCallers;
+    const bookmark = await source.bookmarks.createBookmark({
+      type: BookmarkTypes.LINK,
+      url: "https://example.test/inline",
+    });
+    const snapshot = await source.bookmarkPortability.export({
+      bookmarkId: bookmark.id,
+    });
+    if (snapshot.bookmark.content.type !== "link")
+      throw new Error("Expected a link snapshot");
+    snapshot.bookmark.content.htmlContent = "<html>inline fallback</html>";
+    const result = await dest.bookmarkPortability.import({
+      snapshot,
+      assetIds: {},
+    });
+    expect(
+      await db.query.bookmarkLinks.findFirst({
+        where: eq(bookmarkLinks.id, result.bookmarkId),
+      }),
+    ).toMatchObject({
+      htmlContent: "<html>inline fallback</html>",
+      contentAssetId: null,
+    });
+  });
+
   test<CustomTestContext>("copies owned text and annotations without reusing identities or grants", async ({
     apiCallers,
   }) => {

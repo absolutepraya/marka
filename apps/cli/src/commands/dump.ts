@@ -201,16 +201,20 @@ export const dumpCmd = new Command("dump")
       await fsp.mkdir(path.dirname(output), { recursive: true });
       // Write atomically so a failed export cannot leave a plausible archive.
       const staged = path.join(workRoot, "export.tar.gz");
-      await execute("tar", [
-        "-czf",
-        staged,
-        "-C",
-        workRoot,
-        "manifest.json",
-        "account.json",
-        "bookmarks",
-        "assets",
-      ]);
+      await execute(
+        "tar",
+        [
+          "-czf",
+          staged,
+          "-C",
+          workRoot,
+          "manifest.json",
+          "account.json",
+          "bookmarks",
+          "assets",
+        ],
+        { env: { ...process.env, COPYFILE_DISABLE: "1" } },
+      );
       const destinationStage = await fsp.mkdtemp(
         path.join(path.dirname(output), ".marka-export-"),
       );

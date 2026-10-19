@@ -40,6 +40,14 @@ Verification completed locally:
   and integration checks. The OpenAPI definition includes the restore-upload
   endpoint and was regenerated.
 
+Follow-up PR review corrected HTML full-page archive imports, redundant inline
+cached HTML, empty URL query/fragment delimiters, and destination-key guidance.
+Restore now parses each archive once into private staging with generated names,
+rejecting links, duplicate members, unexpected paths, and oversized files before
+server writes. Export suppresses macOS resource-fork entries. The packed CLI
+fixture covers these archive checks, empty restores, and replacement of the
+source archive after validation; six focused portability tests also pass.
+
 The new export/restore API requires compatible source/destination Marka servers.
 Archives are portable library exports with documented exclusions, rather than
 complete instance backups. A restore can partially complete across bookmarks;

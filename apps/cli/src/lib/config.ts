@@ -19,8 +19,8 @@ export function normalizeServerAddress(value: string): string {
     !["http:", "https:"].includes(url.protocol) ||
     url.username ||
     url.password ||
-    url.search ||
-    url.hash
+    url.href.includes("?") ||
+    url.href.includes("#")
   ) {
     throw new Error(
       "Server address must be an HTTP(S) URL without credentials, query, or fragment",

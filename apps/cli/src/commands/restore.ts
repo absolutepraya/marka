@@ -1,10 +1,7 @@
-import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
-import { promisify } from "node:util";
 import { Command } from "@commander-js/extra-typings";
 import superjson from "superjson";
 import { z } from "zod";
-import { MAX_ARCHIVE_MEMBER_BYTES } from "@/lib/archive";
+import { readPortableArchive } from "@/lib/archive";
 import { zAccountDataSchema, restoreAccount } from "@/lib/account";
 import {
   printErrorMessageWithReason,
@@ -19,7 +16,6 @@ import {
 import { getAPIClient } from "@/lib/trpc";
 import { zBookmarkTransferSchema } from "@karakeep/shared/types/bookmarkTransfer";
 
-const execute = promisify(execFile);
 const manifestSchema = z.object({
   format: z.literal("karakeep.dump"),
   version: z.literal(2),
@@ -47,16 +43,10 @@ export const restoreCmd = new Command("restore")
     const api = getAPIClient();
     const connection = currentConnection();
     const summary = { restored: 0, failed: 0 };
+    let contents: Awaited<ReturnType<typeof readPortableArchive>> | undefined;
     try {
-      // tar streams named entries to stdout. Never extract an untrusted archive
-      // onto the filesystem, where symlinks and traversal could overwrite files.
-      const readEntry = async (entry: string) =>
-        (
-          await execute("tar", ["-xOzf", archive, "--", entry], {
-            encoding: "buffer",
-            maxBuffer: MAX_ARCHIVE_MEMBER_BYTES,
-          })
-        ).stdout;
+      contents = await readPortableArchive(archive);
+      const { read: readEntry, files } = contents;
       const manifest = manifestSchema.parse(
         JSON.parse((await readEntry("manifest.json")).toString()),
       );
@@ -102,19 +92,31 @@ export const restoreCmd = new Command("restore")
           "Archive membership references a missing bookmark or list",
         );
       // Validate every record and required file before the first server write.
+      const requiredMembers = new Set([
+        "manifest.json",
+        "account.json",
+        "bookmarks/state.jsonl",
+      ]);
       for (const snapshot of records)
         for (const asset of snapshot.assets) {
           if (!/^[A-Za-z0-9_-]+$/.test(asset.id))
             throw new Error("Invalid asset ID in archive");
-          const bytes = await readEntry(`assets/${asset.id}`);
-          if (bytes.length !== asset.size)
+          const name = `assets/${asset.id}`;
+          requiredMembers.add(name);
+          const file = files.get(name);
+          if (!file || file.size !== asset.size)
             throw new Error(`Asset size mismatch: ${asset.id}`);
-          if (
-            createHash("sha256").update(bytes).digest("hex") !==
-            manifest.assetSha256[asset.id]
-          )
+          if (file.sha256 !== manifest.assetSha256[asset.id])
             throw new Error(`Asset checksum mismatch: ${asset.id}`);
         }
+      if ([...files.keys()].some((name) => !requiredMembers.has(name)))
+        throw new Error("Archive contains an unreferenced member");
+      if (
+        Object.keys(manifest.assetSha256).some(
+          (id) => !requiredMembers.has(`assets/${id}`),
+        )
+      )
+        throw new Error("Archive contains an unreferenced asset checksum");
       if (account.account.webhooks?.some((w) => w.hasToken))
         throw new Error(
           "Archive has webhooks with secret tokens. Export with --exclude-webhooks and configure those webhooks explicitly.",
@@ -159,5 +161,7 @@ export const restoreCmd = new Command("restore")
       summary.failed++;
       printErrorMessageWithReason("Restore failed", error as object);
       printObject({ success: false, ...summary });
+    } finally {
+      await contents?.dispose();
     }
   });

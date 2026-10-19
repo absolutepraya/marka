@@ -49,7 +49,7 @@ Only make requested changes. Do not infer deletion, archiving, or reorganization
 
 ## Portable export, restore, and migration
 
-Use these commands only for a requested library copy or recovery. Check `dump --help`, `restore --help`, and `migrate --help` on the installed CLI before proceeding. Exports require a source server supporting bookmark transfer version 1; restores require that support on the destination; live migration requires it on both. A `tar` executable is required for archives.
+Use these commands only for a requested library copy or recovery. Check `dump --help`, `restore --help`, and `migrate --help` on the installed CLI before proceeding. Exports require a source server supporting bookmark transfer version 1; restores require that support on the destination; live migration requires it on both. Export requires a `tar` executable. Restore parses the archive once, rejects links, duplicates, and unexpected paths, and stages files under generated names in a private temporary directory removed afterward.
 
 ```bash
 marka --json dump --output library.tar.gz

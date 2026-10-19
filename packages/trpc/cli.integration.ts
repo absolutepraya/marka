@@ -2,6 +2,7 @@ import { test, vi } from "vitest";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gzipSync, gunzipSync } from "node:zlib";
 import { PluginManager, PluginType } from "@karakeep/shared/plugins";
 import { createServer } from "node:http";
 import { execFile } from "node:child_process";
@@ -125,8 +126,19 @@ test("installed CLI preserves library data, permissions, revisions, and machine-
     })
     .route("/api", api);
   let failAssetDownload = false;
+  let replaceArchiveOnPreflight: string | undefined;
   const server = createServer(async (req, res) => {
     try {
+      if (
+        replaceArchiveOnPreflight &&
+        req.url?.includes("bookmarkPortability.capabilities")
+      ) {
+        await writeFile(
+          replaceArchiveOnPreflight,
+          "source archive replaced after validation",
+        );
+        replaceArchiveOnPreflight = undefined;
+      }
       if (failAssetDownload && req.url?.startsWith("/api/assets/")) {
         res.writeHead(503);
         res.end("audit asset failure");
@@ -871,6 +883,14 @@ test("installed CLI preserves library data, permissions, revisions, and machine-
         body: "<html><body>Preserved cached page</body></html>",
         transcriptId: null,
       },
+      {
+        id: "archive-fixture",
+        type: AssetTypes.LINK_FULL_PAGE_ARCHIVE,
+        mime: "text/html",
+        name: "archive.html",
+        body: "<html><body>Preserved full page archive</body></html>",
+        transcriptId: null,
+      },
     ];
     for (const fixture of binaryFixtures) {
       const bytes = Buffer.from(fixture.body);
@@ -965,6 +985,12 @@ test("installed CLI preserves library data, permissions, revisions, and machine-
       targetTags.find((tag) => tag.name === "new-tag")!.id,
     ]);
     const migratedLink = migrated.find((x) => x.content.type === "link")!;
+    assert.equal(
+      (await db.query.bookmarkLinks.findFirst({
+        where: eq(bookmarkLinks.id, migratedLink.id),
+      }))!.htmlContent,
+      null,
+    );
     const migratedTranscript = await callers[2].transcripts.get({
       bookmarkId: migratedLink.id,
     });
@@ -973,7 +999,16 @@ test("installed CLI preserves library data, permissions, revisions, and machine-
       const id: string =
         fixture.type === AssetTypes.CAPTION_SOURCE
           ? migratedTranscript!.sourceAttachments[0].id
-          : (migratedLink.content as { contentAssetId: string }).contentAssetId;
+          : fixture.type === AssetTypes.LINK_FULL_PAGE_ARCHIVE
+            ? (await db.query.assets.findFirst({
+                where: (asset, { and, eq }) =>
+                  and(
+                    eq(asset.bookmarkId, migratedLink.id),
+                    eq(asset.assetType, AssetTypes.LINK_FULL_PAGE_ARCHIVE),
+                  ),
+              }))!.id
+            : (migratedLink.content as { contentAssetId: string })
+                .contentAssetId;
       assert.notEqual(id, fixture.id);
       const response: Response = await fetch(`${origin}/api/assets/${id}`, {
         headers: { authorization: `Bearer ${keys[2].key}` },
@@ -1008,28 +1043,31 @@ test("installed CLI preserves library data, permissions, revisions, and machine-
     );
     const corruptRoot = join(base, "corrupt");
     await mkdir(corruptRoot);
-    await execute("tar", [
-      "-xzf",
-      `${base}/audit-dump.tar.gz`,
-      "-C",
-      corruptRoot,
-    ]);
+    await execute(
+      "tar",
+      ["-xzf", `${base}/audit-dump.tar.gz`, "-C", corruptRoot],
+      { env: { ...process.env, COPYFILE_DISABLE: "1" } },
+    );
     const cached = await readFile(join(corruptRoot, "assets/html-fixture"));
     await writeFile(
       join(corruptRoot, "assets/html-fixture"),
       Buffer.alloc(cached.length, 65),
     );
     const corruptArchive = join(base, "corrupt.tar.gz");
-    await execute("tar", [
-      "-czf",
-      corruptArchive,
-      "-C",
-      corruptRoot,
-      "manifest.json",
-      "account.json",
-      "bookmarks",
-      "assets",
-    ]);
+    await execute(
+      "tar",
+      [
+        "-czf",
+        corruptArchive,
+        "-C",
+        corruptRoot,
+        "manifest.json",
+        "account.json",
+        "bookmarks",
+        "assets",
+      ],
+      { env: { ...process.env, COPYFILE_DISABLE: "1" } },
+    );
     const corrupted = await cli(
       ["--json", "restore", corruptArchive, "--yes"],
       { key: keys[2].key, expected: 1 },
@@ -1040,17 +1078,80 @@ test("installed CLI preserves library data, permissions, revisions, and machine-
       0,
     );
     assert.equal((await callers[2].lists.list()).lists.length, 0);
+    // Alter genuine archive headers to exercise duplicate, link, traversal,
+    // unexpected-path, and oversized-member rejection before any API writes.
+    const originalTar = gunzipSync(await readFile(`${base}/audit-dump.tar.gz`));
+    // macOS tar can put a PAX header before the first regular file.
+    let manifestOffset = 0;
+    while (
+      originalTar
+        .subarray(manifestOffset, manifestOffset + 100)
+        .toString()
+        .split("\0", 1)[0] !== "manifest.json"
+    ) {
+      const size = parseInt(
+        originalTar
+          .subarray(manifestOffset + 124, manifestOffset + 136)
+          .toString()
+          .split("\0", 1)[0]
+          .trim(),
+        8,
+      );
+      assert.ok(Number.isFinite(size) && manifestOffset < originalTar.length);
+      manifestOffset += 512 + Math.ceil(size / 512) * 512;
+    }
+    const manifestTar = originalTar.subarray(manifestOffset);
+    const firstSize = parseInt(
+      manifestTar.subarray(124, 136).toString().split("\0", 1)[0].trim(),
+      8,
+    );
+    const firstMember = manifestTar.subarray(
+      0,
+      512 + Math.ceil(firstSize / 512) * 512,
+    );
+    for (const [kind, path, type, size] of [
+      ["link", "assets/unsafe", "2", 0],
+      ["traversal", "../outside", "0", 0],
+      ["unexpected", "unexpected.txt", "0", 0],
+      ["oversized", "assets/oversized", "0", 256 * 1024 * 1024 + 1],
+      ["duplicate", "manifest.json", "0", firstSize],
+    ] as const) {
+      const header = Buffer.from(manifestTar.subarray(0, 512));
+      header.fill(0, 0, 100);
+      header.write(path, 0);
+      header.fill(0, 124, 136);
+      header.write(size.toString(8).padStart(11, "0"), 124);
+      header.write(type, 156);
+      if (kind === "link") header.write("/tmp/marka-outside", 157);
+      header.fill(32, 148, 156);
+      const checksum = header.reduce((sum, value) => sum + value, 0);
+      header.write(checksum.toString(8).padStart(6, "0") + "\0 ", 148);
+      const extra = kind === "duplicate" ? firstMember : header;
+      const invalidPath = join(base, `${kind}.tar.gz`);
+      await writeFile(
+        invalidPath,
+        gzipSync(Buffer.concat([extra, originalTar])),
+      );
+      const invalid = await cli(["--json", "restore", invalidPath, "--yes"], {
+        key: keys[2].key,
+        expected: 1,
+      });
+      assert.match(invalid.stderr, /archive member|size limit/i);
+      assert.equal(
+        (await callers[2].bookmarks.getBookmarks({})).bookmarks.length,
+        0,
+      );
+      assert.equal((await callers[2].lists.list()).lists.length, 0);
+    }
     await writeFile(
       join(corruptRoot, "manifest.json"),
       JSON.stringify({ format: "karakeep.dump", version: 1, complete: true }),
     );
-    await execute("tar", [
-      "-czf",
-      corruptArchive,
-      "-C",
-      corruptRoot,
-      "manifest.json",
-    ]);
+    await execute(
+      "tar",
+      ["-czf", corruptArchive, "-C", corruptRoot, "manifest.json"],
+      { env: { ...process.env, COPYFILE_DISABLE: "1" } },
+    );
     await cli(["--json", "restore", corruptArchive, "--yes"], {
       key: keys[2].key,
       expected: 1,
@@ -1059,11 +1160,55 @@ test("installed CLI preserves library data, permissions, revisions, and machine-
       (await callers[2].bookmarks.getBookmarks({})).bookmarks.length,
       0,
     );
-    const restored = await cli(
-      ["--json", "restore", `${base}/audit-dump.tar.gz`, "--yes"],
+    await writeFile(
+      join(corruptRoot, "manifest.json"),
+      JSON.stringify({
+        format: "karakeep.dump",
+        version: 2,
+        complete: true,
+        exclusions: [],
+        counts: { bookmarks: 0, assets: 0, highlights: 0, transcripts: 0 },
+        assetSha256: {},
+      }),
+    );
+    await writeFile(
+      join(corruptRoot, "account.json"),
+      JSON.stringify({ json: { account: {}, membership: {} } }),
+    );
+    await writeFile(join(corruptRoot, "bookmarks/state.jsonl"), "");
+    const emptyArchive = join(base, "empty.tar.gz");
+    await execute(
+      "tar",
+      [
+        "-czf",
+        emptyArchive,
+        "-C",
+        corruptRoot,
+        "manifest.json",
+        "account.json",
+        "bookmarks",
+      ],
+      { env: { ...process.env, COPYFILE_DISABLE: "1" } },
+    );
+    const emptyRestore = await cli(
+      ["--json", "restore", emptyArchive, "--yes"],
       { key: keys[2].key, expected: 0 },
     );
+    assert.equal(emptyRestore.json.restored, 0);
+
+    const stagedArchive = join(base, "replace-during-import.tar.gz");
+    await writeFile(stagedArchive, await readFile(`${base}/audit-dump.tar.gz`));
+    replaceArchiveOnPreflight = stagedArchive;
+    const restored = await cli(["--json", "restore", stagedArchive, "--yes"], {
+      key: keys[2].key,
+      expected: 0,
+    });
     assert.equal(restored.json.restored, 4);
+    assert.equal(replaceArchiveOnPreflight, undefined);
+    assert.equal(
+      await readFile(stagedArchive, "utf8"),
+      "source archive replaced after validation",
+    );
     const restoredBookmarks = (
       await callers[2].bookmarks.getBookmarks({ includeContent: true })
     ).bookmarks;

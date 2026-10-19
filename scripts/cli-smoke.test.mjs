@@ -111,6 +111,8 @@ test("auth rejects invalid origins without writing config", async () => {
       "https://user:password@example.com",
       "https://example.com?query=1",
       "https://example.com#fragment",
+      "https://example.com/?",
+      "https://example.com/#",
     ]) {
       await assert.rejects(
         execute(

@@ -55,12 +55,20 @@ marka --json dump --output library.tar.gz
 marka --server-addr https://destination.example.com --json restore library.tar.gz --yes
 ```
 
+Restore still uses the normal configured API key. Changing `--server-addr`
+changes only the URL. Set `KARAKEEP_API_KEY` through the environment or a secret
+store to the destination account's key, then verify that connection before
+running restore with `--yes`.
+
 Version 2 archives preserve owned bookmarks, text format, metadata, tags,
 manual list membership, highlights, reading progress, transcripts, and referenced
 binary assets, including cached HTML and caption files. Lists, feeds, prompts,
 rules, and preferences are included. Restore checks schemas, counts, file sizes,
 and SHA-256 checksums before writing. Both CLI and server must support bookmark
-transfer version 1; a tar executable is required. Individual archive members
+transfer version 1; export requires a tar executable. Restore parses an archive
+once into a private temporary staging directory with generated filenames and
+rejects links, duplicate members, and unexpected paths. Staging is removed
+after the operation. Individual archive members
 cannot exceed 256 MiB. Historical version 1 dumps cannot be restored by this
 command because they lack the required data.
 

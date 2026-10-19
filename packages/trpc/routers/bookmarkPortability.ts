@@ -60,7 +60,8 @@ function requireScope(
 function validateAttachment(type: string, mime: string) {
   if (type === "captionSource")
     return getSupportedMimeTypesForFormat("caption").has(mime);
-  if (type === "fullPageArchive") return mime === "application/zip";
+  if (type === "fullPageArchive")
+    return mime === "application/zip" || mime === "text/html";
   if (type === "linkHtmlContent") return mime === "text/html";
   return isContentTypeCompatibleWithAttachment(type, mime);
 }
@@ -371,7 +372,9 @@ export const bookmarkPortabilityRouter = router({
                 dateModified: content.dateModified,
                 imageUrl: content.imageUrl,
                 favicon: content.favicon,
-                htmlContent: content.htmlContent,
+                htmlContent: content.contentAssetId
+                  ? null
+                  : content.htmlContent,
                 crawledAt: content.crawledAt,
                 crawlStatus:
                   content.crawlStatus === "pending"
