@@ -5,6 +5,8 @@ on:
     paths:
       - "scripts/install.sh"
       - "scripts/install.test.sh"
+      - "scripts/install.integration.test.sh"
+      - "scripts/install-smoke.mjs"
       - ".github/workflows/installer-tests.yml"
   push:
     branches:
@@ -12,7 +14,13 @@ on:
     paths:
       - "scripts/install.sh"
       - "scripts/install.test.sh"
+      - "scripts/install.integration.test.sh"
+      - "scripts/install-smoke.mjs"
       - ".github/workflows/installer-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   installer-tests:
@@ -27,3 +35,16 @@ jobs:
 
       - name: Run installer tests
         run: bash scripts/install.test.sh
+
+  installer-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install and exercise published stable images on clean Linux
+        run: bash scripts/install.integration.test.sh
