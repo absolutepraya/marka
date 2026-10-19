@@ -7,7 +7,7 @@ This brief defines the first product screenshot for the public Marka README. It 
 - Filename: screenshots/marka-library-overview.png
 - Canvas: 2614 by 1726 pixel PNG. The approved raw content is preserved with a 24 pixel transparent rounded-corner mask.
 - Surface: desktop web application in a wide library view.
-- Placement: immediately after the README product introduction and before “One place for the things you save everywhere”.
+- Placement: immediately after the README product introduction and before “Features”.
 - Alternative text: “Marka library showing visual cards for saved social posts, data visualizations, articles, products, movies, and UI references.”
 
 ## Approved frame
