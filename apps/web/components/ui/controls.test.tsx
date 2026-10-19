@@ -93,6 +93,106 @@ describe("shared action controls", () => {
     ).toBe("true");
   });
 
+  it.each([
+    { loading: true, disabled: false },
+    { loading: false, disabled: true },
+  ])("blocks slotted link activation with %j", (state) => {
+    const childClick = vi.fn();
+    const parentClick = vi.fn();
+    const childKey = vi.fn();
+    const parentKey = vi.fn();
+    const childCapture = vi.fn();
+    const parentCapture = vi.fn();
+    render(
+      <ActionButton
+        asChild
+        {...state}
+        onClick={parentClick}
+        onKeyDown={parentKey}
+        onClickCapture={parentCapture}
+      >
+        <a
+          href="#export"
+          onClick={childClick}
+          onKeyDown={childKey}
+          onClickCapture={childCapture}
+        >
+          Export library
+        </a>
+      </ActionButton>,
+    );
+    const link = screen.getByRole("link", { name: "Export library" });
+    expect(link.getAttribute("aria-disabled")).toBe("true");
+    expect(link.tabIndex).toBe(-1);
+    expect(fireEvent.click(link)).toBe(false);
+    expect(
+      fireEvent(
+        link,
+        new MouseEvent("auxclick", {
+          button: 1,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    ).toBe(false);
+    expect(fireEvent.keyDown(link, { key: "Enter" })).toBe(false);
+    expect(fireEvent.keyDown(link, { key: " " })).toBe(false);
+    for (const handler of [
+      childClick,
+      parentClick,
+      childKey,
+      parentKey,
+      childCapture,
+      parentCapture,
+    ]) {
+      expect(handler).not.toHaveBeenCalled();
+    }
+  });
+
+  it("restores a slotted link's handlers and tab stop after loading", () => {
+    const childClick = vi.fn();
+    const parentClick = vi.fn();
+    const childKey = vi.fn();
+    const parentKey = vi.fn();
+    const childCapture = vi.fn();
+    const parentCapture = vi.fn();
+    const renderLink = (loading: boolean) => (
+      <ActionButton
+        asChild
+        loading={loading}
+        onClick={parentClick}
+        onKeyDown={parentKey}
+        onClickCapture={parentCapture}
+      >
+        <a
+          href="#export"
+          onClick={childClick}
+          onKeyDown={childKey}
+          onClickCapture={childCapture}
+        >
+          Export library
+        </a>
+      </ActionButton>
+    );
+    const { rerender } = render(renderLink(true));
+    rerender(renderLink(false));
+    const link = screen.getByRole("link", { name: "Export library" });
+    expect(link.getAttribute("aria-disabled")).toBeNull();
+    expect(link.tabIndex).toBe(0);
+    expect(fireEvent.click(link)).toBe(true);
+    expect(fireEvent.keyDown(link, { key: "Enter" })).toBe(true);
+    for (const handler of [
+      childClick,
+      parentClick,
+      childKey,
+      parentKey,
+      childCapture,
+      parentCapture,
+    ]) {
+      expect(handler).toHaveBeenCalledOnce();
+    }
+  });
+
   it("allows caller sizing to override shared defaults", () => {
     render(
       <Button size="icon" className="size-8">
