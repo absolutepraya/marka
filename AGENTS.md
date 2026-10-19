@@ -85,11 +85,15 @@ Important installer facts:
 - search choices are managed Meilisearch, external Meilisearch, or disabled search
 - renderer choices are managed private Chrome, external token-protected Browserless, or disabled browser rendering
 - AI choices are disabled, OpenAI-compatible, or deferred
-- non-interactive installs require explicit deployment choices and accept secrets only through environment variables, never command-line flags
-- generated `app.env`, `workers.env`, and `.data-dir` files use restrictive permissions and secrets must never be printed or committed
+- new non-interactive installs require explicit deployment choices and accept secrets only through environment variables, never command-line flags
+- generated env files and installer metadata use restrictive permissions and secrets must never be printed or committed
 - a normal rerun refuses to overwrite generated config; `--reconfigure` first creates a timestamped config backup
 - `uninstall` removes containers/network only and deliberately preserves configuration and persistent data
-- the generated helper supports `status`, `backup`, `update`, `start`, `stop`, and `uninstall`
+- the generated helper discovers its own installation directory and supports `status`, `doctor`, `backup`, `update`, `start`, `stop`, and `uninstall`
+- setup offers local, trusted-LAN, or HTTPS-domain access; install/start/update wait for web and worker readiness
+- reconfiguration preserves installed secrets, image pins, service choices, and custom env entries; keep custom Compose additions in `docker-compose.override.yml`
+- AI configuration is shared by web/workers in `app.env`; managed search gets its own restricted `meilisearch.env`
+- updates back up config/data first; backups recover the previously running services even when archiving fails
 
 Use an immutable release tag or commit SHA instead of `main` in the raw URL when reproducibility is required. The full installer contract and non-interactive examples are in `docs/docs/02-installation/11-guided-docker-setup.md`.
 
@@ -97,6 +101,8 @@ Validate installer changes with:
 
 ```bash
 bash scripts/install.test.sh
+# Disposable Linux amd64 host only, with Docker and a Node test client:
+bash scripts/install.integration.test.sh
 ```
 
 ## Local development

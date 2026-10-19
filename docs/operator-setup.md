@@ -288,6 +288,10 @@ both services have been verified healthy. A stable-channel promotion can
 temporarily expose the adjacent web and workers builds because Watchtower is
 not an atomic multi-container switch.
 
+## Portable guided installer
+
+The portable installer is separate from the personal VPS Compose/Watchtower deployment above. Its [guided setup contract](docs/02-installation/11-guided-docker-setup.md) describes local/LAN/domain access, preserved settings on reconfiguration, shared web/worker AI configuration, readiness checks, `doctor`, automatic pre-update backups, and the data-restore procedure. Its generated helper resolves custom installation directories automatically. Use `bash scripts/install.test.sh` for mocked-Docker regressions and `bash scripts/install.integration.test.sh` on a disposable Linux amd64 host for the published-image installation and recovery flow.
+
 ## Production compose
 
 Canonical compose file:

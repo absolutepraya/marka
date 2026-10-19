@@ -50,7 +50,9 @@ On a **Linux `amd64` host** with **Docker Engine, Docker Compose v2, and OpenSSL
 curl -fsSLo /tmp/marka-setup.sh https://raw.githubusercontent.com/absolutepraya/marka/main/scripts/install.sh && bash /tmp/marka-setup.sh
 ```
 
-The guided installer asks where to store your configuration and data, then sets up the web app, workers, search, and browser rendering. You can use the recommended defaults or choose external services and optional AI in advanced setup.
+The guided installer asks how you will access Marka (locally, over a trusted LAN, or through an HTTPS domain) and where to store configuration and data, then sets up the web app, workers, search, and browser rendering. Use the recommended defaults or choose external services and optional AI in advanced setup.
+
+Setup waits for web and workers to become ready. Reconfiguration keeps existing secrets and settings; the generated helper provides health diagnostics and backups before updates.
 
 > [!IMPORTANT]
 > The default listener is `127.0.0.1:3000`. For Internet access, provide a reverse proxy with TLS. The installer expects Docker to be installed and leaves DNS, firewall rules, and certificates to you.

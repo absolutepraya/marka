@@ -81,6 +81,10 @@ Notes:
 - `pnpm doctor` and `pnpm doctor:staged` are advisory local checks. CI requires a React Doctor score of at least 99 through `pnpm doctor:ci`; see [`docs/react-doctor.md`](docs/react-doctor.md) for the baseline and accepted tool limitations.
 - `knip` is useful for repository cleanup, but is non-blocking in CI.
 
+### Guided installer changes
+
+Run `bash scripts/install.test.sh` for the fast mocked-Docker regression suite. Run `bash scripts/install.integration.test.sh` only on a disposable Linux amd64 host with Docker and Node; it exercises the public stable image pair, signup, browser crawling, screenshot assets, search, restart, backup/restore, update, and uninstall. It refuses an existing `karakeep` Compose deployment. The Installer Tests workflow runs both suites. Keep the [guided setup contract](docs/docs/02-installation/11-guided-docker-setup.md) aligned with installer behavior.
+
 ### Roadmap changes
 
 The issue-linked roadmap source is [`docs/roadmap/roadmap.excalidraw`](docs/roadmap/roadmap.excalidraw). Update it in a PR when the PR changes a roadmap issue's scope, ordering, grouping, or dependencies. An implementation PR does not need a diagram edit when the roadmap structure is unchanged.
