@@ -199,25 +199,25 @@ export default function SubscriptionSettings() {
                     <div>
                       {hasYearlyPricing && (
                         <div className="mb-2 inline-flex items-center rounded-lg bg-muted p-1">
-                          <button
+                          <Button
                             type="button"
+                            size="sm"
+                            variant={
+                              billingPeriod === "monthly" ? "outline" : "ghost"
+                            }
+                            aria-pressed={billingPeriod === "monthly"}
                             onClick={() => setBillingPeriod("monthly")}
-                            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                              billingPeriod === "monthly"
-                                ? "bg-background text-foreground shadow-sm"
-                                : "text-muted-foreground hover:text-foreground"
-                            }`}
                           >
                             {t("settings.subscription.monthly")}
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
+                            size="sm"
+                            variant={
+                              billingPeriod === "yearly" ? "outline" : "ghost"
+                            }
+                            aria-pressed={billingPeriod === "yearly"}
                             onClick={() => setBillingPeriod("yearly")}
-                            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                              billingPeriod === "yearly"
-                                ? "bg-background text-foreground shadow-sm"
-                                : "text-muted-foreground hover:text-foreground"
-                            }`}
                           >
                             {t("settings.subscription.yearly")}
                             {subscriptionPrice?.monthly?.amount &&
@@ -234,7 +234,7 @@ export default function SubscriptionSettings() {
                                   })}
                                 </span>
                               )}
-                          </button>
+                          </Button>
                         </div>
                       )}
                       {currentPrice && currentPrice.amount ? (

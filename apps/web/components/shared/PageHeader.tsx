@@ -26,11 +26,11 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-start justify-between gap-3",
+        "flex min-w-0 flex-wrap items-start justify-between gap-3",
         className,
       )}
     >
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-48">
         <div
           className={cn(
             "flex gap-3",
@@ -42,7 +42,7 @@ export function PageHeader({
               className={cn(
                 "flex shrink-0 items-center justify-center text-muted-foreground",
                 useLargeIcon
-                  ? "mt-0.5 size-10 [&_svg]:size-7"
+                  ? "shadow-xs mt-0.5 size-9 rounded-lg border border-border/70 bg-card [&_svg]:size-5"
                   : "size-8 [&_svg]:size-[1.375rem]",
               )}
             >
@@ -51,7 +51,7 @@ export function PageHeader({
           )}
           <div className={cn("min-w-0", useLargeIcon && "space-y-1.5 pt-0.5")}>
             <div className="flex min-w-0 items-center gap-2">
-              <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight text-foreground">
+              <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-foreground">
                 {title}
               </h1>
             </div>

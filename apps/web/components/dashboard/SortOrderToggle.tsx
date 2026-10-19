@@ -5,13 +5,14 @@ import { EditingButton } from "@/components/ui/editing-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/lib/i18n/client";
 import { useInSearchPageStore } from "@/lib/store/useInSearchPageStore";
 import { useSortOrderStore } from "@/lib/store/useSortOrderStore";
-import { Check, ListFilter, SortAsc, SortDesc } from "lucide-react";
+import { ListFilter, SortAsc, SortDesc } from "lucide-react";
 
 export default function SortOrderToggle() {
   const { t } = useTranslation();
@@ -43,38 +44,25 @@ export default function SortOrderToggle() {
         </EditingButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-fit">
-        {isInSearchPage && (
-          <DropdownMenuItem
-            className="cursor-pointer justify-between"
-            onClick={() => setSortOrder("relevance")}
-          >
-            <div className="flex items-center">
-              <ListFilter size={16} className="mr-2" />
-              <span>{t("actions.sort.relevant_first")}</span>
-            </div>
-            {currentSort === "relevance" && <Check className="ml-2 h-4 w-4" />}
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem
-          className="cursor-pointer justify-between"
-          onClick={() => setSortOrder("desc")}
+        <DropdownMenuRadioGroup
+          value={currentSort}
+          onValueChange={(value) => setSortOrder(value as typeof currentSort)}
         >
-          <div className="flex items-center">
-            <SortDesc size={16} className="mr-2" />
-            <span>{t("actions.sort.newest_first")}</span>
-          </div>
-          {currentSort === "desc" && <Check className="ml-2 h-4 w-4" />}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="cursor-pointer justify-between"
-          onClick={() => setSortOrder("asc")}
-        >
-          <div className="flex items-center">
-            <SortAsc size={16} className="mr-2" />
-            <span>{t("actions.sort.oldest_first")}</span>
-          </div>
-          {currentSort === "asc" && <Check className="ml-2 h-4 w-4" />}
-        </DropdownMenuItem>
+          {isInSearchPage && (
+            <DropdownMenuRadioItem value="relevance">
+              <ListFilter size={16} />
+              {t("actions.sort.relevant_first")}
+            </DropdownMenuRadioItem>
+          )}
+          <DropdownMenuRadioItem value="desc">
+            <SortDesc size={16} />
+            {t("actions.sort.newest_first")}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="asc">
+            <SortAsc size={16} />
+            {t("actions.sort.oldest_first")}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  navigationItemActive,
+  navigationItemIdle,
+} from "@karakeep/shared-react/components/ui/control-styles";
+
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,10 +51,8 @@ export default function SidebarItem({
   return (
     <Component
       className={cn(
-        "ease-(--ease-out) group relative flex min-w-0 items-center justify-between overflow-hidden rounded-xl text-sm transition-[background-color,color,box-shadow,ring-color] duration-150",
-        isActive
-          ? "bg-primary/[0.07] text-foreground shadow-inner shadow-primary/10 ring-1 ring-inset ring-primary/30"
-          : "text-muted-foreground hover:bg-primary/[0.05] hover:text-foreground hover:shadow-inner hover:shadow-primary/10",
+        "ease-(--ease-out) group relative flex min-w-0 items-center justify-between overflow-hidden rounded-lg text-sm transition-[background-color,color,box-shadow,ring-color] duration-150",
+        isActive ? navigationItemActive : navigationItemIdle,
         dropHighlight &&
           "bg-primary/12 text-foreground shadow-inner shadow-primary/30 ring-1 ring-inset ring-primary/70",
         className,
@@ -67,7 +70,7 @@ export default function SidebarItem({
           aria-current={isActive ? "page" : undefined}
           onNavigate={onNavigate}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-x-2 rounded-[inherit] px-3 py-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground",
+            "flex min-w-0 flex-1 items-center gap-x-2 rounded-[inherit] px-2.5 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground",
             linkClassName,
           )}
         >

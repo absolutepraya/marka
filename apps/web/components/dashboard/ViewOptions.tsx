@@ -11,7 +11,9 @@ import { EditingButton } from "@/components/ui/editing-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -33,7 +35,6 @@ import {
   updateShowTitle,
 } from "@/lib/userLocalSettings/userLocalSettings";
 import {
-  Check,
   Heading,
   Image,
   LayoutDashboard,
@@ -139,25 +140,22 @@ export default function ViewOptions() {
         </EditingButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56">
-        <div className="px-2 py-1.5 text-sm font-semibold">
-          {t("view_options.layout")}
-        </div>
-        {(Object.keys(iconMap) as LayoutType[]).map((key) => (
-          <DropdownMenuItem
-            key={key}
-            className="cursor-pointer justify-between"
-            onSelect={(e) => {
-              e.preventDefault();
-              handleLayoutChange(key);
-            }}
-          >
-            <div className="flex items-center gap-2">
-              {createElement(iconMap[key as LayoutType], { size: 18 })}
+        <DropdownMenuLabel>{t("view_options.layout")}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={optimisticLayout}
+          onValueChange={(value) => handleLayoutChange(value as LayoutType)}
+        >
+          {(Object.keys(iconMap) as LayoutType[]).map((key) => (
+            <DropdownMenuRadioItem
+              key={key}
+              value={key}
+              onSelect={(event) => event.preventDefault()}
+            >
+              {createElement(iconMap[key], { size: 16 })}
               <span>{t(`layouts.${key}`)}</span>
-            </div>
-            {optimisticLayout === key && <Check className="ml-2 size-4" />}
-          </DropdownMenuItem>
-        ))}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
 
         {showColumnSlider && (
           <>
@@ -189,9 +187,9 @@ export default function ViewOptions() {
         )}
 
         <DropdownMenuSeparator />
-        <div className="px-2 py-1.5 text-sm font-semibold">
+        <DropdownMenuLabel>
           {t("view_options.display_options")}
-        </div>
+        </DropdownMenuLabel>
 
         <div className="space-y-3 px-2 py-2">
           <div className="flex items-center justify-between">
@@ -241,42 +239,25 @@ export default function ViewOptions() {
         </div>
 
         <DropdownMenuSeparator />
-        <div className="px-2 py-1.5 text-sm font-semibold">
-          {t("view_options.image_options")}
-        </div>
+        <DropdownMenuLabel>{t("view_options.image_options")}</DropdownMenuLabel>
 
-        <div className="space-y-1 px-2 py-2">
-          <DropdownMenuItem
-            className="cursor-pointer justify-between"
-            onSelect={(e) => {
-              e.preventDefault();
-              handleImageFitChange("cover");
-            }}
-          >
-            <div className="flex items-center gap-2">
+        <DropdownMenuRadioGroup
+          value={optimisticImageFit}
+          onValueChange={(value) =>
+            handleImageFitChange(value as "cover" | "contain")
+          }
+        >
+          {(["cover", "contain"] as const).map((fit) => (
+            <DropdownMenuRadioItem
+              key={fit}
+              value={fit}
+              onSelect={(event) => event.preventDefault()}
+            >
               <Image size={16} />
-              <span>{t("view_options.image_fit_cover")}</span>
-            </div>
-            {optimisticImageFit === "cover" && (
-              <Check className="ml-2 size-4" />
-            )}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="cursor-pointer justify-between"
-            onSelect={(e) => {
-              e.preventDefault();
-              handleImageFitChange("contain");
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <Image size={16} />
-              <span>{t("view_options.image_fit_contain")}</span>
-            </div>
-            {optimisticImageFit === "contain" && (
-              <Check className="ml-2 size-4" />
-            )}
-          </DropdownMenuItem>
-        </div>
+              <span>{t(`view_options.image_fit_${fit}`)}</span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

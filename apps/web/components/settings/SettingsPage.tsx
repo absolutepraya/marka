@@ -58,7 +58,7 @@ export function SettingsSection({
   return (
     <Card
       className={cn(
-        "shadow-xs rounded-2xl border border-border/70 bg-card/90",
+        "shadow-xs rounded-xl border-border/80 bg-card",
         variant === "danger" && "border-destructive/25 bg-destructive/[0.03]",
         className,
       )}
