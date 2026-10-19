@@ -3,7 +3,10 @@
   "name": "@absolutepraya/marka",
   "version": "0.32.0",
   "description": "Command Line Interface (CLI) for Marka",
-  "license": "GNU Affero General Public License version 3",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "keywords": [
     "marka",
@@ -27,13 +30,14 @@
     "commander": "^12.0.0",
     "superjson": "^2.2.1",
     "table": "^6.8.2",
+    "tar": "^7.5.12",
     "tsx": "^4.8.1",
     "vite": "^7.0.6",
     "vite-tsconfig-paths": "^6.1.1",
     "zod": "^4.0.0"
   },
   "scripts": {
-    "build": "vite build && chmod +x dist/index.mjs",
+    "build": "vite build && node scripts/finalize-build.mjs",
     "run": "tsx src/index.ts",
     "lint": "oxlint --ignore-path=../../.gitignore .",
     "lint:fix": "oxlint --ignore-path=../../.gitignore . --fix",

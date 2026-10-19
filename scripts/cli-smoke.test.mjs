@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -70,5 +70,66 @@ test("401 response fails with authentication recovery guidance", async () => {
     );
   } finally {
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("a key without a server fails before making a request", async () => {
+  const config = await mkdtemp(join(tmpdir(), "marka-server-"));
+  const env = {
+    ...process.env,
+    XDG_CONFIG_HOME: config,
+    KARAKEEP_API_KEY: "dummy-key-must-not-be-sent",
+  };
+  delete env.KARAKEEP_SERVER_ADDR;
+  try {
+    await assert.rejects(
+      execute(process.execPath, [binary, "whoami"], { env, timeout: 3000 }),
+      (error) => {
+        assert.equal(error.code, 1);
+        assert.match(error.stderr, /No Marka server configured/);
+        assert.doesNotMatch(error.stderr, /dummy-key-must-not-be-sent/);
+        return true;
+      },
+    );
+  } finally {
+    await rm(config, { recursive: true, force: true });
+  }
+});
+
+test("auth rejects invalid origins without writing config", async () => {
+  const config = await mkdtemp(join(tmpdir(), "marka-url-"));
+  const env = {
+    ...process.env,
+    XDG_CONFIG_HOME: config,
+    KARAKEEP_API_KEY: "dummy-key",
+  };
+  delete env.KARAKEEP_SERVER_ADDR;
+  try {
+    for (const address of [
+      "not-a-url",
+      "ftp://example.com",
+      "https://user:password@example.com",
+      "https://example.com?query=1",
+      "https://example.com#fragment",
+      "https://example.com/?",
+      "https://example.com/#",
+    ]) {
+      await assert.rejects(
+        execute(
+          process.execPath,
+          [binary, "auth", "init", "--server-addr", address],
+          { env },
+        ),
+        (error) => {
+          assert.equal(error.code, 1);
+          assert.match(error.stderr, /Server address must/);
+          assert.doesNotMatch(error.stderr, /dummy-key|password/);
+          return true;
+        },
+      );
+    }
+    await assert.rejects(access(join(config, "karakeep/config.json")));
+  } finally {
+    await rm(config, { recursive: true, force: true });
   }
 });

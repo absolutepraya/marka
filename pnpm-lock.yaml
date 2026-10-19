@@ -211,6 +211,9 @@ importers:
       table:
         specifier: ^6.8.2
         version: 6.9.0
+      tar:
+        specifier: ^7.5.12
+        version: 7.5.12
       tsx:
         specifier: ^4.8.1
         version: 4.20.3

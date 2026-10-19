@@ -16,7 +16,7 @@ export default defineConfig({
       external: ["node:fs", "node:os", "node:path", "node:url", "node:process"],
     },
     ssr: true,
-    target: "node18",
+    target: "node22",
   },
   ssr: {
     // bundle everything except for Node built-ins

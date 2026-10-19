@@ -4055,6 +4055,82 @@
         }
       }
     },
+    "/assets/restore": {
+      "post": {
+        "operationId": "uploadRestoreAsset",
+        "summary": "Upload a portable-library asset",
+        "description": "Upload an unattached file for bookmark portability import. Requires assets:readwrite and bookmarks:readwrite. Supports regular uploads, caption source files, and saved page archives. File sniffing, size limits, and storage quotas still apply; the import API validates attachment roles before attaching files.",
+        "tags": [
+          "Assets"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Uploaded and left unattached until import",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string"
+                    },
+                    "contentType": {
+                      "type": "string"
+                    },
+                    "size": {
+                      "type": "number"
+                    },
+                    "fileName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "assetId",
+                    "contentType",
+                    "size",
+                    "fileName"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — the Bearer token is missing, invalid, or expired.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Unauthorized"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/assets/{assetId}": {
       "get": {
         "operationId": "getAsset",

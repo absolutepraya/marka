@@ -1,429 +1,249 @@
-import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { getGlobalOptions } from "@/lib/globals";
-import { printErrorMessageWithReason, printStatusMessage } from "@/lib/output";
-import { getAPIClient } from "@/lib/trpc";
+import { promisify } from "node:util";
 import { Command } from "@commander-js/extra-typings";
-import chalk from "chalk";
+import superjson from "superjson";
+import { MAX_ARCHIVE_MEMBER_BYTES } from "@/lib/archive";
+import { pageSize } from "@/lib/arguments";
+import { loadAccount, listMembership, validateAccount } from "@/lib/account";
+import {
+  printErrorMessageWithReason,
+  printObject,
+  printStatusMessage,
+} from "@/lib/output";
+import {
+  currentConnection,
+  excludeSnapshotAssets,
+  remoteAssetLoader,
+  requirePortability,
+} from "@/lib/transfer";
+import { getAPIClient } from "@/lib/trpc";
+import { PORTABLE_DATA_EXCLUSIONS } from "@karakeep/shared/types/bookmarkTransfer";
 
-import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
-import type { ZBookmarkList } from "@karakeep/shared/types/lists";
-import { MAX_NUM_BOOKMARKS_PER_PAGE } from "@karakeep/shared/types/bookmarks";
-import { ZCursor } from "@karakeep/shared/types/pagination";
-import { MAX_NUM_TAGS_PER_PAGE } from "@karakeep/shared/types/tags";
-
-const OK = chalk.green("✓");
-const FAIL = chalk.red("✗");
-const DOTS = chalk.gray("…");
-
-function line(msg: string) {
-  console.log(msg);
-}
-
-function stepStart(title: string) {
-  console.log(`${chalk.cyan(title)} ${DOTS}`);
-}
-
-function stepEndSuccess(extra?: string) {
-  process.stdout.write(`${OK}${extra ? " " + chalk.gray(extra) : ""}\n`);
-}
-
-function stepEndFail(extra?: string) {
-  process.stdout.write(`${FAIL}${extra ? " " + chalk.gray(extra) : ""}\n`);
-}
-
-function progressUpdate(
-  prefix: string,
-  current: number,
-  total?: number,
-  suffix?: string,
-) {
-  const totalPart = total != null ? `/${total}` : "";
-  const text = `${chalk.gray(prefix)} ${current}${totalPart}${suffix ? " " + chalk.gray(suffix) : ""}`;
-  if (process.stdout.isTTY) {
-    try {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
-      process.stdout.write(text);
-      return;
-    } catch {
-      // ignore failures
-    }
-  }
-  console.log(text);
-}
-
-function progressDone() {
-  process.stdout.write("\n");
-}
-
-async function ensureDir(p: string) {
-  await fsp.mkdir(p, { recursive: true });
-}
-
-async function writeJson(filePath: string, data: unknown) {
-  const dir = path.dirname(filePath);
-  await ensureDir(dir);
-  await fsp.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
-}
-
-async function writeJsonl(
-  filePath: string,
-  items: AsyncIterable<unknown> | Iterable<unknown>,
-) {
-  const dir = path.dirname(filePath);
-  await ensureDir(dir);
-  const fh = await fsp.open(filePath, "w");
-  try {
-    for await (const item of items) {
-      await fh.write(JSON.stringify(item) + "\n");
-    }
-  } finally {
-    await fh.close();
-  }
-}
-
-async function createTarGz(srcDir: string, outFile: string): Promise<void> {
-  await ensureDir(path.dirname(outFile));
-  await new Promise<void>((resolve, reject) => {
-    const tar = spawn("tar", ["-czf", outFile, "-C", srcDir, "."], {
-      stdio: "inherit",
-    });
-    tar.on("error", reject);
-    tar.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`tar exited with code ${code}`));
-    });
-  });
-}
-
-export const dumpCmd = new Command()
-  .name("dump")
-  .description("dump all account data and assets into an archive")
-  .option("--output <file>", "output archive path (.tar.gz)")
-  .option(
-    "--exclude-assets",
-    "exclude binary assets (skip assets index and files)",
+const execute = promisify(execFile);
+export const dumpCmd = new Command("dump")
+  .description(
+    "export a versioned portable library archive; see README for exclusions",
   )
-  .option("--exclude-bookmarks", "exclude bookmarks (metadata/content)")
-  .option("--exclude-lists", "exclude lists and list membership")
+  .option("--output <file>", "output .tar.gz archive")
+  .option("--exclude-assets", "exclude binary files and asset bookmarks")
+  .option("--exclude-bookmarks", "exclude bookmark records")
+  .option("--exclude-lists", "exclude lists and membership")
   .option("--exclude-tags", "exclude tags")
-  .option("--exclude-ai-prompts", "exclude AI prompts")
-  .option("--exclude-rules", "exclude rule engine rules")
+  .option("--exclude-ai-prompts", "exclude prompts")
+  .option("--exclude-rules", "exclude rules")
   .option("--exclude-feeds", "exclude RSS feeds")
-  .option("--exclude-webhooks", "exclude webhooks")
-  .option("--exclude-user-settings", "exclude user settings")
-  .option("--exclude-link-content", "exclude link content")
-  .option(
-    "--batch-size <n>",
-    `number of bookmarks per page (max ${MAX_NUM_BOOKMARKS_PER_PAGE})`,
-    (v) => Math.min(Number(v || 50), MAX_NUM_BOOKMARKS_PER_PAGE),
-    50,
-  )
+  .option("--exclude-webhooks", "exclude webhook configuration")
+  .option("--exclude-user-settings", "exclude user preferences")
+  .option("--exclude-link-content", "exclude cached link HTML")
+  .option("--batch-size <n>", "bookmarks per page (1 to 100)", pageSize, 50)
   .action(async (opts) => {
     const api = getAPIClient();
-    const globals = getGlobalOptions();
-
-    const ts = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .replace("T", "_")
-      .replace("Z", "Z");
-    const workRoot = await fsp.mkdtemp(
-      path.join(os.tmpdir(), `karakeep-dump-${ts}-`),
+    const connection = currentConnection();
+    if (!opts.excludeBookmarks) await requirePortability(api);
+    const workRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "marka-dump-"));
+    const output = path.resolve(
+      opts.output ??
+        `karakeep-dump-${new Date().toISOString().replace(/[:.]/g, "-")}.tar.gz`,
     );
-    const outFile = opts.output ?? path.resolve(`karakeep-dump-${ts}.tar.gz`);
-
+    const counts = {
+      bookmarks: 0,
+      assets: 0,
+      highlights: 0,
+      transcripts: 0,
+      excluded: 0,
+      failed: 0,
+    };
+    const assetSha256: Record<string, string> = {};
+    const exportedBookmarkIds = new Set<string>();
     try {
-      line("");
-      line(`${chalk.bold("Marka Dump")}`);
-      line(`${chalk.gray("Server:")} ${globals.serverAddr}`);
-      line(`${chalk.gray("Output:")} ${outFile}`);
-      line("");
-
-      // Manifest skeleton
-      const whoami = await api.users.whoami.query();
-      const manifest = {
-        format: "karakeep.dump",
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        server: globals.serverAddr,
-        user: {
-          id: whoami.id,
-          email: whoami.email,
-          name: whoami.name,
-        },
-        counts: {
-          bookmarks: 0,
-          assets: 0,
-          lists: 0,
-          tags: 0,
-          rules: 0,
-          feeds: 0,
-          webhooks: 0,
-          prompts: 0,
-        },
-      };
-
-      // 1) User settings
-      if (!opts.excludeUserSettings) {
-        stepStart("Exporting user settings");
-        const settings = await api.users.settings.query();
-        await writeJson(
-          path.join(workRoot, "users", "settings.json"),
-          settings,
+      const account = await loadAccount(api, opts);
+      const secretWebhooks =
+        account.webhooks?.filter((webhook) => webhook.hasToken) ?? [];
+      if (account.webhooks)
+        account.webhooks = account.webhooks.filter(
+          (webhook) => !webhook.hasToken,
         );
-        stepEndSuccess();
-      }
-
-      // 2) Lists
-      let lists: ZBookmarkList[] | undefined;
-      if (!opts.excludeLists) {
-        stepStart("Exporting lists");
-        const resp = await api.lists.list.query();
-        lists = resp.lists;
-        await writeJson(path.join(workRoot, "lists", "index.json"), lists);
-        manifest.counts.lists = lists.length;
-        stepEndSuccess();
-      }
-
-      // 3) Tags
-      if (!opts.excludeTags) {
-        stepStart("Exporting tags");
-
-        let cursor = null;
-        let allTags = [];
-        do {
-          const { tags, nextCursor } = await api.tags.list.query({
-            limit: MAX_NUM_TAGS_PER_PAGE,
-            cursor,
-          });
-          allTags.push(...tags);
-          cursor = nextCursor;
-        } while (cursor);
-        await writeJson(path.join(workRoot, "tags", "index.json"), allTags);
-        manifest.counts.tags = allTags.length;
-        stepEndSuccess();
-      }
-
-      // 4) Rules
-      if (!opts.excludeRules) {
-        stepStart("Exporting rules");
-        const { rules } = await api.rules.list.query();
-        await writeJson(path.join(workRoot, "rules", "index.json"), rules);
-        manifest.counts.rules = rules.length;
-        stepEndSuccess();
-      }
-
-      // 5) Feeds
-      if (!opts.excludeFeeds) {
-        stepStart("Exporting feeds");
-        const { feeds } = await api.feeds.list.query();
-        await writeJson(path.join(workRoot, "feeds", "index.json"), feeds);
-        manifest.counts.feeds = feeds.length;
-        stepEndSuccess();
-      }
-
-      // 6) Prompts
-      if (!opts.excludeAiPrompts) {
-        stepStart("Exporting AI prompts");
-        const prompts = await api.prompts.list.query();
-        await writeJson(path.join(workRoot, "prompts", "index.json"), prompts);
-        manifest.counts.prompts = prompts.length;
-        stepEndSuccess();
-      }
-
-      // 7) Webhooks
-      if (!opts.excludeWebhooks) {
-        stepStart("Exporting webhooks");
-        const webhooks = await api.webhooks.list.query();
-        await writeJson(
-          path.join(workRoot, "webhooks", "index.json"),
-          webhooks.webhooks,
-        );
-        manifest.counts.webhooks = webhooks.webhooks.length;
-        stepEndSuccess();
-      }
-
-      // 8) Bookmarks (JSONL + list membership)
-      if (!opts.excludeBookmarks) {
-        stepStart("Exporting bookmarks (metadata/content)");
-        const bookmarkJsonl = path.join(workRoot, "bookmarks", "index.jsonl");
-        let bookmarksExported = 0;
-        const bookmarkIterator = async function* (): AsyncGenerator<ZBookmark> {
-          let cursor: ZCursor | null = null;
+      validateAccount(account);
+      const membership = !opts.excludeBookmarks
+        ? await listMembership(api, account)
+        : {};
+      // Private reference metadata for the owner's records. Restore never
+      // recreates these grants or sends invitations from this snapshot.
+      const sharing: Record<string, unknown> = {};
+      for (const list of account.lists ?? [])
+        sharing[list.id] = await api.lists.getCollaborators.query({
+          listId: list.id,
+        });
+      await fsp.mkdir(path.join(workRoot, "bookmarks"));
+      await fsp.mkdir(path.join(workRoot, "assets"));
+      const stateFile = await fsp.open(
+        path.join(workRoot, "bookmarks/state.jsonl"),
+        "w",
+      );
+      try {
+        if (!opts.excludeBookmarks) {
+          let cursor;
           do {
-            const resp = await api.bookmarks.getBookmarks.query({
-              includeContent: !opts.excludeLinkContent,
-              limit: Number(opts.batchSize) || 50,
+            const page = await api.bookmarks.getBookmarks.query({
               cursor,
+              limit: opts.batchSize,
               useCursorV2: true,
             });
-            for (const b of resp.bookmarks) {
-              yield b;
-              bookmarksExported++;
-              progressUpdate("Bookmarks", bookmarksExported);
-            }
-            cursor = resp.nextCursor;
-          } while (cursor);
-        };
-        await writeJsonl(bookmarkJsonl, bookmarkIterator());
-        progressDone();
-        manifest.counts.bookmarks = bookmarksExported;
-        stepEndSuccess();
-      }
-
-      // 9) List membership (listId -> [bookmarkId])
-      if (!opts.excludeLists && !opts.excludeBookmarks && lists) {
-        stepStart("Exporting list membership");
-        const membership = await buildListMembership(api, lists, (p, t) =>
-          progressUpdate("Lists scanned", p, t),
-        );
-        progressDone();
-        await writeJson(
-          path.join(workRoot, "lists", "membership.json"),
-          Object.fromEntries(membership.entries()),
-        );
-        stepEndSuccess();
-      }
-
-      // 10) Assets: index + files
-      if (!opts.excludeAssets) {
-        stepStart("Exporting assets (binary files)");
-        const assetsDir = path.join(workRoot, "assets", "files");
-        await ensureDir(assetsDir);
-        const assetsIndex: {
-          id: string;
-          assetType: string;
-          size: number;
-          contentType: string | null;
-          fileName: string | null;
-          bookmarkId: string | null;
-          filePath: string; // relative inside archive
-        }[] = [];
-        let assetPageCursor: number | null | undefined = null;
-        let downloaded = 0;
-        let totalAssets: number | undefined = undefined;
-        do {
-          const resp = await api.assets.list.query({
-            limit: 50,
-            cursor: assetPageCursor ?? undefined,
-          });
-          if (totalAssets == null) totalAssets = resp.totalCount;
-          for (const a of resp.assets) {
-            const relPath = path.join("assets", "files", a.id);
-            const absPath = path.join(workRoot, relPath);
-            try {
-              await downloadAsset(
-                globals.serverAddr,
-                globals.apiKey,
-                a.id,
-                absPath,
-              );
-              assetsIndex.push({
-                id: a.id,
-                assetType: a.assetType,
-                size: a.size,
-                contentType: a.contentType,
-                fileName: a.fileName,
-                bookmarkId: a.bookmarkId,
-                filePath: relPath.replace(/\\/g, "/"),
+            for (const bookmark of page.bookmarks) {
+              if (opts.excludeAssets && bookmark.content.type === "asset") {
+                counts.excluded++;
+                continue;
+              }
+              let snapshot = await api.bookmarkPortability.export.query({
+                bookmarkId: bookmark.id,
+                includeAssets: !opts.excludeAssets,
               });
-              downloaded++;
-              progressUpdate("Assets", downloaded, totalAssets);
-            } catch (e) {
-              printErrorMessageWithReason(
-                `Failed to download asset "${a.id}"`,
-                e as object,
+              if (opts.excludeAssets)
+                snapshot = excludeSnapshotAssets(snapshot);
+              if (opts.excludeTags) snapshot.bookmark.tags = [];
+              if (
+                opts.excludeLinkContent &&
+                snapshot.bookmark.content.type === "link"
+              ) {
+                snapshot.bookmark.content.htmlContent = null;
+                snapshot.bookmark.content.contentAssetId = null;
+                snapshot.assets = snapshot.assets.filter(
+                  (asset) => asset.assetType !== "linkHtmlContent",
+                );
+              }
+              for (const asset of snapshot.assets) {
+                if (asset.size > MAX_ARCHIVE_MEMBER_BYTES)
+                  throw new Error(
+                    "Portable archive members must not exceed 256 MiB",
+                  );
+                // IDs are server-generated but still validate paths before writing.
+                if (!/^[A-Za-z0-9_-]+$/.test(asset.id))
+                  throw new Error("Invalid asset ID in server response");
+                const bytes = new Uint8Array(
+                  await remoteAssetLoader(connection)(asset),
+                );
+                assetSha256[asset.id] = createHash("sha256")
+                  .update(bytes)
+                  .digest("hex");
+                await fsp.writeFile(
+                  path.join(workRoot, "assets", asset.id),
+                  bytes,
+                );
+                counts.assets++;
+              }
+              const contentAccess =
+                await api.bookmarks.getContentPermissions.query({
+                  bookmarkId: bookmark.id,
+                });
+              await stateFile.write(
+                JSON.stringify({
+                  snapshot: superjson.serialize(snapshot),
+                  contentAccess,
+                }) + "\n",
               );
+              exportedBookmarkIds.add(bookmark.id);
+              counts.bookmarks++;
+              counts.highlights += snapshot.highlights.length;
+              counts.transcripts += snapshot.transcripts.length;
             }
-          }
-          assetPageCursor = resp.nextCursor;
-        } while (assetPageCursor);
-        progressDone();
-        manifest.counts.assets = downloaded;
-        await writeJson(
-          path.join(workRoot, "assets", "index.json"),
-          assetsIndex,
-        );
-        stepEndSuccess();
+            cursor = page.nextCursor;
+          } while (cursor);
+        }
+      } finally {
+        await stateFile.close();
       }
-
-      // 11) Manifest
-      stepStart("Writing manifest");
-      await writeJson(path.join(workRoot, "manifest.json"), manifest);
-      stepEndSuccess();
-
-      // 12) Create archive
-      stepStart("Creating archive");
-      await createTarGz(workRoot, outFile);
-      stepEndSuccess();
-
-      printStatusMessage(true, `Dump completed. File: ${outFile}`);
-    } catch (error) {
-      stepEndFail();
-      printErrorMessageWithReason("Dump failed", error as object);
-      throw error;
-    } finally {
-      // Best-effort cleanup of temp directory
+      const ownedMembership = Object.fromEntries(
+        Object.entries(membership).filter(([id]) =>
+          exportedBookmarkIds.has(id),
+        ),
+      );
+      await fsp.writeFile(
+        path.join(workRoot, "account.json"),
+        JSON.stringify(
+          superjson.serialize({
+            account,
+            membership: ownedMembership,
+            sharing,
+            secretWebhooks,
+          }),
+        ),
+      );
+      for (const entry of ["account.json", "bookmarks/state.jsonl"]) {
+        if (
+          (await fsp.stat(path.join(workRoot, entry))).size >
+          MAX_ARCHIVE_MEMBER_BYTES
+        )
+          throw new Error("Portable archive members must not exceed 256 MiB");
+      }
+      const excluded = Object.entries(opts)
+        .filter(([key, value]) => key.startsWith("exclude") && value)
+        .map(([key]) => key);
+      await fsp.writeFile(
+        path.join(workRoot, "manifest.json"),
+        JSON.stringify(
+          {
+            format: "karakeep.dump",
+            version: 2,
+            serialization: "superjson",
+            complete: true,
+            scope: "portable-library",
+            exportedAt: new Date().toISOString(),
+            counts,
+            assetSha256,
+            exclusions: [...PORTABLE_DATA_EXCLUSIONS, ...excluded],
+          },
+          null,
+          2,
+        ),
+      );
+      await fsp.mkdir(path.dirname(output), { recursive: true });
+      // Write atomically so a failed export cannot leave a plausible archive.
+      const staged = path.join(workRoot, "export.tar.gz");
+      await execute(
+        "tar",
+        [
+          "-czf",
+          staged,
+          "-C",
+          workRoot,
+          "manifest.json",
+          "account.json",
+          "bookmarks",
+          "assets",
+        ],
+        { env: { ...process.env, COPYFILE_DISABLE: "1" } },
+      );
+      const destinationStage = await fsp.mkdtemp(
+        path.join(path.dirname(output), ".marka-export-"),
+      );
       try {
-        await fsp.rm(workRoot, { recursive: true, force: true });
-      } catch {
-        // ignore
+        const prepared = path.join(destinationStage, "export.tar.gz");
+        await fsp.copyFile(staged, prepared);
+        await fsp.chmod(prepared, 0o600);
+        await fsp.rename(prepared, output);
+      } finally {
+        await fsp.rm(destinationStage, { recursive: true, force: true });
       }
-    }
-  });
-
-async function buildListMembership(
-  api: ReturnType<typeof getAPIClient>,
-  lists: ZBookmarkList[],
-  onProgress?: (processed: number, total: number) => void,
-) {
-  const result = new Map<string, string[]>(); // listId -> [bookmarkId]
-  let processed = 0;
-  for (const l of lists) {
-    // Only manual lists have explicit membership
-    if (l.type !== "manual") {
-      processed++;
-      onProgress?.(processed, lists.length);
-      continue;
-    }
-    let cursor: ZCursor | null = null;
-    const ids: string[] = [];
-    do {
-      const resp = await api.bookmarks.getBookmarks.query({
-        listId: l.id,
-        limit: MAX_NUM_BOOKMARKS_PER_PAGE,
-        cursor,
-        includeContent: false,
-        useCursorV2: true,
+      printStatusMessage(true, `Export completed: ${output}`);
+      printObject({
+        success: true,
+        output,
+        version: 2,
+        counts,
+        exclusions: [...PORTABLE_DATA_EXCLUSIONS, ...excluded],
       });
-      for (const b of resp.bookmarks) ids.push(b.id);
-      cursor = resp.nextCursor;
-    } while (cursor);
-    result.set(l.id, ids);
-    processed++;
-    onProgress?.(processed, lists.length);
-  }
-  return result;
-}
-
-async function downloadAsset(
-  serverAddr: string,
-  apiKey: string,
-  assetId: string,
-  destFile: string,
-) {
-  const url = `${serverAddr}/api/assets/${assetId}`;
-  const resp = await fetch(url, {
-    headers: { authorization: `Bearer ${apiKey}` },
+    } catch (error) {
+      counts.failed++;
+      printErrorMessageWithReason(
+        "Export failed; no complete archive was produced",
+        error as object,
+      );
+      printObject({ success: false, counts });
+    } finally {
+      await fsp.rm(workRoot, { recursive: true, force: true });
+    }
   });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
-  }
-  const arrayBuf = await resp.arrayBuffer();
-  await ensureDir(path.dirname(destFile));
-  await fsp.writeFile(destFile, Buffer.from(arrayBuf));
-}

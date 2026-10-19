@@ -987,12 +987,16 @@ export class ManualList extends List {
     }
     const bookmarkIds = await this.getBookmarkIds();
     await this.ctx.db.transaction(async (tx) => {
-      await tx
-        .insert(bookmarksInLists)
-        .values(
-          bookmarkIds.map((id) => ({ bookmarkId: id, listId: targetList.id })),
-        )
-        .onConflictDoNothing();
+      if (bookmarkIds.length > 0)
+        await tx
+          .insert(bookmarksInLists)
+          .values(
+            bookmarkIds.map((id) => ({
+              bookmarkId: id,
+              listId: targetList.id,
+            })),
+          )
+          .onConflictDoNothing();
       if (deleteSourceAfterMerge) {
         await tx
           .delete(bookmarkLists)

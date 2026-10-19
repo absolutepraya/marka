@@ -1,6 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
+import { getSupportedMimeTypes } from "@karakeep/shared/content-support";
 
 import { Asset } from "@karakeep/trpc/models/assets";
 
@@ -12,6 +13,29 @@ import { uploadAsset } from "../utils/upload";
 
 const app = new Hono()
   .use(authMiddleware)
+  .post(
+    "/restore",
+    apiKeyScopeMiddleware("assets", "readwrite"),
+    apiKeyScopeMiddleware("bookmarks", "readwrite"),
+    createRateLimitMiddleware({
+      name: "assets.restore",
+      windowMs: 60 * 1000,
+      maxRequests: 300,
+    }),
+    zValidator("form", z.object({ file: z.instanceof(File) })),
+    async (c) => {
+      // Uploaded files remain unattached until the owner-only import validates
+      // their destination bookmark, transcript, MIME, and attachment role.
+      const up = await uploadAsset(
+        c.var.ctx.user,
+        c.var.ctx.db,
+        c.req.valid("form"),
+        getSupportedMimeTypes("rawDownload"),
+      );
+      if ("error" in up) return c.json({ error: up.error }, up.status);
+      return c.json(up);
+    },
+  )
   .post(
     "/",
     apiKeyScopeMiddleware("assets", "readwrite"),

@@ -10,6 +10,7 @@ import {
   printError,
   printErrorMessageWithReason,
   printObject,
+  printSuccess,
 } from "@/lib/output";
 import { getAPIClient } from "@/lib/trpc";
 import { Command } from "@commander-js/extra-typings";
@@ -140,7 +141,7 @@ highlightsCmd
 
     await api.highlights.delete
       .mutate({ highlightId: id })
-      .then(() => console.log(`Successfully deleted highlight "${id}"`))
+      .then(printSuccess(`Successfully deleted highlight "${id}"`))
       .catch(printError(`Failed to delete highlight with id "${id}"`));
   });
 

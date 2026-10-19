@@ -1,4 +1,4 @@
-import { stdin as input, stdout as output } from "node:process";
+import { stdin as input, stderr as output } from "node:process";
 import readline from "node:readline/promises";
 import { getGlobalOptions } from "@/lib/globals";
 import { printErrorMessageWithReason, printStatusMessage } from "@/lib/output";
@@ -14,19 +14,19 @@ const FAIL = chalk.red("✗");
 const DOTS = chalk.gray("…");
 
 function line(msg: string) {
-  console.log(msg);
+  console.error(msg);
 }
 
 function stepStart(title: string) {
-  console.log(`${chalk.cyan(title)} ${DOTS}`);
+  console.error(`${chalk.cyan(title)} ${DOTS}`);
 }
 
 function stepEndSuccess(extra?: string) {
-  process.stdout.write(`${OK}${extra ? " " + chalk.gray(extra) : ""}\n`);
+  process.stderr.write(`${OK}${extra ? " " + chalk.gray(extra) : ""}\n`);
 }
 
 function stepEndFail(extra?: string) {
-  process.stdout.write(`${FAIL}${extra ? " " + chalk.gray(extra) : ""}\n`);
+  process.stderr.write(`${FAIL}${extra ? " " + chalk.gray(extra) : ""}\n`);
 }
 
 function progressUpdate(
@@ -37,21 +37,21 @@ function progressUpdate(
 ) {
   const totalPart = total != null ? `/${total}` : "";
   const text = `${chalk.gray(prefix)} ${current}${totalPart}${suffix ? " " + chalk.gray(suffix) : ""}`;
-  if (process.stdout.isTTY) {
+  if (process.stderr.isTTY) {
     try {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
-      process.stdout.write(text);
+      process.stderr.clearLine(0);
+      process.stderr.cursorTo(0);
+      process.stderr.write(text);
       return;
     } catch {
       // ignore failures
     }
   }
-  console.log(text);
+  console.error(text);
 }
 
 function progressDone() {
-  process.stdout.write("\n");
+  process.stderr.write("\n");
 }
 
 export const wipeCmd = new Command()

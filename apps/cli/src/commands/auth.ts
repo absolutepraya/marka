@@ -1,13 +1,12 @@
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { stdin as input, stdout as output } from "node:process";
+import { stdin as input, stderr as output } from "node:process";
 import readline from "node:readline/promises";
 import { Writable } from "node:stream";
 import {
-  DEFAULT_SERVER_ADDR,
   getConfigPath,
   loadConfigFile,
-  normalizeConfig,
+  normalizeServerAddress,
 } from "@/lib/config";
 import { printStatusMessage } from "@/lib/output";
 import { Command } from "@commander-js/extra-typings";
@@ -107,7 +106,15 @@ authCmd
 
     try {
       const existingConfig = await loadExistingConfig(opts);
-      const existingAuth = normalizeConfig(existingConfig);
+      const existingAuth = existingConfig;
+      let existingServerAddr: string | undefined;
+      try {
+        existingServerAddr = existingAuth.serverAddr
+          ? normalizeServerAddress(existingAuth.serverAddr)
+          : undefined;
+      } catch {
+        /* Do not echo a malformed legacy URL that may contain credentials. */
+      }
 
       if ((await pathExists(configPath)) && !opts.force) {
         if (!input.isTTY) {
@@ -135,12 +142,10 @@ authCmd
       const rl = readline.createInterface({ input, output });
       const serverAddr =
         opts.serverAddr ??
-        (await promptForValue(
-          rl,
-          "Marka server address",
-          existingAuth.serverAddr ?? DEFAULT_SERVER_ADDR,
-        ));
+        (await promptForValue(rl, "Marka server address", existingServerAddr));
       rl.close();
+      if (!serverAddr) throw new Error("A Marka server address is required");
+      const normalizedServerAddr = normalizeServerAddress(serverAddr);
       const apiKey =
         opts.apiKey ?? (await promptForApiKey(existingAuth.apiKey));
 
@@ -154,7 +159,7 @@ authCmd
         JSON.stringify(
           {
             ...existingConfig,
-            serverAddr,
+            serverAddr: normalizedServerAddr,
             apiKey,
           },
           null,
