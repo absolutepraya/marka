@@ -71,6 +71,8 @@ export const dumpCmd = new Command("dump")
       const membership = !opts.excludeBookmarks
         ? await listMembership(api, account)
         : {};
+      // Private reference metadata for the owner's records. Restore never
+      // recreates these grants or sends invitations from this snapshot.
       const sharing: Record<string, unknown> = {};
       for (const list of account.lists ?? [])
         sharing[list.id] = await api.lists.getCollaborators.query({

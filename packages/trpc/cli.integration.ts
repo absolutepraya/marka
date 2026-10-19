@@ -2,6 +2,7 @@ import { test, vi } from "vitest";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { PluginManager, PluginType } from "@karakeep/shared/plugins";
 import { createServer } from "node:http";
@@ -61,7 +62,7 @@ const execute = promisify(execFile);
 const base = await mkdtemp(join(tmpdir(), "marka-cli-integration-"));
 const binary =
   process.env.MARKA_CLI_BINARY ??
-  new URL("../../apps/cli/dist/index.mjs", import.meta.url).pathname;
+  fileURLToPath(new URL("../../apps/cli/dist/index.mjs", import.meta.url));
 const binaries = { published: binary, source: binary };
 function check(name: string, condition: boolean) {
   assert.equal(condition, true, name);

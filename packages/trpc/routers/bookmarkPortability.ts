@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getYouTubeVideoId } from "@karakeep/shared/youtube";
+import logger from "@karakeep/shared/logger";
 
 import {
   assets,
@@ -452,7 +453,15 @@ export const bookmarkPortabilityRouter = router({
         },
         { behavior: "immediate" },
       );
-      await triggerSearchReindex(result.bookmarkId);
+      try {
+        await triggerSearchReindex(result.bookmarkId);
+      } catch (error) {
+        // The import has committed. A derived-index failure must not invite a
+        // retry that duplicates text or asset bookmarks.
+        logger.warn(
+          `Bookmark ${result.bookmarkId} imported, but search reindex enqueue failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
       return result;
     }),
 });

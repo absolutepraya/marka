@@ -177,7 +177,7 @@ Code: [apps/cli/src/lib/config.ts:16](https://github.com/absolutepraya/marka/blo
 ## Data-preservation matrix
 
 | Resource or field | Dump archive | Live migration |
-| --- | --- |
+| --- | --- | --- |
 | Basic bookmark title, note, archive/favourite state, creation time | Exported | Selected fields copied |
 | Text body | Exported | Copied |
 | Plain/Markdown format | Exported with bookmark content | Plain changed to Markdown in the probe |
@@ -200,7 +200,7 @@ Code: [apps/cli/src/lib/config.ts:16](https://github.com/absolutepraya/marka/blo
 The registered procedure inventory contains 54 procedures used by direct operational commands, 19 used only inside dump/migrate/wipe, and 86 with no CLI call site. These are implementation counts, not an assertion that every internal or browser-only procedure belongs in the CLI. Session-only and public/authentication/billing callbacks require separate decisions.
 
 | Area | Current CLI coverage | Upgrade needed |
-| --- | --- |
+| --- | --- | --- |
 | Bookmarks | Create/read/delete, limited metadata update, text body edits, tags, URL check, list/search, progress, content-access inspection | Owner refresh/recrawl/summarize, processing status, broken links, full supported metadata fields, asset attachment management |
 | Lists | Manual/smart creation, hierarchy/visibility edits, merge, membership, collaborator invite/list/remove/update-role | Invitation accept/decline/revoke/resend/edit/list, leave shared list, recursive collaborator updates, RSS-token lifecycle, lists-of-bookmark |
 | Content sharing | Inspect permission state and edit with a revision | Grant/revoke content editing; today an owner must use another surface to finish the CLI editing workflow |

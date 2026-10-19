@@ -37,7 +37,7 @@
     "zod": "^4.0.0"
   },
   "scripts": {
-    "build": "vite build && cp ../../LICENSE dist/LICENSE && chmod +x dist/index.mjs",
+    "build": "vite build && node scripts/finalize-build.mjs",
     "run": "tsx src/index.ts",
     "lint": "oxlint --ignore-path=../../.gitignore .",
     "lint:fix": "oxlint --ignore-path=../../.gitignore . --fix",

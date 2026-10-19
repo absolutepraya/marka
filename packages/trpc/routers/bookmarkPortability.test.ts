@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import {
   assets,
@@ -8,12 +8,50 @@ import {
   users,
 } from "@karakeep/db/schema";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
+import logger from "@karakeep/shared/logger";
 import type { CustomTestContext } from "../testUtils";
 import { defaultBeforeEach, getApiCaller } from "../testUtils";
 
 beforeEach<CustomTestContext>(defaultBeforeEach(true));
 
 describe("bookmark portability", () => {
+  test<CustomTestContext>("returns the committed import when search enqueue fails", async ({
+    apiCallers,
+  }) => {
+    const [source, dest] = apiCallers;
+    const bookmark = await source.bookmarks.createBookmark({
+      type: BookmarkTypes.TEXT,
+      text: "Keep this committed import",
+    });
+    const snapshot = await source.bookmarkPortability.export({
+      bookmarkId: bookmark.id,
+    });
+    const { triggerSearchReindex } = await import("@karakeep/shared-server");
+    const enqueue = vi
+      .mocked(triggerSearchReindex)
+      .mockRejectedValueOnce(new Error("queue unavailable"));
+    const warning = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+    try {
+      const result = await dest.bookmarkPortability.import({
+        snapshot,
+        assetIds: {},
+      });
+      expect(result.bookmarkId).toBeTruthy();
+      expect((await dest.bookmarks.getBookmarks({})).bookmarks).toEqual([
+        expect.objectContaining({ id: result.bookmarkId }),
+      ]);
+      expect(enqueue).toHaveBeenLastCalledWith(result.bookmarkId);
+      expect(warning).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Bookmark ${result.bookmarkId} imported, but search reindex enqueue failed: queue unavailable`,
+        ),
+      );
+    } finally {
+      warning.mockRestore();
+      enqueue.mockReset();
+    }
+  });
+
   test<CustomTestContext>("accepts HTML page archives and avoids duplicating cached HTML inline", async ({
     apiCallers,
     db,
