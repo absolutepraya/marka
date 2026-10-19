@@ -147,10 +147,7 @@ jobs:
         uses: ./tooling/github/setup
       - name: Build and check the CLI package
         run: |
-          pnpm --filter @absolutepraya/marka build
-          node --test scripts/cli-release.test.mjs scripts/cli-smoke.test.mjs
-          cd apps/cli
-          npm pack --dry-run
+          pnpm test:cli-package
 
   open-api-spec:
     runs-on: ubuntu-latest

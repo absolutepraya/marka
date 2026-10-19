@@ -5,7 +5,7 @@ The npm package is `@absolutepraya/marka`. Its primary command is `marka`;
 
 ## Install and connect
 
-After the package has been published:
+Requires Node.js 22 or newer. Install from npm:
 
 ```bash
 npm install --global @absolutepraya/marka
@@ -14,7 +14,10 @@ marka whoami
 ```
 
 Create a key under **Settings > API Keys** in your Marka instance. Enter the
-instance origin without `/api/v1` during authentication setup.
+instance URL without `/api/v1` during authentication setup. A server address is
+required; the CLI never selects a remote service automatically. HTTP(S) URLs
+may include an installation base path. Trailing slashes are normalized;
+credentials, query strings, and fragments in the server URL are rejected.
 
 Configuration remains in `$XDG_CONFIG_HOME/karakeep/config.json` (or
 `~/.config/karakeep/config.json`) for compatibility. The file has mode `0600`.
@@ -100,11 +103,93 @@ exit unsuccessfully, including partial failures in multi-bookmark operations.
 Use `--json` for machine-readable results and inspect the exit status before
 reporting a successful write.
 
+## Portable export, restore, and migration
+
+These commands require servers supporting bookmark transfer version 1. Upgrade
+both servers before a live migration. They preserve owned library data and use
+fresh destination IDs. They do not overwrite an existing saved URL.
+
+```bash
+marka --json dump --output library.tar.gz
+marka --server-addr https://destination.example.com --json restore library.tar.gz --yes
+marka --json migrate --dest-server https://destination.example.com --yes
+```
+
+For migration, set `KARAKEEP_DEST_API_KEY` in your environment or secret store.
+The `--dest-api-key` flag also works. The source uses the normal CLI config or
+`KARAKEEP_API_KEY` and `KARAKEEP_SERVER_ADDR`. Avoid putting keys in shell history.
+
+The version 2 `karakeep.dump` archive contains:
+
+- `manifest.json`: format version, counts, explicit exclusions, and SHA-256
+  checksums for binary files.
+- `account.json`: SuperJSON-serialized list definitions, bookmark membership,
+  tags, feeds, prompts, rules, preferences, and reference sharing metadata.
+- `bookmarks/state.jsonl`: a SuperJSON snapshot per owned bookmark, including
+  text format, metadata, annotations, reading progress, and source/working
+  transcript records. Content-edit permissions are included for reference.
+- `assets/`: primary files, attachments, cached HTML, page archives, and caption
+  sources referenced by the exported bookmarks.
+
+Restore verifies record counts, schemas, file sizes, and checksums before its
+first server write. It streams named tar entries to stdout internally and never
+extracts archive paths onto the filesystem. A tar executable is required.
+Each archive member is limited to 256 MiB; export refuses a larger member.
+Version 1 dumps remain readable as historical exports but cannot be passed to
+`restore`, because they omit data required by this preservation contract.
+
+Exports include only owned bookmarks and your own annotations/progress.
+Credentials, API keys, other users' bookmarks, feed import history, live jobs,
+search indexes, derived processing metadata, avatars, unattached files, and
+server backup archives are excluded. Sharing and invitation metadata are saved
+for reference; restore does not grant access, reactivate invitations, or send
+invitation email. Webhooks with secret tokens are saved for reference and are
+not recreated. Live migration requires `--exclude-webhooks` when such webhooks
+exist, so you can configure their secrets explicitly on the destination.
+
+Use the `--exclude-*` options shown by `dump --help` and `migrate --help` to choose
+what to copy. `--exclude-assets` also skips asset bookmarks, which need their
+primary files. Rules and curated-tag preferences require their referenced
+categories; missing mappings fail explicitly. Existing destination list metadata
+and visibility are retained when a matching list is reused.
+
+Each bookmark import validates ownership of its uploaded files and commits its
+body, transcripts, attachments, annotations, and progress together. The complete
+account operation is not one transaction: earlier records or metadata can remain
+when a later operation fails. A failed tag/list follow-up can also leave the
+new bookmark in place. Inspect the failure summary before retrying; repeated
+text-bookmark imports create new records. Live exports read a running library,
+so avoid editing the source during a copy when a consistent snapshot matters.
+Use the operator's database/assets backup workflow for complete instance recovery.
+
+A full export needs read access to bookmarks, highlights, assets, lists, tags,
+feeds, prompts, rules, webhooks, and users. Imports need write access for the
+included resources. File uploads additionally require both `assets:readwrite`
+and `bookmarks:readwrite`; normal ownership and storage/bookmark quotas apply.
+`whoami` itself requires `users:read`, even when a bookmarks-only key works for
+bookmark reads.
+
+## Output contract
+
+With `--json`, successful commands emit one JSON value to stdout. Commands with
+no result emit `{"success":true}`. Progress and diagnostics use stderr. Action
+failures use a JSON error object on stderr and a nonzero exit status; partial
+bookmark additions can still return their successful records on stdout.
+Help/version flags keep their text output. Commander usage/parse errors may print
+plain diagnostic text with empty stdout.
+Always inspect the exit status before reporting success.
+
+Migration returns completed bookmarks (`migrated`), intentionally skipped asset
+bookmarks (`excluded`), and failed operations (`failed`). Export/restore return structured summaries. An export failure does not
+replace the destination archive. Archives are published atomically with mode
+`0600` after all supported data has been collected.
+
 ## Build locally
 
 ```bash
 pnpm --filter @absolutepraya/marka build
 node apps/cli/dist/index.mjs --help
+pnpm test:cli-package
 ```
 
 ## Independent automatic releases

@@ -1119,3 +1119,40 @@ describe("Nested smart lists", () => {
     ).toBeUndefined();
   });
 });
+
+describe("empty manual list merges", () => {
+  for (const deleteSourceAfterMerge of [false, true])
+    test<CustomTestContext>(`keeps membership valid with deleteSource=${deleteSourceAfterMerge}`, async ({
+      apiCallers,
+    }) => {
+      const api = apiCallers[0];
+      const source = await api.lists.create({
+        name: "Empty source",
+        icon: "📁",
+        type: "manual",
+      });
+      const target = await api.lists.create({
+        name: "Target",
+        icon: "📁",
+        type: "manual",
+      });
+      const bookmark = await api.bookmarks.createBookmark({
+        type: BookmarkTypes.TEXT,
+        text: "Keep this",
+      });
+      await api.lists.addToList({ listId: target.id, bookmarkId: bookmark.id });
+      await api.lists.merge({
+        sourceId: source.id,
+        targetId: target.id,
+        deleteSourceAfterMerge,
+      });
+      expect(
+        (await api.bookmarks.getBookmarks({ listId: target.id })).bookmarks.map(
+          (b) => b.id,
+        ),
+      ).toEqual([bookmark.id]);
+      expect(
+        (await api.lists.list()).lists.some((l) => l.id === source.id),
+      ).toBe(!deleteSourceAfterMerge);
+    });
+});

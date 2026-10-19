@@ -16,6 +16,7 @@
     "assets:marka": "node scripts/generate-marka-assets.mjs",
     "test:marka-assets": "node --test scripts/generate-marka-assets.test.mjs",
     "test:social-preview": "node scripts/social-preview-smoke.mjs",
+    "test:cli-package": "pnpm --filter @absolutepraya/marka build && node --test scripts/cli-release.test.mjs scripts/cli-smoke.test.mjs && node scripts/cli-package-check.mjs",
     "test:release-contract": "node --test scripts/release-contract.test.mjs scripts/release-version.test.mjs scripts/cli-release.test.mjs && bash scripts/promote-release.test.sh",
     "reader:smoke": "node scripts/reader-view-smoke.mjs",
     "roadmap:check": "node scripts/render-roadmap.mjs --check",

@@ -43,6 +43,7 @@ export async function uploadAsset(
   user: AuthedContext["user"],
   db: AuthedContext["db"],
   formData: { file: File } | { image: File },
+  allowedContentTypes = SUPPORTED_UPLOAD_ASSET_TYPES,
 ): Promise<
   | { error: string; status: 400 | 413 | 403 }
   | {
@@ -71,7 +72,7 @@ export async function uploadAsset(
 
   // Replace all non-ascii characters with underscores
   const fileName = data.name.replace(/[^\x20-\x7E]/g, "_");
-  if (!SUPPORTED_UPLOAD_ASSET_TYPES.has(contentType)) {
+  if (!allowedContentTypes.has(contentType)) {
     return { error: "Unsupported asset type", status: 400 };
   }
   if (data.size > MAX_UPLOAD_SIZE_BYTES) {

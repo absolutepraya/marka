@@ -8,7 +8,26 @@ export interface CliConfig {
   serverAddr?: string;
 }
 
-export const DEFAULT_SERVER_ADDR = "https://cloud.karakeep.app";
+export function normalizeServerAddress(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Server address must be an absolute HTTP(S) URL");
+  }
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      "Server address must be an HTTP(S) URL without credentials, query, or fragment",
+    );
+  }
+  return url.toString().replace(/\/+$/, "");
+}
 
 export const zCliConfigFileSchema = z
   .object({
@@ -38,8 +57,15 @@ export function loadConfigFile(): CliConfigFile {
     return {};
   }
 
-  const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8")) as unknown;
-  return zCliConfigFileSchema.parse(parsed);
+  try {
+    const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8")) as unknown;
+    return zCliConfigFileSchema.parse(parsed);
+  } catch {
+    // Native JSON parse errors can include the stored key in their snippet.
+    throw new Error(
+      `Unable to read Marka config at ${configPath}. Run marka auth init --force to repair it.`,
+    );
+  }
 }
 
 export function loadConfig(): CliConfig {

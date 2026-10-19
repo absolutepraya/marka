@@ -1,7 +1,17 @@
 import { InspectOptions } from "util";
 import chalk from "chalk";
 
-import { getGlobalOptions } from "./globals";
+let jsonOutput = false;
+let resultPrinted = false;
+
+export function configureOutput(json: boolean) {
+  jsonOutput = json;
+  resultPrinted = false;
+}
+
+export function finishOutput() {
+  if (jsonOutput && !resultPrinted) printObject({ success: !process.exitCode });
+}
 
 /**
  * Prints an object either in a nicely formatted way or as JSON (depending on the command flag --json)
@@ -12,8 +22,9 @@ export function printObject(
   output: unknown,
   extraOptions?: InspectOptions,
 ): void {
-  if (getGlobalOptions().json) {
-    console.log(JSON.stringify(output, undefined, 4));
+  resultPrinted = true;
+  if (jsonOutput) {
+    console.log(JSON.stringify(output ?? null, undefined, 4));
   } else {
     console.dir(output, extraOptions);
   }
@@ -27,6 +38,11 @@ export function printObject(
  */
 export function printStatusMessage(success: boolean, message: unknown): void {
   if (!success) process.exitCode = 1;
+  if (jsonOutput) {
+    if (!success)
+      console.error(JSON.stringify({ success: false, error: String(message) }));
+    return;
+  }
   const status = success ? "Success" : "Error";
   const colorFunction = success ? chalk.green : chalk.red;
   console.error(colorFunction(`${status}: ${message}`));

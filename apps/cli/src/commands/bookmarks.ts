@@ -318,7 +318,6 @@ bookmarkCmd
     }
 
     await Promise.allSettled(promises);
-    printObject(results);
 
     await Promise.allSettled(
       results.flatMap((r) => [
@@ -326,6 +325,21 @@ bookmarkCmd
         opts.listId ? addToList(opts.listId, r.id) : Promise.resolve(),
       ]),
     );
+    const finalResults = await Promise.all(
+      results.map(async (result) => {
+        try {
+          return normalizeBookmark(
+            await api.bookmarks.getBookmark.query({ bookmarkId: result.id }),
+          );
+        } catch (error) {
+          printError(`Failed to read final state for bookmark "${result.id}"`)(
+            error as object,
+          );
+          return result;
+        }
+      }),
+    );
+    printObject(finalResults);
   });
 
 bookmarkCmd

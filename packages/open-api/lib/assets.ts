@@ -75,6 +75,46 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  operationId: "uploadRestoreAsset",
+  method: "post",
+  path: "/assets/restore",
+  summary: "Upload a portable-library asset",
+  description:
+    "Upload an unattached file for bookmark portability import. Requires assets:readwrite and bookmarks:readwrite. Supports regular uploads, caption source files, and saved page archives. File sniffing, size limits, and storage quotas still apply; the import API validates attachment roles before attaching files.",
+  tags: ["Assets"],
+  security: [{ [BearerAuth.name]: [] }],
+  request: {
+    body: {
+      content: {
+        "multipart/form-data": {
+          schema: z.object({
+            file: z
+              .instanceof(File)
+              .openapi({ type: "string", format: "binary" }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Uploaded and left unattached until import",
+      content: {
+        "application/json": {
+          schema: z.object({
+            assetId: z.string(),
+            contentType: z.string(),
+            size: z.number(),
+            fileName: z.string(),
+          }),
+        },
+      },
+    },
+    401: UnauthorizedResponse,
+  },
+});
+
+registry.registerPath({
   operationId: "getAsset",
   method: "get",
   path: "/assets/{assetId}",

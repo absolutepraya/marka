@@ -3,7 +3,10 @@
   "name": "@absolutepraya/marka",
   "version": "0.32.0",
   "description": "Command Line Interface (CLI) for Marka",
-  "license": "GNU Affero General Public License version 3",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "keywords": [
     "marka",
@@ -33,7 +36,7 @@
     "zod": "^4.0.0"
   },
   "scripts": {
-    "build": "vite build && chmod +x dist/index.mjs",
+    "build": "vite build && cp ../../LICENSE dist/LICENSE && chmod +x dist/index.mjs",
     "run": "tsx src/index.ts",
     "lint": "oxlint --ignore-path=../../.gitignore .",
     "lint:fix": "oxlint --ignore-path=../../.gitignore . --fix",
