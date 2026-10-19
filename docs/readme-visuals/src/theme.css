@@ -1,0 +1,10 @@
+/* Generated from brand #03132F. Edit freely. */
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap");
+:root{
+  --brand:#03132F; --brand-dark:#000000; --navy:#0b285b;
+  --pale:#d9e6fd; --paler:#ecf2fe;
+  --ink:#1b1b1b; --muted:#4d5160; --faint:#8a90a2;
+  --line:#e8edf8; --card-border:#bcd3fb; --on-brand:#ffffff;
+  --accent:#f26b4f;
+  --font:'Montserrat',sans-serif;
+}

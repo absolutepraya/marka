@@ -1,0 +1,3 @@
+# name width height scale
+# Architecture uses the diagram kit: architecture.py and render-preview.mjs.
+# Logical canvas: 992 x 668. PNG exports: 1984 x 1336 (2x).
