@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ActionButton } from "@/components/ui/action-button";
+import { ButtonWithTooltip } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import useRelativeTime from "@/lib/hooks/relative-time";
@@ -105,18 +106,22 @@ export default function AllHighlights({
         <Input
           type="text"
           placeholder="Search highlights..."
+          aria-label={t("search.placeholder")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           startIcon={<Search className="size-4 text-muted-foreground" />}
           endIcon={
             searchInput && (
-              <button
+              <ButtonWithTooltip
+                tooltip={t("actions.clear", { defaultValue: "Clear search" })}
+                variant="ghost"
+                size="icon-xs"
                 type="button"
                 onClick={() => setSearchInput("")}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="size-4" />
-              </button>
+              </ButtonWithTooltip>
             )
           }
           className="w-full"

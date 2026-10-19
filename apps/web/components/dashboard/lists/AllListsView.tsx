@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  navigationItemActive,
+  navigationItemIdle,
+} from "@karakeep/shared-react/components/ui/control-styles";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -58,10 +63,8 @@ function ListRow({
   return (
     <div
       className={cn(
-        "group/list-row relative flex items-center justify-between gap-2 overflow-hidden rounded-xl px-2 py-1 transition-[background-color,color,box-shadow,ring-color] duration-150",
-        isActive
-          ? "bg-primary/[0.07] text-foreground shadow-inner shadow-primary/10 ring-1 ring-inset ring-primary/30"
-          : "hover:bg-primary/[0.05] hover:shadow-inner hover:shadow-primary/10",
+        "group/list-row relative flex items-center justify-between gap-2 overflow-hidden rounded-lg px-2 py-1 transition-[background-color,color,box-shadow,ring-color] duration-150",
+        isActive ? navigationItemActive : navigationItemIdle,
       )}
       style={{ marginLeft: `${level * 1.25}rem` }}
     >

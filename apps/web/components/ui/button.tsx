@@ -23,7 +23,7 @@ const ButtonWithTooltip = React.forwardRef<
   return (
     <Tooltip delayDuration={delayDuration}>
       <TooltipTrigger asChild>
-        <Button ref={ref} {...props} />
+        <Button ref={ref} aria-label={tooltip} {...props} />
       </TooltipTrigger>
       <TooltipPortal>
         <TooltipContent>{tooltip}</TooltipContent>

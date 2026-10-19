@@ -32,8 +32,30 @@ const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProps>(
       disabled = true;
     }
     return (
-      <Button ref={ref} {...props} disabled={disabled}>
-        {loading ? spinner : children}
+      <Button ref={ref} {...props} aria-busy={loading} disabled={disabled}>
+        {props.asChild ? (
+          children
+        ) : (
+          <>
+            <span
+              className={
+                loading
+                  ? "inline-flex items-center gap-2 opacity-0"
+                  : "contents"
+              }
+            >
+              {children}
+            </span>
+            {loading && (
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                {spinner}
+              </span>
+            )}
+          </>
+        )}
       </Button>
     );
   },
@@ -47,7 +69,7 @@ const ActionButtonWithTooltip = React.forwardRef<
   return (
     <Tooltip delayDuration={delayDuration}>
       <TooltipTrigger asChild>
-        <ActionButton ref={ref} {...props} />
+        <ActionButton ref={ref} aria-label={tooltip} {...props} />
       </TooltipTrigger>
       <TooltipPortal>
         <TooltipContent>{tooltip}</TooltipContent>

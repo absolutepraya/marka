@@ -94,6 +94,7 @@ export default function SidebarProfileOptions() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          aria-label={tProfile("profile", { defaultValue: "Profile menu" })}
           className="shadow-xs ease-(--ease-out) flex size-10 shrink-0 rounded-full border border-border/70 bg-background p-0 text-foreground transition-[background-color,border-color,box-shadow] duration-150 hover:bg-accent/70"
           variant="ghost"
         >
