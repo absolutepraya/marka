@@ -69,7 +69,8 @@ const BEGIN_STATEMENTS = {
   exclusive: "BEGIN EXCLUSIVE",
 } as const;
 
-// Builder methods that execute synchronously instead of returning a promise.
+// Methods that execute synchronously instead of returning a promise. On
+// builder stages (e.g. `insert(table)`), `values` builds the query instead.
 const SYNC_EXECUTORS = new Set(["all", "get", "run", "values", "sync"]);
 // Database members whose plain-object results hand out query builders.
 const BUILDER_BAGS = new Set(["query", "with"]);
@@ -80,13 +81,20 @@ function isEntity(value: unknown): value is object {
   return typeof ctor === "function" && entityKind in ctor;
 }
 
+function entityKindOf(value: object): unknown {
+  return (value.constructor as unknown as Record<symbol, unknown>)[entityKind];
+}
+
+// Builder stages (e.g. `SQLiteInsertBuilder`) only produce query objects.
+function isBuilderStage(value: object): boolean {
+  const kind = entityKindOf(value);
+  return typeof kind === "string" && kind.endsWith("Builder");
+}
+
 function isQueryObject(value: unknown): value is object {
   if (!isEntity(value)) return false;
   if (typeof (value as { then?: unknown }).then === "function") return true;
-  const kind = (value.constructor as unknown as Record<symbol, unknown>)[
-    entityKind
-  ];
-  return typeof kind === "string" && kind.endsWith("Builder");
+  return isBuilderStage(value);
 }
 
 interface DrizzleInternals {
@@ -278,7 +286,9 @@ export function makeTransactionsAtomic<TDb extends object, TTx>(
 
         if (typeof value === "function") {
           return (...args: unknown[]) => {
-            if (SYNC_EXECUTORS.has(prop)) assertSyncAllowed();
+            if (SYNC_EXECUTORS.has(prop) && !isBuilderStage(obj)) {
+              assertSyncAllowed();
+            }
             const result = Reflect.apply(value, obj, args);
             if (BUILDER_BAGS.has(prop) && isPlainObject(result)) {
               return wrapBag(result);

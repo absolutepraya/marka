@@ -81,6 +81,8 @@ describe("makeTransactionsAtomic", () => {
       await gate.promise;
       throw new Error("boom");
     });
+    // Let the transaction take the lock before the outside insert is built.
+    await new Promise((resolve) => setTimeout(resolve, 1));
     // Started while the transaction is open, from another async context.
     const outside = Promise.resolve(
       db.insert(items).values({ name: "outside" }),
