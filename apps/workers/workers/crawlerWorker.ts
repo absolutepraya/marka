@@ -2094,7 +2094,9 @@ async function crawlAndParseUrl(
       );
       abortSignal.throwIfAborted();
 
-      const assetDeletionTasks: Promise<void>[] = [];
+      // Replaced asset files are deleted only after the transaction commits,
+      // so a rollback never leaves rows pointing at missing files.
+      const replacedAssetIds: (string | undefined)[] = [];
       const inlineHtmlContent =
         htmlContentAssetInfo.result === "store_inline"
           ? (readableContent?.content ?? null)
@@ -2129,14 +2131,10 @@ async function crawlAndParseUrl(
             },
             txn,
           );
-          assetDeletionTasks.push(
-            silentDeleteAsset(userId, oldScreenshotAssetId),
-          );
+          replacedAssetIds.push(oldScreenshotAssetId);
         } else if (imageAssetInfo && oldScreenshotAssetId) {
           await txn.delete(assets).where(eq(assets.id, oldScreenshotAssetId));
-          assetDeletionTasks.push(
-            silentDeleteAsset(userId, oldScreenshotAssetId),
-          );
+          replacedAssetIds.push(oldScreenshotAssetId);
         }
 
         if (pdfAssetInfo) {
@@ -2153,15 +2151,15 @@ async function crawlAndParseUrl(
             },
             txn,
           );
-          assetDeletionTasks.push(silentDeleteAsset(userId, oldPdfAssetId));
+          replacedAssetIds.push(oldPdfAssetId);
         }
 
         if (imageAssetInfo) {
           await updateAsset(oldImageAssetId, imageAssetInfo, txn);
-          assetDeletionTasks.push(silentDeleteAsset(userId, oldImageAssetId));
+          replacedAssetIds.push(oldImageAssetId);
         } else if (!previewImageUrl && oldImageAssetId) {
           await txn.delete(assets).where(eq(assets.id, oldImageAssetId));
-          assetDeletionTasks.push(silentDeleteAsset(userId, oldImageAssetId));
+          replacedAssetIds.push(oldImageAssetId);
         }
 
         if (htmlContentAssetInfo.result === "stored") {
@@ -2178,14 +2176,16 @@ async function crawlAndParseUrl(
             },
             txn,
           );
-          assetDeletionTasks.push(silentDeleteAsset(userId, oldContentAssetId));
+          replacedAssetIds.push(oldContentAssetId);
         } else if (oldContentAssetId) {
           await txn.delete(assets).where(eq(assets.id, oldContentAssetId));
-          assetDeletionTasks.push(silentDeleteAsset(userId, oldContentAssetId));
+          replacedAssetIds.push(oldContentAssetId);
         }
       });
 
-      await Promise.all(assetDeletionTasks);
+      await Promise.all(
+        replacedAssetIds.map((assetId) => silentDeleteAsset(userId, assetId)),
+      );
 
       return async () => {
         if (

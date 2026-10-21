@@ -7,6 +7,8 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import serverConfig from "@karakeep/shared/config";
 
+import type { KarakeepDBTransaction } from "./index";
+import { makeTransactionsAtomic } from "./atomicTransactions";
 import * as collaborationScopeSchema from "./collaborationScopes";
 import dbConfig from "./drizzle.config";
 import { instrumentDatabase } from "./instrumentation";
@@ -28,7 +30,10 @@ sqlite.pragma("temp_store = MEMORY");
 
 instrumentDatabase(sqlite);
 
-export const db = drizzle(sqlite, { schema });
+export const db = makeTransactionsAtomic<
+  ReturnType<typeof drizzle<typeof schema>>,
+  KarakeepDBTransaction
+>(drizzle(sqlite, { schema }));
 export type DB = typeof db;
 
 /**
@@ -38,11 +43,11 @@ export type DB = typeof db;
 export function getInMemoryDB(runMigrations: boolean) {
   const mem = new Database(":memory:");
   try {
-    const db = drizzle(mem, { schema, logger: false });
+    const raw = drizzle(mem, { schema, logger: false });
     if (runMigrations) {
-      migrate(db, { migrationsFolder: path.resolve(__dirname, "./drizzle") });
+      migrate(raw, { migrationsFolder: path.resolve(__dirname, "./drizzle") });
     }
-    return db;
+    return makeTransactionsAtomic<typeof raw, KarakeepDBTransaction>(raw);
   } catch (error) {
     if (mem.open) {
       mem.close();
