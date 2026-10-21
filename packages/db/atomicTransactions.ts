@@ -3,6 +3,8 @@ import type Database from "better-sqlite3";
 import { entityKind } from "drizzle-orm";
 import { BetterSQLiteTransaction } from "drizzle-orm/better-sqlite3";
 
+import logger from "@karakeep/shared/logger";
+
 /**
  * better-sqlite3 transactions are synchronous: Drizzle commits as soon as the
  * callback returns, so an `async` callback commits at its first `await` and
@@ -121,6 +123,19 @@ export function makeTransactionsAtomic<TDb extends object, TTx>(
 
   const exec = (statement: string) => client.prepare(statement).run();
 
+  // Runs rollback statements without letting their failure replace the
+  // error that caused the rollback.
+  function rollbackQuietly(statements: string[]) {
+    if (!client.inTransaction) return;
+    try {
+      for (const statement of statements) exec(statement);
+    } catch (rollbackError) {
+      logger.error(
+        `[db] ${statements[0]} failed after a transaction error: ${String(rollbackError)}`,
+      );
+    }
+  }
+
   function assertSyncAllowed() {
     if (lock.held && !insideTransaction()) {
       throw new Error(
@@ -144,7 +159,7 @@ export function makeTransactionsAtomic<TDb extends object, TTx>(
         return result;
       } catch (error) {
         // SQLite may already have rolled back after some errors.
-        if (client.inTransaction) exec("ROLLBACK");
+        rollbackQuietly(["ROLLBACK"]);
         throw error;
       } finally {
         scope.active = false;
@@ -172,10 +187,10 @@ export function makeTransactionsAtomic<TDb extends object, TTx>(
         exec(`RELEASE SAVEPOINT ${name}`);
         return result;
       } catch (error) {
-        if (client.inTransaction) {
-          exec(`ROLLBACK TO SAVEPOINT ${name}`);
-          exec(`RELEASE SAVEPOINT ${name}`);
-        }
+        rollbackQuietly([
+          `ROLLBACK TO SAVEPOINT ${name}`,
+          `RELEASE SAVEPOINT ${name}`,
+        ]);
         throw error;
       } finally {
         scope.active = false;

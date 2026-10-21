@@ -175,6 +175,24 @@ describe("makeTransactionsAtomic", () => {
     expect(db.select().from(items).all()).toEqual([]);
   });
 
+  it("keeps the original error when the rollback itself fails", async () => {
+    const db = createDb();
+    await db.insert(items).values({ name: "existing" });
+    let iterator: IterableIterator<unknown> | undefined;
+
+    await expect(
+      db.transaction(async () => {
+        // An open iterator keeps the connection busy, so ROLLBACK throws.
+        iterator = db.$client.prepare("select * from items").iterate();
+        iterator.next();
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+
+    iterator?.return?.();
+    if (db.$client.inTransaction) db.$client.exec("ROLLBACK");
+  });
+
   it("supports relational queries, counts, and catch chains", async () => {
     const db = createDb();
     await db.insert(items).values([{ name: "a" }, { name: "b" }]);
