@@ -187,3 +187,11 @@ _Avoid_: using a release number alone as a cache, service-worker, or rollback id
 **Compatibility version field**:
 The existing server-version response field retained for clients that only understand a commit string. It remains a full commit when available; newer clients use structured release metadata alongside it.
 _Avoid_: changing the legacy field from a commit identity to a release number without a compatibility layer.
+
+**Hosting target**:
+A supported way to run a Marka installation. The two hosting targets are a Docker deployment on one host and a Cloudflare deployment; both run the same product from one codebase.
+_Avoid_: treating the Cloudflare deployment as a fork, a separate product, or a reduced edition.
+
+**Library store**:
+The single authoritative record of an installation's users, bookmarks, lists, permissions, and their relationships. Stored asset files, search indexes, and queued jobs are outside it. Every installation has exactly one library store, whatever its hosting target.
+_Avoid_: calling assets, search indexes, or the job queue part of the library store.
