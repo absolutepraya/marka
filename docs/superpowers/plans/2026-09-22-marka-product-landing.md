@@ -78,7 +78,7 @@
 - [ ] Define the exact intended message, source type, creator, redaction check, license or creation status, dimensions, and consuming component for each asset in public/marketing/README.md.
 - [ ] Capture one high-resolution desktop library preview that makes bookmark cards, visual context, tags, and browsing legible without reading the UI chrome.
 - [ ] Produce seven curated source-card derivatives representing: Rotten Tomatoes or IMDb watchlists, e-commerce wishlists, TikTok places or hotels, Instagram career tips, engineering articles, UI references, and course PDFs or presentations.
-- [ ] Record four silent, muted exports: three 8 to 18 second desktop clips for saving, context, and rediscovery, plus one 8 to 15 second mobile PWA loop. Keep the combined duration between 45 and 75 seconds.
+- [ ] Record four silent, muted exports: three 6 to 15 second desktop clips for saving, context, and rediscovery, plus one 6 to 10 second mobile PWA loop, matching the design specification. Keep the combined duration as close to the specification's 45 to 75 second total as these per-clip limits allow.
 - [ ] Record real-library demonstrations with Screen Studio, Loom, Cap, or an equivalent tool. Use motion such as cursor focus, automatic zoom, and speed-up only to clarify the action.
 - [ ] Redact accounts, people, saved private content, tokens, addresses, browser tabs, and notifications. Review the first frame, last frame, metadata, audio track, and every accelerated transition before committing assets.
 - [ ] Convert assets to the listed web-ready formats and sizes. Ensure each clip has a poster image and does not use a third-party URL at runtime.
@@ -219,15 +219,22 @@
 - Modify: apps/landing/public/marketing/README.md
 
 - [ ] Write red tests for each public-output failure mode: banned inherited branding, unsupported cloud or app-store URLs, absent social image, non-local media URL, missing local media target, and canonical-origin mismatch.
-- [ ] Implement a Node verifier that recursively examines dist after astro build. Fail on the exact inherited strings named in Global Constraints and validate public URL, social asset, robots, sitemap, videos, posters, and source cards.
+- [ ] Implement a Node verifier that recursively examines dist after astro build. Lowercase the inspected text before matching, fail on the inherited strings named in Global Constraints, and validate public URL, social asset, robots, sitemap, videos, posters, and source cards.
 
     const forbidden = [
       "karakeep.app",
       "cloud.karakeep.app",
       "try.karakeep.app",
       "localhostlabs.co.uk",
+      "localhost labs",
       "apps.apple.com",
       "play.google.com",
+    ];
+    // The specification keeps factual, intentional upstream attribution.
+    // Any other "karakeep" text in public output fails the check.
+    const allowedKarakeepMentions = [
+      // Exact lowercase attribution sentences, each documented in
+      // public/marketing/README.md.
     ];
 
 - [ ] Require an intentional release environment value for the canonical origin. Allow a clearly marked local-development origin only when not building a release artifact.
