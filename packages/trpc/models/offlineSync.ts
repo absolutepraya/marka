@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, eq, gt, inArray, max } from "drizzle-orm";
 
-import { SqliteError } from "@karakeep/db";
+import { isConstraintViolation } from "@karakeep/db";
 import type { KarakeepDBTransaction } from "@karakeep/db";
 import {
   bookmarkLinks,
@@ -464,10 +464,7 @@ async function applyBookmarkTags(
         })),
       );
     } catch (error) {
-      if (
-        error instanceof SqliteError &&
-        error.code.startsWith("SQLITE_CONSTRAINT")
-      ) {
+      if (isConstraintViolation(error)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Tag name already exists for this user",

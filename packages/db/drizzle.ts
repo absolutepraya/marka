@@ -1,57 +1,52 @@
 import "dotenv/config";
 
 import path from "path";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import type Database from "better-sqlite3";
 
 import serverConfig from "@karakeep/shared/config";
 
-import type { KarakeepDBTransaction } from "./index";
-import { makeTransactionsAtomic } from "./atomicTransactions";
-import * as collaborationScopeSchema from "./collaborationScopes";
+import {
+  createBetterSqliteStore,
+  isBetterSqliteConstraintViolation,
+} from "./betterSqliteStore";
 import dbConfig from "./drizzle.config";
-import { instrumentDatabase } from "./instrumentation";
-import * as baseSchema from "./schema";
+import type { KarakeepDB } from "./libraryStore";
+import { db, setDefaultLibraryStore } from "./libraryStore";
 
-const schema = { ...baseSchema, ...collaborationScopeSchema };
+// Without an explicit binding, the runtime uses the Docker target's SQLite file.
+setDefaultLibraryStore({
+  create: () =>
+    createBetterSqliteStore({
+      path: dbConfig.dbCredentials.url,
+      walMode: serverConfig.database.walMode,
+      instrument: true,
+    }),
+  isConstraintViolation: isBetterSqliteConstraintViolation,
+});
 
-const sqlite = new Database(dbConfig.dbCredentials.url);
-
-if (serverConfig.database.walMode) {
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("synchronous = NORMAL");
-} else {
-  sqlite.pragma("journal_mode = DELETE");
-}
-sqlite.pragma("cache_size = -65536");
-sqlite.pragma("foreign_keys = ON");
-sqlite.pragma("temp_store = MEMORY");
-
-instrumentDatabase(sqlite);
-
-export const db = makeTransactionsAtomic<
-  ReturnType<typeof drizzle<typeof schema>>,
-  KarakeepDBTransaction
->(drizzle(sqlite, { schema }));
+export { db };
+export { getLibraryStore } from "./libraryStore";
 export type DB = typeof db;
 
+/** Migration folder for tests; resolved lazily because `__dirname` only exists under Vitest and CommonJS bundles. */
+export function getMigrationsFolder() {
+  return path.resolve(__dirname, "./drizzle");
+}
+
 /**
- * Creates an in-memory SQLite database for tests and optionally runs migrations.
+ * Creates an in-memory database for tests and optionally runs migrations.
  * The native handle is closed before rethrowing if initialization fails.
+ * `$client` is exposed so test setup can close the handle.
  */
-export function getInMemoryDB(runMigrations: boolean) {
-  const mem = new Database(":memory:");
+export function getInMemoryDB(
+  runMigrations: boolean,
+): KarakeepDB & { $client: Database.Database } {
+  const store = createBetterSqliteStore({ path: ":memory:" });
   try {
-    const raw = drizzle(mem, { schema, logger: false });
-    if (runMigrations) {
-      migrate(raw, { migrationsFolder: path.resolve(__dirname, "./drizzle") });
-    }
-    return makeTransactionsAtomic<typeof raw, KarakeepDBTransaction>(raw);
+    if (runMigrations) store.migrate(getMigrationsFolder());
+    return store.db as KarakeepDB & { $client: Database.Database };
   } catch (error) {
-    if (mem.open) {
-      mem.close();
-    }
+    store.close();
     throw error;
   }
 }

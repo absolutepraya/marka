@@ -1,5 +1,3 @@
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { getLibraryStore } from "./drizzle";
 
-import { db } from "./drizzle";
-
-migrate(db, { migrationsFolder: "./drizzle" });
+getLibraryStore().migrate("./drizzle");

@@ -4,7 +4,7 @@ import { and, count, eq, inArray, or, sql } from "drizzle-orm";
 import invariant from "tiny-invariant";
 import { z } from "zod";
 
-import { KarakeepDBTransaction, SqliteError } from "@karakeep/db";
+import { KarakeepDBTransaction, isConstraintViolation } from "@karakeep/db";
 import {
   bookmarkLists,
   bookmarks,
@@ -918,10 +918,7 @@ export class ManualList extends List {
         );
       }
     } catch (e) {
-      if (
-        e instanceof SqliteError &&
-        e.code === "SQLITE_CONSTRAINT_PRIMARYKEY"
-      ) {
+      if (isConstraintViolation(e, "primaryKey")) {
         return;
       }
       throw new TRPCError({
