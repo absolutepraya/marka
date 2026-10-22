@@ -49,8 +49,10 @@ describe("mobile startup", () => {
     const html = renderToStaticMarkup(<StartupScreen />);
     expect(html).toContain('role="status"');
     expect(html).toContain("Loading your library");
-    expect(html).toContain("marka-wordmark-navy.png");
-    expect(html).toContain("marka-wordmark-white.png");
+    // The stacked mark animates from inline CSS before any app code loads.
+    expect(html).toContain('data-motion="enter loop"');
+    expect(html).toContain("marka-stack-text");
+    expect(html).toContain("@keyframes marka-stack-front-fan");
     expect(html).toContain("prefers-reduced-motion");
     expect(html).toContain('id="marka-startup-retry"');
     expect(html).toContain("<script>");
@@ -122,6 +124,19 @@ describe("mobile startup", () => {
     start();
     vi.advanceTimersByTime(15000);
     expect(document.documentElement.dataset.startupRecovery).toBe("slow");
+  });
+
+  it("fades out without blocking the ready app and stops motion during recovery", () => {
+    const css = renderToStaticMarkup(<StartupScreen />);
+    expect(css).toMatch(
+      /html\[data-startup-ready="true"\] \.marka-startup \{\s*pointer-events: none;/,
+    );
+    expect(css).toContain(
+      "@keyframes marka-startup-exit { to { opacity: 0; visibility: hidden; } }",
+    );
+    expect(css).toContain(
+      "html[data-startup-recovery] .marka-startup-brand * { animation: none !important; }",
+    );
   });
 
   it("dismisses immediately on destination hydration and cancels recovery", () => {

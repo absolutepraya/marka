@@ -1,11 +1,5 @@
-import Spinner from "./spinner";
+import { MarkaStackLoader } from "@/components/loading-ui/marka-stack";
 
 export function FullPageSpinner() {
-  return (
-    <div className="flex size-full">
-      <div className="m-auto">
-        <Spinner />
-      </div>
-    </div>
-  );
+  return <MarkaStackLoader />;
 }

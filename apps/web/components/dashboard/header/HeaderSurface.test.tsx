@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from "node:fs";
 import React from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -40,5 +41,26 @@ describe("header scroll surface", () => {
       window.dispatchEvent(new Event("pageshow"));
     });
     expect(header.dataset.scrolled).toBe("false");
+  });
+});
+
+describe("header frost styles", () => {
+  const css = readFileSync("app/globals.css", "utf8");
+  const rule = (selector: string) => {
+    const start = css.indexOf(`${selector} {`);
+    expect(start).toBeGreaterThan(-1);
+    return css.slice(start, css.indexOf("}", start));
+  };
+
+  it("stops rendering the backdrop blur at rest, not just fading it out", () => {
+    // WebKit can keep painting backdrop-filter layers at opacity 0.
+    const resting = rule(".mobile-header-frost-layer");
+    expect(resting).toContain("opacity: 0");
+    expect(resting).toContain("visibility: hidden");
+    expect(resting).toMatch(/visibility 0s linear 180ms/);
+    const scrolled = rule(
+      '.mobile-header-frost[data-scrolled="true"] .mobile-header-frost-layer',
+    );
+    expect(scrolled).toContain("visibility: visible");
   });
 });

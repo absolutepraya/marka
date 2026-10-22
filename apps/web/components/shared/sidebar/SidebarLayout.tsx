@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import ErrorFallback from "@/components/dashboard/ErrorFallback";
 import Header from "@/components/dashboard/header/Header";
 import DemoModeBanner from "@/components/DemoModeBanner";
-import { FadeArc } from "@/components/loading-ui/fade-arc";
+import { MarkaStackLoader } from "@/components/loading-ui/marka-stack";
 import ValidAccountCheck from "@/components/utils/ValidAccountCheck";
 import { ErrorBoundary } from "react-error-boundary";
 
@@ -34,12 +34,10 @@ export default function SidebarLayout({
             <ErrorBoundary fallback={<ErrorFallback />}>
               <Suspense
                 fallback={
-                  <div className="min-h-30 flex items-center justify-center">
-                    <FadeArc
-                      aria-label="Loading bookmark cards"
-                      className="size-8 text-primary"
-                    />
-                  </div>
+                  <MarkaStackLoader
+                    label="Loading bookmark cards"
+                    className="min-h-30"
+                  />
                 }
               >
                 {children}

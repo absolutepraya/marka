@@ -376,17 +376,27 @@
 @layer components {
   /* Layer decreasing blur strengths toward content without boosting its colors. */
   @media (max-width: 639px) {
+    /* WebKit can keep painting a backdrop-filter layer at opacity 0, so the
+       resting frost is also hidden. Visibility flips immediately when the
+       frost appears and only after the fade when it leaves. */
     .mobile-header-frost::before,
     .mobile-header-frost::after,
     .mobile-header-frost-layer {
       opacity: 0;
-      transition: opacity 180ms ease-out;
+      visibility: hidden;
+      transition:
+        opacity 180ms ease-out,
+        visibility 0s linear 180ms;
     }
 
     .mobile-header-frost[data-scrolled="true"]::before,
     .mobile-header-frost[data-scrolled="true"]::after,
     .mobile-header-frost[data-scrolled="true"] .mobile-header-frost-layer {
       opacity: 1;
+      visibility: visible;
+      transition:
+        opacity 180ms ease-out,
+        visibility 0s;
     }
 
     .mobile-footer-frost {
