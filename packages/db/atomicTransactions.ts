@@ -20,6 +20,12 @@ import logger from "@karakeep/shared/logger";
  */
 
 export interface AtomicTransactionConfig {
+  /**
+   * Defaults to "immediate": the write lock is taken up front. A deferred
+   * transaction that reads first cannot upgrade to a write while another
+   * process (web or workers) is writing, and SQLite then fails with
+   * SQLITE_BUSY at once instead of waiting.
+   */
   behavior?: "deferred" | "immediate" | "exclusive";
 }
 
@@ -150,7 +156,7 @@ export function makeTransactionsAtomic<TDb extends object, TTx>(
   ): Promise<T> {
     return lock.run(async () => {
       const scope: Scope = { active: true, nested: new AsyncLock(), depth: 0 };
-      exec(BEGIN_STATEMENTS[config?.behavior ?? "deferred"]);
+      exec(BEGIN_STATEMENTS[config?.behavior ?? "immediate"]);
       try {
         const result = await scopes.run(scope, () =>
           callback(createTransactionHandle()),

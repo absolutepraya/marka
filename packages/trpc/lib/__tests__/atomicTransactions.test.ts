@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import Database from "better-sqlite3";
 import { asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -191,6 +194,36 @@ describe("makeTransactionsAtomic", () => {
 
     iterator?.return?.();
     if (db.$client.inTransaction) db.$client.exec("ROLLBACK");
+  });
+
+  it("holds the write lock from the start against other connections", async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "atomic-tx-"));
+    const file = path.join(dir, "db.db");
+    const setup = new Database(file);
+    setup.exec(
+      "create table items (id integer primary key autoincrement, name text not null)",
+    );
+    setup.close();
+    const raw = drizzle(new Database(file), { schema });
+    type Tx = Parameters<Parameters<typeof raw.transaction>[0]>[0];
+    const db = makeTransactionsAtomic<typeof raw, Tx>(raw);
+    // Stands in for the other process (web or workers) sharing the file.
+    const other = new Database(file, { timeout: 20 });
+    try {
+      await db.transaction(async (tx) => {
+        await tx.$count(items);
+        // A deferred transaction would only hold a read lock here, letting
+        // the other connection write and making the insert below fail with
+        // SQLITE_BUSY.
+        expect(() => other.exec("BEGIN IMMEDIATE")).toThrow(/locked|busy/i);
+        await tx.insert(items).values({ name: "after read" });
+      });
+      expect(await names(db)).toEqual(["after read"]);
+    } finally {
+      other.close();
+      raw.$client.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("supports relational queries, counts, and catch chains", async () => {
