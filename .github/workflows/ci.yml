@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: ["*"]
+    branches: ["**"]
   push:
     branches: ["main"]
     # Skip CI (and therefore the image build + staging redeploy) for changes that
