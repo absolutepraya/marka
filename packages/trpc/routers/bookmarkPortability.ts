@@ -167,9 +167,9 @@ export const bookmarkPortabilityRouter = router({
       }
       if (snapshot.highlights.length) requireScope(ctx, "highlights", true);
       if (snapshot.assets.length) requireScope(ctx, "assets", true);
-      // better-sqlite3 transactions must not yield. Use synchronous Drizzle
-      // execution throughout so any validation failure rolls back every row.
-      const result = ctx.db.transaction(
+      // The body stays synchronous so the import never yields mid-way; any
+      // validation failure rolls back every row.
+      const result = await ctx.db.transaction(
         (tx) => {
           const user = tx
             .select({ quota: users.bookmarkQuota })
