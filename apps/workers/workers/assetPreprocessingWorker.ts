@@ -12,12 +12,7 @@ import { withWorkerEventLog, withWorkerTracing } from "workerTracing";
 
 import type { AssetPreprocessingRequest } from "@karakeep/shared-server";
 import { db } from "@karakeep/db";
-import {
-  assets,
-  AssetTypes,
-  bookmarkAssets,
-  bookmarks,
-} from "@karakeep/db/schema";
+import { AssetTypes, bookmarkAssets, bookmarks } from "@karakeep/db/schema";
 import {
   addLogFields,
   AssetPreprocessingQueue,
@@ -48,6 +43,8 @@ import {
   EnqueueOptions,
   getQueueClient,
 } from "@karakeep/shared/queueing";
+
+import { clearPendingEnrichment, replaceAsset } from "../persist";
 
 type TesseractWorker = Awaited<ReturnType<typeof createWorker>>;
 
@@ -84,40 +81,9 @@ export class AssetPreprocessingWorker {
 
             const bookmarkId = job.data?.bookmarkId;
             if (bookmarkId && job.numRetriesLeft == 0) {
-              await db.transaction(async (tx) => {
-                await tx
-                  .update(bookmarks)
-                  .set({
-                    taggingStatus: null,
-                  })
-                  .where(
-                    and(
-                      eq(bookmarks.id, bookmarkId),
-                      eq(bookmarks.taggingStatus, "pending"),
-                    ),
-                  );
-                await tx
-                  .update(bookmarks)
-                  .set({
-                    summarizationStatus: null,
-                  })
-                  .where(
-                    and(
-                      eq(bookmarks.id, bookmarkId),
-                      eq(bookmarks.summarizationStatus, "pending"),
-                    ),
-                  );
-                await tx
-                  .update(bookmarks)
-                  .set({
-                    embeddingStatus: null,
-                  })
-                  .where(
-                    and(
-                      eq(bookmarks.id, bookmarkId),
-                      eq(bookmarks.embeddingStatus, "pending"),
-                    ),
-                  );
+              await clearPendingEnrichment({
+                bookmarkId,
+                statuses: ["tagging", "summarization", "embedding"],
               });
             }
             return Promise.resolve();
@@ -405,8 +371,9 @@ export async function extractAndSavePDFScreenshot(
     });
 
     // Replace the old row atomically after the new object is safely stored.
-    await db.transaction(async (tx) => {
-      await tx.insert(assets).values({
+    await replaceAsset({
+      oldAssetId: existingScreenshot?.id ?? null,
+      asset: {
         id: assetId,
         bookmarkId: bookmark.id,
         userId: bookmark.userId,
@@ -414,10 +381,7 @@ export async function extractAndSavePDFScreenshot(
         contentType,
         size: screenshotBuffer.byteLength,
         fileName,
-      });
-      if (existingScreenshot) {
-        await tx.delete(assets).where(eq(assets.id, existingScreenshot.id));
-      }
+      },
     });
 
     if (existingScreenshot) {
@@ -522,8 +486,9 @@ async function extractAndSaveVideoScreenshot(
       quotaApproved,
     });
 
-    await db.transaction(async (tx) => {
-      await tx.insert(assets).values({
+    await replaceAsset({
+      oldAssetId: existingScreenshot?.id ?? null,
+      asset: {
         id: assetId,
         bookmarkId: bookmark.id,
         userId: bookmark.userId,
@@ -531,10 +496,7 @@ async function extractAndSaveVideoScreenshot(
         contentType,
         size: screenshot.byteLength,
         fileName,
-      });
-      if (existingScreenshot) {
-        await tx.delete(assets).where(eq(assets.id, existingScreenshot.id));
-      }
+      },
     });
 
     if (existingScreenshot) {

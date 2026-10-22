@@ -30,7 +30,8 @@ import serverConfig from "@karakeep/shared/config";
 import logger from "@karakeep/shared/logger";
 import { DequeuedJob, getQueueClient } from "@karakeep/shared/queueing";
 
-import { getBookmarkDetails, updateAsset } from "../workerUtils";
+import { replaceAsset } from "../persist";
+import { getBookmarkDetails } from "../workerUtils";
 
 const TMP_FOLDER = path.join(os.tmpdir(), "video_downloads");
 
@@ -207,19 +208,16 @@ async function runWorker(job: DequeuedJob<ZVideoRequest>) {
       quotaApproved,
     });
 
-    await db.transaction(async (txn) => {
-      await updateAsset(
-        oldVideoAssetId,
-        {
-          id: videoAssetId,
-          bookmarkId,
-          userId,
-          assetType: AssetTypes.LINK_VIDEO,
-          contentType: ASSET_TYPES.VIDEO_MP4,
-          size: fileSize,
-        },
-        txn,
-      );
+    await replaceAsset({
+      oldAssetId: oldVideoAssetId ?? null,
+      asset: {
+        id: videoAssetId,
+        bookmarkId,
+        userId,
+        assetType: AssetTypes.LINK_VIDEO,
+        contentType: ASSET_TYPES.VIDEO_MP4,
+        size: fileSize,
+      },
     });
     await silentDeleteAsset(userId, oldVideoAssetId);
 
