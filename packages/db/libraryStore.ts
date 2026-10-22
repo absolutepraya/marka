@@ -31,6 +31,13 @@ export interface LibraryStore {
    */
   migrate(): void | Promise<void>;
   close(): void;
+  /**
+   * Present only on stores whose database lives in another process (the
+   * remote store used by Cloudflare Containers): runs a registered persist
+   * function where the database is. Local stores run persist functions in
+   * process.
+   */
+  persist?(name: string, input: unknown): Promise<unknown>;
 }
 
 /** The adapter a runtime falls back to when nothing was bound explicitly. */

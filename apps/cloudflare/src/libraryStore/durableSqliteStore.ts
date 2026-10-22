@@ -16,11 +16,8 @@ import type { KarakeepDBTransaction } from "@karakeep/db";
 import type { TransactionDriver } from "@karakeep/db/atomicTransactions";
 import { makeTransactionsAtomic } from "@karakeep/db/atomicTransactions";
 import { schema } from "@karakeep/db/fullSchema";
-import type {
-  ConstraintKind,
-  KarakeepDB,
-  LibraryStore,
-} from "@karakeep/db/libraryStore";
+import type { KarakeepDB, LibraryStore } from "@karakeep/db/libraryStore";
+import { isSqliteMessageConstraintViolation } from "@karakeep/db/sqliteErrors";
 
 import migrationBundle from "./migrations.generated";
 
@@ -70,29 +67,6 @@ class CountingSession extends SQLiteDOSession<
       mapper,
     );
   }
-}
-
-const EXTENDED_CODES: Record<ConstraintKind, string> = {
-  unique: "SQLITE_CONSTRAINT_UNIQUE",
-  primaryKey: "SQLITE_CONSTRAINT_PRIMARYKEY",
-  foreignKey: "SQLITE_CONSTRAINT_FOREIGNKEY",
-};
-
-// Errors arrive as "... : SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_X)",
-// sometimes wrapped by Drizzle with the original error as `cause`.
-export function isDurableSqliteConstraintViolation(
-  error: unknown,
-  kind?: ConstraintKind,
-): boolean {
-  for (let current = error; current instanceof Error; ) {
-    const extended = /\(extended: (SQLITE_CONSTRAINT_\w+)\)/.exec(
-      current.message,
-    )?.[1];
-    if (extended) return kind ? extended === EXTENDED_CODES[kind] : true;
-    if (!kind && /\bSQLITE_CONSTRAINT\b/.test(current.message)) return true;
-    current = (current as { cause?: unknown }).cause;
-  }
-  return false;
 }
 
 function createDurableTransactionDriver(
@@ -155,7 +129,7 @@ export function createDurableSqliteStore(
 
   return {
     db,
-    isConstraintViolation: isDurableSqliteConstraintViolation,
+    isConstraintViolation: isSqliteMessageConstraintViolation,
     async migrate() {
       // Fresh installs start from the bundled baseline schema and record the
       // baseline migrations as applied; copied databases keep their history.

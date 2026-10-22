@@ -6,6 +6,7 @@ export default defineConfig({
     cloudflareTest({
       remoteBindings: false,
       wrangler: { configPath: "./wrangler.jsonc" },
+      miniflare: { bindings: { LIBRARY_STORE_SECRET: "test-secret" } },
     }),
   ],
   test: {
