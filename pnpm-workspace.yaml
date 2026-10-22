@@ -15,6 +15,7 @@ allowBuilds:
   re2: true
   sharp: true
   tesseract.js: true
+  workerd: true
   # These install scripts are informational or unnecessary for our installs.
   '@parcel/watcher': false
   core-js: false

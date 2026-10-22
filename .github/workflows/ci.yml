@@ -37,7 +37,7 @@ jobs:
         uses: ./tooling/github/setup
 
       - name: Lint
-        run: pnpm lint && pnpm exec sherif --ignore-dependency tailwindcss --ignore-dependency @tailwindcss/typography
+        run: pnpm lint && pnpm exec sherif --ignore-dependency tailwindcss --ignore-dependency @tailwindcss/typography --ignore-dependency vitest
 
   format:
     runs-on: ubuntu-latest
@@ -121,6 +121,10 @@ jobs:
 
       - name: Workers Tests
         working-directory: apps/workers
+        run: pnpm test
+
+      - name: Cloudflare Target Tests
+        working-directory: apps/cloudflare
         run: pnpm test
 
       - name: E2E Tests

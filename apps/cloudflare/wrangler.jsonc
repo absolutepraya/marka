@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "marka",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "LIBRARY_STORE", "class_name": "LibraryStoreObject" },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LibraryStoreObject"] }],
+}

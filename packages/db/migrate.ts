@@ -1,3 +1,3 @@
 import { getLibraryStore } from "./drizzle";
 
-getLibraryStore().migrate("./drizzle");
+getLibraryStore().migrate();

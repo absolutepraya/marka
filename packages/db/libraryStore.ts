@@ -25,8 +25,11 @@ export interface LibraryStore {
    * `kind`, only that kind of violation matches.
    */
   isConstraintViolation(error: unknown, kind?: ConstraintKind): boolean;
-  /** Applies pending migrations from the given folder. */
-  migrate(migrationsFolder: string): void;
+  /**
+   * Applies pending migrations from the source the adapter was created with.
+   * Await the result: some adapters migrate asynchronously.
+   */
+  migrate(): void | Promise<void>;
   close(): void;
 }
 

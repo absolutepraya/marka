@@ -20,6 +20,7 @@ setDefaultLibraryStore({
       path: dbConfig.dbCredentials.url,
       walMode: serverConfig.database.walMode,
       instrument: true,
+      migrationsFolder: "./drizzle",
     }),
   isConstraintViolation: isBetterSqliteConstraintViolation,
 });
@@ -41,9 +42,12 @@ export function getMigrationsFolder() {
 export function getInMemoryDB(
   runMigrations: boolean,
 ): KarakeepDB & { $client: Database.Database } {
-  const store = createBetterSqliteStore({ path: ":memory:" });
+  const store = createBetterSqliteStore({
+    path: ":memory:",
+    migrationsFolder: runMigrations ? getMigrationsFolder() : undefined,
+  });
   try {
-    if (runMigrations) store.migrate(getMigrationsFolder());
+    if (runMigrations) store.migrate();
     return store.db as KarakeepDB & { $client: Database.Database };
   } catch (error) {
     store.close();

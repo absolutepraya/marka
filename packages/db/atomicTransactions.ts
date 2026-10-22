@@ -1,15 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type Database from "better-sqlite3";
 import { entityKind } from "drizzle-orm";
-import { BetterSQLiteTransaction } from "drizzle-orm/better-sqlite3";
-
-import logger from "@karakeep/shared/logger";
 
 /**
- * better-sqlite3 transactions are synchronous: Drizzle commits as soon as the
- * callback returns, so an `async` callback commits at its first `await` and
- * every later statement runs outside the transaction. This module replaces
- * `transaction()` with one that stays open across `await`.
+ * Drizzle's SQLite drivers (better-sqlite3 and Durable Objects) run
+ * transactions synchronously: they commit as soon as the callback returns, so
+ * an `async` callback commits at its first `await` and every later statement
+ * runs outside the transaction. This module replaces `transaction()` with one
+ * that stays open across `await`; a {@link TransactionDriver} supplies the
+ * driver-specific begin, commit, rollback, and savepoint steps.
  *
  * The connection is shared by every request in the process, so an open
  * transaction must not absorb unrelated statements. Transactions and all
@@ -21,7 +19,9 @@ import logger from "@karakeep/shared/logger";
 
 export interface AtomicTransactionConfig {
   /**
-   * Defaults to "immediate": the write lock is taken up front. A deferred
+   * Used by the better-sqlite3 driver; the Durable Object driver runs one
+   * transaction at a time regardless. Defaults to "immediate": the write lock
+   * is taken up front. A deferred
    * transaction that reads first cannot upgrade to a write while another
    * process (web or workers) is writing, and SQLite then fails with
    * SQLITE_BUSY at once instead of waiting.
@@ -38,6 +38,26 @@ export interface AtomicTransactionMethod<TTx> {
     callback: (tx: TTx) => T | Promise<T>,
     config?: AtomicTransactionConfig,
   ): Promise<T>;
+}
+
+/**
+ * Driver-specific transaction primitives. The engine owns locking, async
+ * context tracking, and query gating; a driver only opens and closes
+ * transactions on its connection.
+ */
+export interface TransactionDriver {
+  /**
+   * Runs `body` as a top-level transaction: commits when it resolves and rolls
+   * back when it rejects, rethrowing the original error.
+   */
+  runTransaction<T>(
+    body: () => Promise<T>,
+    config: AtomicTransactionConfig | undefined,
+  ): Promise<T>;
+  /** Runs `body` as a named savepoint inside the open transaction. */
+  runSavepoint<T>(name: string, body: () => Promise<T>): Promise<T>;
+  /** Creates the driver's Drizzle transaction object for the given depth. */
+  createTransaction(depth: number): object;
 }
 
 interface Scope {
@@ -71,12 +91,6 @@ class AsyncLock {
   }
 }
 
-const BEGIN_STATEMENTS = {
-  deferred: "BEGIN DEFERRED",
-  immediate: "BEGIN IMMEDIATE",
-  exclusive: "BEGIN EXCLUSIVE",
-} as const;
-
 // Methods that execute synchronously instead of returning a promise. On
 // builder stages (e.g. `insert(table)`), `values` builds the query instead.
 const SYNC_EXECUTORS = new Set(["all", "get", "run", "values", "sync"]);
@@ -105,42 +119,18 @@ function isQueryObject(value: unknown): value is object {
   return isBuilderStage(value);
 }
 
-interface DrizzleInternals {
-  $client: Database.Database;
-  dialect: ConstructorParameters<typeof BetterSQLiteTransaction>[1];
-  session: ConstructorParameters<typeof BetterSQLiteTransaction>[2] & {
-    schema: ConstructorParameters<typeof BetterSQLiteTransaction>[3];
-  };
-}
-
 /**
- * Wraps a better-sqlite3 Drizzle database so that `transaction()` is atomic
- * across `await`. The returned object is used exactly like the original.
+ * Wraps a Drizzle SQLite database so that `transaction()` is atomic across
+ * `await`. The returned object is used exactly like the original.
  */
 export function makeTransactionsAtomic<TDb extends object, TTx>(
   database: TDb,
+  driver: TransactionDriver,
 ): AtomicTransactionMethod<TTx> & TDb {
-  const internals = database as unknown as DrizzleInternals;
-  const client = internals.$client;
   const lock = new AsyncLock();
   const scopes = new AsyncLocalStorage<Scope>();
 
   const insideTransaction = () => scopes.getStore()?.active === true;
-
-  const exec = (statement: string) => client.prepare(statement).run();
-
-  // Runs rollback statements without letting their failure replace the
-  // error that caused the rollback.
-  function rollbackQuietly(statements: string[]) {
-    if (!client.inTransaction) return;
-    try {
-      for (const statement of statements) exec(statement);
-    } catch (rollbackError) {
-      logger.error(
-        `[db] ${statements[0]} failed after a transaction error: ${String(rollbackError)}`,
-      );
-    }
-  }
 
   function assertSyncAllowed() {
     if (lock.held && !insideTransaction()) {
@@ -156,17 +146,12 @@ export function makeTransactionsAtomic<TDb extends object, TTx>(
   ): Promise<T> {
     return lock.run(async () => {
       const scope: Scope = { active: true, nested: new AsyncLock(), depth: 0 };
-      exec(BEGIN_STATEMENTS[config?.behavior ?? "immediate"]);
       try {
-        const result = await scopes.run(scope, () =>
-          callback(createTransactionHandle()),
+        return await driver.runTransaction(
+          () =>
+            scopes.run(scope, async () => callback(createTransactionHandle(0))),
+          config,
         );
-        exec("COMMIT");
-        return result;
-      } catch (error) {
-        // SQLite may already have rolled back after some errors.
-        rollbackQuietly(["ROLLBACK"]);
-        throw error;
       } finally {
         scope.active = false;
       }
@@ -184,20 +169,12 @@ export function makeTransactionsAtomic<TDb extends object, TTx>(
         nested: new AsyncLock(),
         depth: parent.depth + 1,
       };
-      const name = `atomic_sp_${scope.depth}`;
-      exec(`SAVEPOINT ${name}`);
       try {
-        const result = await scopes.run(scope, () =>
-          callback(createTransactionHandle(scope.depth)),
+        return await driver.runSavepoint(`atomic_sp_${scope.depth}`, () =>
+          scopes.run(scope, async () =>
+            callback(createTransactionHandle(scope.depth)),
+          ),
         );
-        exec(`RELEASE SAVEPOINT ${name}`);
-        return result;
-      } catch (error) {
-        rollbackQuietly([
-          `ROLLBACK TO SAVEPOINT ${name}`,
-          `RELEASE SAVEPOINT ${name}`,
-        ]);
-        throw error;
       } finally {
         scope.active = false;
       }
@@ -213,15 +190,8 @@ export function makeTransactionsAtomic<TDb extends object, TTx>(
     return runTopLevel(callback, config);
   }
 
-  function createTransactionHandle(nestedIndex = 0): TTx {
-    const tx = new BetterSQLiteTransaction(
-      "sync",
-      internals.dialect,
-      internals.session,
-      internals.session.schema,
-      nestedIndex,
-    );
-    return wrap(tx) as TTx;
+  function createTransactionHandle(depth: number): TTx {
+    return wrap(driver.createTransaction(depth)) as TTx;
   }
 
   // Some query objects (e.g. `$count`) only implement `then`, so execution
