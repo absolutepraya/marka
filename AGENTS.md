@@ -55,6 +55,7 @@ Main stack:
 - `apps/mobile` - Expo mobile app
 - `apps/landing` - marketing / landing site
 - `apps/mcp` - MCP server
+- `apps/cloudflare` - Cloudflare hosting target (in progress, ADR 0011): SQLite Durable Object library store, tested in workerd with Vitest 4
 
 ### Packages
 - `packages/trpc` - core business logic and routers
@@ -303,6 +304,7 @@ pnpm dev:infra:up
 pnpm dev:infra:status
 pnpm dev:infra:down
 pnpm db:generate --name <description>
+pnpm --filter @karakeep/cloudflare generate:migrations  # after db:generate; CI fails while the Cloudflare migration bundle is stale
 pnpm db:migrate
 pnpm web
 pnpm workers

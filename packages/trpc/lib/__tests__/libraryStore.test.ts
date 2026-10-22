@@ -15,9 +15,12 @@ import { bookmarkTags, users } from "@karakeep/db/schema";
 const stores: LibraryStore[] = [];
 
 function migratedStore() {
-  const store = createBetterSqliteStore({ path: ":memory:" });
+  const store = createBetterSqliteStore({
+    path: ":memory:",
+    migrationsFolder: getMigrationsFolder(),
+  });
   stores.push(store);
-  store.migrate(getMigrationsFolder());
+  store.migrate();
   return store;
 }
 

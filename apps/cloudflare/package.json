@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@karakeep/cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Marka's Cloudflare hosting target",
+  "type": "module",
+  "scripts": {
+    "generate:migrations": "node scripts/generate-migrations.mjs",
+    "test": "node scripts/generate-migrations.mjs --check && vitest run",
+    "typecheck": "tsc --noEmit",
+    "format": "oxfmt --ignore-path=../../.gitignore --check .",
+    "format:fix": "oxfmt --ignore-path=../../.gitignore .",
+    "lint": "oxlint --ignore-path=../../.gitignore .",
+    "lint:fix": "oxlint --ignore-path=../../.gitignore . --fix"
+  },
+  "dependencies": {
+    "@karakeep/db": "workspace:*",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.6",
+    "@cloudflare/workers-types": "^5.20261019.1",
+    "@karakeep/tsconfig": "workspace:^0.1.0",
+    "better-sqlite3": "^11.3.0",
+    "typescript": "^5.9",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.151.3"
+  }
+}

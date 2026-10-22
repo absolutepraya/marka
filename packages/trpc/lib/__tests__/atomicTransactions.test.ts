@@ -8,6 +8,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { makeTransactionsAtomic } from "@karakeep/db/atomicTransactions";
+import { createBetterSqliteTransactionDriver } from "@karakeep/db/betterSqliteStore";
 
 const items = sqliteTable("items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -25,7 +26,10 @@ function createDb() {
   );
   const raw = drizzle(client, { schema });
   type Tx = Parameters<Parameters<typeof raw.transaction>[0]>[0];
-  return makeTransactionsAtomic<typeof raw, Tx>(raw);
+  return makeTransactionsAtomic<typeof raw, Tx>(
+    raw,
+    createBetterSqliteTransactionDriver(raw),
+  );
 }
 
 type TestDb = ReturnType<typeof createDb>;
@@ -206,7 +210,10 @@ describe("makeTransactionsAtomic", () => {
     setup.close();
     const raw = drizzle(new Database(file), { schema });
     type Tx = Parameters<Parameters<typeof raw.transaction>[0]>[0];
-    const db = makeTransactionsAtomic<typeof raw, Tx>(raw);
+    const db = makeTransactionsAtomic<typeof raw, Tx>(
+      raw,
+      createBetterSqliteTransactionDriver(raw),
+    );
     // Stands in for the other process (web or workers) sharing the file.
     const other = new Database(file, { timeout: 20 });
     try {
