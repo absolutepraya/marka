@@ -60,7 +60,11 @@ export async function runPersist(
   name: string,
   input: JsonValue,
 ): Promise<JsonValue | void> {
+  const store = getLibraryStore();
+  if (store.persist) {
+    return (await store.persist(name, input)) as JsonValue | void;
+  }
   const fn = getPersistFunction(name);
   if (!fn) throw new Error(`Unknown persist function "${name}".`);
-  return roundTrip(await fn(getLibraryStore().db, roundTrip(input)));
+  return roundTrip(await fn(store.db, roundTrip(input)));
 }

@@ -4,6 +4,10 @@ import type { LibraryStore } from "@karakeep/db/libraryStore";
 import { bindLibraryStore } from "@karakeep/db/libraryStore";
 
 import { createDurableSqliteStore } from "./durableSqliteStore";
+import { handleRemoteStoreRequest } from "./remoteEndpoint";
+
+/** Path of the remote library store endpoint used by Container jobs. */
+export const REMOTE_STORE_PATH = "/library-store";
 
 /**
  * Holds the installation's library store. ADR 0011: one instance per
@@ -20,5 +24,17 @@ export class LibraryStoreObject extends DurableObject<Cloudflare.Env> {
     void ctx.blockConcurrencyWhile(async () => {
       await this.store.migrate();
     });
+  }
+
+  override async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (request.method === "POST" && url.pathname === REMOTE_STORE_PATH) {
+      return handleRemoteStoreRequest(
+        request,
+        this.ctx.storage,
+        this.env.LIBRARY_STORE_SECRET,
+      );
+    }
+    return new Response("Not found", { status: 404 });
   }
 }
