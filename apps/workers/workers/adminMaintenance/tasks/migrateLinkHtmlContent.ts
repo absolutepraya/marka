@@ -15,7 +15,7 @@ import serverConfig from "@karakeep/shared/config";
 import logger from "@karakeep/shared/logger";
 import { tryCatch } from "@karakeep/shared/tryCatch";
 
-import { updateAsset } from "../../../workerUtils";
+import { updateAsset } from "../../../persist";
 
 const BATCH_SIZE = 25;
 

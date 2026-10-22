@@ -34,7 +34,7 @@ import { chromium } from "playwright-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { abortRace, abortRaceResolve, raceWith, timeoutRace } from "utils";
 import { withWorkerTracing, withWorkerEventLog } from "workerTracing";
-import { getBookmarkDetails, updateAsset } from "workerUtils";
+import { getBookmarkDetails } from "workerUtils";
 import {
   buildBrowserlessWebSocketUrl,
   redactBrowserConnectionUrl,
@@ -48,9 +48,7 @@ import {
 import type { ZCrawlLinkRequest } from "@karakeep/shared-server";
 import { db } from "@karakeep/db";
 import {
-  assets,
   AssetTypes,
-  bookmarkAssets,
   bookmarkLinks,
   bookmarks,
   users,
@@ -93,7 +91,6 @@ import {
 } from "@karakeep/shared/queueing";
 import { getRateLimitClient } from "@karakeep/shared/ratelimiting";
 import { tryCatch } from "@karakeep/shared/tryCatch";
-import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import { getYouTubeVideoId } from "@karakeep/shared/youtube";
 import { WebhooksService } from "@karakeep/trpc/models/webhooks.service";
 
@@ -105,6 +102,13 @@ import {
   parseSubprocessErrorSchema,
   parseSubprocessOutputSchema,
 } from "./utils/parseHtmlSubprocessIpc";
+import type { AssetRecord } from "../persist";
+import {
+  clearPendingEnrichment,
+  convertLinkToAssetBookmark,
+  replaceAsset,
+  saveCrawlResult,
+} from "../persist";
 import { extractOfficialUnfurlImageUrl } from "./utils/unfurl";
 
 const tracer = getTracer("@karakeep/workers");
@@ -457,43 +461,10 @@ export class CrawlerWorker {
           );
           const bookmarkId = job.data?.bookmarkId;
           if (bookmarkId && job.numRetriesLeft == 0) {
-            await db.transaction(async (tx) => {
-              await tx
-                .update(bookmarkLinks)
-                .set({ crawlStatus: "failure" })
-                .where(
-                  and(
-                    eq(bookmarkLinks.id, bookmarkId),
-                    eq(bookmarkLinks.crawlStatus, "pending"),
-                  ),
-                );
-              await tx
-                .update(bookmarks)
-                .set({ taggingStatus: null })
-                .where(
-                  and(
-                    eq(bookmarks.id, bookmarkId),
-                    eq(bookmarks.taggingStatus, "pending"),
-                  ),
-                );
-              await tx
-                .update(bookmarks)
-                .set({ summarizationStatus: null })
-                .where(
-                  and(
-                    eq(bookmarks.id, bookmarkId),
-                    eq(bookmarks.summarizationStatus, "pending"),
-                  ),
-                );
-              await tx
-                .update(bookmarks)
-                .set({ embeddingStatus: null })
-                .where(
-                  and(
-                    eq(bookmarks.id, bookmarkId),
-                    eq(bookmarks.embeddingStatus, "pending"),
-                  ),
-                );
+            await clearPendingEnrichment({
+              bookmarkId,
+              statuses: ["tagging", "summarization", "embedding"],
+              failPendingCrawl: true,
             });
           }
         },
@@ -532,7 +503,7 @@ async function loadCookiesFromFile(): Promise<void> {
   }
 }
 
-type DBAssetType = typeof assets.$inferInsert;
+type DBAssetType = AssetRecord;
 
 interface DownloadedAsset {
   assetId: string;
@@ -1780,33 +1751,17 @@ async function handleAsAssetBookmark(
         return;
       }
       const fileName = path.basename(new URL(url).pathname);
-      await db.transaction(async (trx) => {
-        await updateAsset(
-          undefined,
-          {
-            id: downloaded.assetId,
-            bookmarkId,
-            userId,
-            assetType: AssetTypes.BOOKMARK_ASSET,
-            contentType: downloaded.contentType,
-            size: downloaded.size,
-            fileName,
-          },
-          trx,
-        );
-        await trx.insert(bookmarkAssets).values({
-          id: bookmarkId,
-          assetType,
+      await convertLinkToAssetBookmark({
+        bookmarkId,
+        userId,
+        url,
+        assetType,
+        fileName,
+        asset: {
           assetId: downloaded.assetId,
-          content: null,
-          fileName,
-          sourceUrl: url,
-        });
-        await trx
-          .update(bookmarks)
-          .set({ type: BookmarkTypes.ASSET })
-          .where(eq(bookmarks.id, bookmarkId));
-        await trx.delete(bookmarkLinks).where(eq(bookmarkLinks.id, bookmarkId));
+          contentType: downloaded.contentType,
+          size: downloaded.size,
+        },
       });
       await AssetPreprocessingQueue.enqueue(
         { bookmarkId, fixMode: false },
@@ -2094,93 +2049,32 @@ async function crawlAndParseUrl(
       );
       abortSignal.throwIfAborted();
 
-      // Replaced asset files are deleted only after the transaction commits,
-      // so a rollback never leaves rows pointing at missing files.
-      const replacedAssetIds: (string | undefined)[] = [];
       const inlineHtmlContent =
         htmlContentAssetInfo.result === "store_inline"
           ? (readableContent?.content ?? null)
           : null;
       readableContent = null;
 
-      await db.transaction(async (txn) => {
-        await txn
-          .update(bookmarkLinks)
-          .set({
-            crawledAt: new Date(),
-            crawlStatus: "success",
-            htmlContent: inlineHtmlContent,
-            contentAssetId:
-              htmlContentAssetInfo.result === "stored"
-                ? htmlContentAssetInfo.assetId
-                : null,
-          })
-          .where(eq(bookmarkLinks.id, bookmarkId));
-
-        if (screenshotAssetInfo) {
-          await updateAsset(
-            oldScreenshotAssetId,
-            {
-              id: screenshotAssetInfo.assetId,
-              bookmarkId,
-              userId,
-              assetType: AssetTypes.LINK_SCREENSHOT,
-              contentType: screenshotAssetInfo.contentType,
-              size: screenshotAssetInfo.size,
-              fileName: screenshotAssetInfo.fileName,
-            },
-            txn,
-          );
-          replacedAssetIds.push(oldScreenshotAssetId);
-        } else if (imageAssetInfo && oldScreenshotAssetId) {
-          await txn.delete(assets).where(eq(assets.id, oldScreenshotAssetId));
-          replacedAssetIds.push(oldScreenshotAssetId);
-        }
-
-        if (pdfAssetInfo) {
-          await updateAsset(
-            oldPdfAssetId,
-            {
-              id: pdfAssetInfo.assetId,
-              bookmarkId,
-              userId,
-              assetType: AssetTypes.LINK_PDF,
-              contentType: pdfAssetInfo.contentType,
-              size: pdfAssetInfo.size,
-              fileName: pdfAssetInfo.fileName,
-            },
-            txn,
-          );
-          replacedAssetIds.push(oldPdfAssetId);
-        }
-
-        if (imageAssetInfo) {
-          await updateAsset(oldImageAssetId, imageAssetInfo, txn);
-          replacedAssetIds.push(oldImageAssetId);
-        } else if (!previewImageUrl && oldImageAssetId) {
-          await txn.delete(assets).where(eq(assets.id, oldImageAssetId));
-          replacedAssetIds.push(oldImageAssetId);
-        }
-
-        if (htmlContentAssetInfo.result === "stored") {
-          await updateAsset(
-            oldContentAssetId,
-            {
-              id: htmlContentAssetInfo.assetId,
-              bookmarkId,
-              userId,
-              assetType: AssetTypes.LINK_HTML_CONTENT,
-              contentType: ASSET_TYPES.TEXT_HTML,
-              size: htmlContentAssetInfo.size,
-              fileName: null,
-            },
-            txn,
-          );
-          replacedAssetIds.push(oldContentAssetId);
-        } else if (oldContentAssetId) {
-          await txn.delete(assets).where(eq(assets.id, oldContentAssetId));
-          replacedAssetIds.push(oldContentAssetId);
-        }
+      // Replaced files are deleted only after the result commits, so a
+      // rollback never leaves rows pointing at missing files.
+      const { replacedAssetIds } = await saveCrawlResult({
+        bookmarkId,
+        userId,
+        inlineHtmlContent,
+        htmlContent:
+          htmlContentAssetInfo.result === "stored"
+            ? { ...htmlContentAssetInfo, contentType: ASSET_TYPES.TEXT_HTML }
+            : htmlContentAssetInfo,
+        screenshot: screenshotAssetInfo,
+        pdf: pdfAssetInfo,
+        image: imageAssetInfo,
+        hasPreviewImageUrl: !!previewImageUrl,
+        old: {
+          screenshotAssetId: oldScreenshotAssetId ?? null,
+          pdfAssetId: oldPdfAssetId ?? null,
+          imageAssetId: oldImageAssetId ?? null,
+          contentAssetId: oldContentAssetId ?? null,
+        },
       });
 
       await Promise.all(
@@ -2208,20 +2102,17 @@ async function crawlAndParseUrl(
               contentType,
             } = archiveResult;
 
-            await db.transaction(async (txn) => {
-              await updateAsset(
-                oldFullPageArchiveAssetId,
-                {
-                  id: fullPageArchiveAssetId,
-                  bookmarkId,
-                  userId,
-                  assetType: AssetTypes.LINK_FULL_PAGE_ARCHIVE,
-                  contentType,
-                  size,
-                  fileName: null,
-                },
-                txn,
-              );
+            await replaceAsset({
+              oldAssetId: oldFullPageArchiveAssetId ?? null,
+              asset: {
+                id: fullPageArchiveAssetId,
+                bookmarkId,
+                userId,
+                assetType: AssetTypes.LINK_FULL_PAGE_ARCHIVE,
+                contentType,
+                size,
+                fileName: null,
+              },
             });
             if (oldFullPageArchiveAssetId) {
               await silentDeleteAsset(userId, oldFullPageArchiveAssetId);
