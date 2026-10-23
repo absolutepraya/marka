@@ -2,6 +2,8 @@
 import React from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { Node } from "postcss";
+import { AtRule, parse } from "postcss";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/lib/i18n/locales/en/translation.json";
 import fr from "@/lib/i18n/locales/fr/translation.json";
@@ -49,8 +51,10 @@ describe("mobile startup", () => {
     const html = renderToStaticMarkup(<StartupScreen />);
     expect(html).toContain('role="status"');
     expect(html).toContain("Loading your library");
-    expect(html).toContain("marka-wordmark-navy.png");
-    expect(html).toContain("marka-wordmark-white.png");
+    // The stacked mark animates from inline CSS before any app code loads.
+    expect(html).toContain('data-motion="enter loop"');
+    expect(html).toContain("marka-stack-text");
+    expect(html).toContain("@keyframes marka-stack-front-fan");
     expect(html).toContain("prefers-reduced-motion");
     expect(html).toContain('id="marka-startup-retry"');
     expect(html).toContain("<script>");
@@ -124,12 +128,68 @@ describe("mobile startup", () => {
     expect(document.documentElement.dataset.startupRecovery).toBe("slow");
   });
 
+  it("fades out without blocking the ready app and stops motion during recovery", () => {
+    const css = renderToStaticMarkup(<StartupScreen />);
+    expect(css).toMatch(
+      /html\[data-startup-ready="true"\] \.marka-startup \{\s*pointer-events: none;/,
+    );
+    expect(css).toContain(
+      "@keyframes marka-startup-exit { to { opacity: 0; visibility: hidden; } }",
+    );
+    expect(css).toContain(
+      "html[data-startup-recovery] .marka-startup-brand * { animation: none !important; }",
+    );
+  });
+
   it("dismisses immediately on destination hydration and cancels recovery", () => {
     start();
     render(<StartupReady />);
     expect(document.documentElement.dataset.startupReady).toBe("true");
     act(() => vi.advanceTimersByTime(30000));
     expect(document.documentElement.dataset.startupRecovery).toBeUndefined();
+  });
+
+  it("hides the ready screen immediately unless motion is explicitly allowed", () => {
+    render(<StartupScreen />);
+    const css = parse(document.querySelector("style")!.textContent!);
+    const readySelector = 'html[data-startup-ready="true"] .marka-startup';
+    const readyRules: Record<string, string>[] = [];
+    css.walkRules(readySelector, (rule) => {
+      if (
+        rule.parent instanceof AtRule &&
+        !rule.parent.params.includes("prefers-reduced-motion")
+      ) {
+        const declarations: Record<string, string> = {};
+        rule.walkDecls((decl) => {
+          declarations[decl.prop] = decl.value;
+        });
+        readyRules.push(declarations);
+      }
+    });
+    expect(readyRules).toEqual([
+      {
+        "pointer-events": "none",
+        opacity: "0",
+        visibility: "hidden",
+      },
+    ]);
+    // Every startup animation, including the brand's exit scale, is opt-in.
+    css.walkDecls("animation", (decl) => {
+      if (decl.value.startsWith("none")) return;
+      let parent: Node | undefined = decl.parent;
+      let motionAllowed = false;
+      while (parent) {
+        if (
+          parent instanceof AtRule &&
+          parent.name === "media" &&
+          parent.params === "(prefers-reduced-motion: no-preference)"
+        ) {
+          motionAllowed = true;
+        }
+        parent = parent.parent;
+      }
+      expect(motionAllowed, decl.toString()).toBe(true);
+    });
   });
 
   it("offers offline recovery without falsely declaring readiness", () => {
