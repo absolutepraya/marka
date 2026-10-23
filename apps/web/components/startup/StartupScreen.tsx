@@ -46,13 +46,21 @@ export default function StartupScreen({
             html:not([data-startup-theme="light"]) .marka-startup { background: #121a27; color: #f5f7fa; color-scheme: dark; }
             html:not([data-startup-theme="light"]) .marka-startup-brand { color: #f5f7fa; }
           }
-          /* Dissolve into the ready app while the lockup drifts forward. */
           html[data-startup-ready="true"] .marka-startup {
             pointer-events: none;
-            animation: marka-startup-exit 320ms ease-out forwards;
+            opacity: 0;
+            visibility: hidden;
           }
-          html[data-startup-ready="true"] .marka-startup-brand {
-            animation: marka-startup-brand-exit 320ms cubic-bezier(0.4, 0, 1, 1) forwards;
+          @media (prefers-reduced-motion: no-preference) {
+            /* Dissolve into the ready app while the lockup drifts forward. */
+            html[data-startup-ready="true"] .marka-startup {
+              opacity: 1;
+              visibility: visible;
+              animation: marka-startup-exit 320ms ease-out forwards;
+            }
+            html[data-startup-ready="true"] .marka-startup-brand {
+              animation: marka-startup-brand-exit 320ms cubic-bezier(0.4, 0, 1, 1) forwards;
+            }
           }
         }
         @keyframes marka-startup-exit { to { opacity: 0; visibility: hidden; } }

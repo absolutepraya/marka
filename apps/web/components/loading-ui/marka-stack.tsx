@@ -172,10 +172,10 @@ export function MarkaStackText({
 
 /** Page-level loading state for surfaces without a content skeleton. */
 export function MarkaStackLoader({
-  label = "Loading",
+  label,
   className,
 }: {
-  label?: string;
+  label: string;
   className?: string;
 }) {
   return (

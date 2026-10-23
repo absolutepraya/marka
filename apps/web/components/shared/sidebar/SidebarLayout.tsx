@@ -1,14 +1,15 @@
-import { Suspense } from "react";
+import React, { Suspense } from "react";
 import ErrorFallback from "@/components/dashboard/ErrorFallback";
 import Header from "@/components/dashboard/header/Header";
 import DemoModeBanner from "@/components/DemoModeBanner";
 import { MarkaStackLoader } from "@/components/loading-ui/marka-stack";
 import ValidAccountCheck from "@/components/utils/ValidAccountCheck";
+import { useTranslation as getTranslation } from "@/lib/i18n/server";
 import { ErrorBoundary } from "react-error-boundary";
 
 import serverConfig from "@karakeep/shared/config";
 
-export default function SidebarLayout({
+export default async function SidebarLayout({
   children,
   mobileSidebar,
   sidebar,
@@ -19,6 +20,8 @@ export default function SidebarLayout({
   sidebar: React.ReactNode;
   modal?: React.ReactNode;
 }) {
+  const { t } = await getTranslation();
+
   return (
     <div className="sm:fixed sm:inset-0 sm:overflow-hidden">
       <Header />
@@ -35,7 +38,7 @@ export default function SidebarLayout({
               <Suspense
                 fallback={
                   <MarkaStackLoader
-                    label="Loading bookmark cards"
+                    label={t("common.loading")}
                     className="min-h-30"
                   />
                 }
