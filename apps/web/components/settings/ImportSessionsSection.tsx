@@ -1,11 +1,12 @@
 "use client";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/import-sessions.bones.json";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useListImportSessions } from "@/lib/hooks/useImportSessions";
 import { useTranslation } from "@/lib/i18n/client";
 import { AlertCircle, Package } from "lucide-react";
 
-import { FullPageSpinner } from "../ui/full-page-spinner";
 import { ImportSessionCard } from "./ImportSessionCard";
 import { SettingsSection } from "./SettingsPage";
 
@@ -19,8 +20,8 @@ export function ImportSessionsSection() {
         title={t("settings.import_sessions.title")}
         description={t("settings.import_sessions.description")}
       >
-        <div className="flex min-h-40 items-center justify-center rounded-xl border border-border/70 bg-background/80">
-          <FullPageSpinner />
+        <div>
+          <CapturedSkeleton name="import-sessions" bones={bones} />
         </div>
       </SettingsSection>
     );

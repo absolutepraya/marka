@@ -615,11 +615,13 @@
     }
   },
   "highlights": {
+    "search_placeholder": "جستجو در هایلایت‌ها...",
     "no_highlights": "هنوز هیچ هایلایتی ندارید."
   },
   "admin": {
     "admin_settings": "تنظیمات مدیر",
     "server_stats": {
+      "description": "شاخص‌های اصلی استفاده و اطلاعات نسخه برای نمونهٔ فعلی.",
       "server_stats": "آمار سرور",
       "total_users": "تعداد کل کاربران",
       "total_bookmarks": "کل نشانک‌ها",

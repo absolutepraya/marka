@@ -11,7 +11,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
-import LoadingSpinner from "@/components/ui/spinner";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import manageListsBones from "@/components/loading-ui/bones/manage-lists.bones.json";
+import { ManageListsContent } from "./ManageListsContent";
 import { useTranslation } from "@/lib/i18n/client";
 import {
   isOfflineQueuedMutation,
@@ -29,7 +31,6 @@ import { useTRPC } from "@karakeep/shared-react/trpc";
 import { listsToTree } from "@karakeep/shared/utils/listUtils";
 
 import { BookmarkListSelector } from "../lists/BookmarkListSelector";
-import { truncateListPath } from "../lists/listPath";
 import ArchiveBookmarkButton from "./action-buttons/ArchiveBookmarkButton";
 
 export default function ManageListsModal({
@@ -139,69 +140,25 @@ export default function ManageListsModal({
         </DialogHeader>
 
         {isLoading ? (
-          <div
-            className="flex min-h-28 items-center justify-center"
-            role="status"
-            aria-label={t("lists.navigation.loading")}
-          >
-            <LoadingSpinner />
-          </div>
+          <CapturedSkeleton name="manage-lists" bones={manageListsBones} />
         ) : (
-          <div className="space-y-5 px-4 py-4 sm:px-6 sm:py-5">
-            <section className="space-y-2">
-              <div className="flex items-baseline justify-between px-1">
-                <h3 className="text-sm font-medium">Current lists</h3>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {currentLists?.length ?? 0}
-                </span>
-              </div>
-              {currentLists?.length ? (
-                <ul className="space-y-1.5">
-                  {currentLists.map((list) => {
-                    const path = listTree?.getPathById(list.id);
-                    const fullPath = path
-                      ?.map((item) => `${item.icon} ${item.name}`)
-                      .join(" / ");
-                    return (
-                      <li
-                        key={list.id}
-                        className="flex min-w-0 items-center gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2"
-                      >
-                        <p
-                          className="min-w-0 flex-1 truncate text-sm text-foreground"
-                          title={fullPath}
-                        >
-                          {path ? truncateListPath(path) : list.name}
-                        </p>
-                        <ActionButton
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-9 shrink-0 rounded-lg"
-                          loading={listMembershipMutation.isPending}
-                          onClick={() => updateMembership(list.id, "remove")}
-                          aria-label={t("actions.remove_from_list")}
-                        >
-                          <X className="size-4" />
-                        </ActionButton>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="rounded-xl border border-dashed border-border/80 px-3 py-4 text-sm text-muted-foreground">
-                  This bookmark is not in a list yet.
-                </p>
-              )}
-            </section>
-
-            <section className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
-              <div>
-                <h3 className="text-sm font-medium">Add to a list</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Choose a destination to add this bookmark immediately.
-                </p>
-              </div>
+          <ManageListsContent
+            currentLists={currentLists}
+            listTree={listTree}
+            renderRemove={(list) => (
+              <ActionButton
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-9 shrink-0 rounded-lg"
+                loading={listMembershipMutation.isPending}
+                onClick={() => updateMembership(list.id, "remove")}
+                aria-label={t("actions.remove_from_list")}
+              >
+                <X className="size-4" />
+              </ActionButton>
+            )}
+            selector={
               <BookmarkListSelector
                 allPathsOverride={isOnline ? undefined : listTree?.allPaths}
                 hideBookmarkIds={currentLists?.map((list) => list.id)}
@@ -210,8 +167,8 @@ export default function ManageListsModal({
                 disabled={listMembershipMutation.isPending}
                 className="h-10 sm:h-11"
               />
-            </section>
-          </div>
+            }
+          />
         )}
 
         <DialogFooter

@@ -110,6 +110,7 @@
     "rename": "Nimeä uudelleen"
   },
   "highlights": {
+    "search_placeholder": "Hae korostuksia...",
     "no_highlights": "Sinulla ei ole vielä yhtään korostusta."
   },
   "settings": {
@@ -621,6 +622,7 @@
   "admin": {
     "admin_settings": "Ylläpitäjän asetukset",
     "server_stats": {
+      "description": "Nykyisen instanssin keskeiset käyttö- ja versiotiedot.",
       "server_stats": "Palvelimen tilastot",
       "total_users": "Käyttäjiä yhteensä",
       "total_bookmarks": "Kirjanmerkkejä yhteensä",

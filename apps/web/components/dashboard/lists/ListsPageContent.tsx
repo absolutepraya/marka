@@ -2,7 +2,8 @@
 
 import React, { useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/lists.bones.json";
 import { useTranslation } from "@/lib/i18n/client";
 import { offlineLibraryDb } from "@/lib/offline-library/repository";
 import { useSavedQuery } from "@/lib/offline-library/use-saved-query";
@@ -59,7 +60,7 @@ export default function ListsPageContent() {
           favoritesCount={stats?.numFavorites}
         />
       ) : (
-        <Skeleton className="h-48 w-full" />
+        <CapturedSkeleton name="lists" bones={bones} />
       )}
     </div>
   );

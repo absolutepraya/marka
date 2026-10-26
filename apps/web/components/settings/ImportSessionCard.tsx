@@ -114,6 +114,141 @@ export function ImportSessionCard({ session }: ImportSessionCardProps) {
   const pauseSession = usePauseImportSession();
   const resumeSession = useResumeImportSession();
 
+  const stats = liveStats || session;
+  const canDelete =
+    stats.status === "staging" ||
+    stats.status === "completed" ||
+    stats.status === "failed" ||
+    stats.status === "paused";
+
+  const canFinalize = stats.status === "staging" && stats.totalBookmarks > 0;
+  const canPause = stats.status === "pending" || stats.status === "running";
+  const canResume = stats.status === "paused";
+
+  return (
+    <ImportSessionCardContent
+      session={session}
+      stats={stats}
+      createdAtLabel={t("settings.import_sessions.created_at", {
+        time: formatDistanceToNow(session.createdAt, { addSuffix: true }),
+      })}
+      actions={
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/settings/import/${session.id}`}>
+              <ExternalLink className="mr-1 h-4 w-4" />
+              {t("settings.import_sessions.view_details")}
+            </Link>
+          </Button>
+          {canPause && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                pauseSession.mutate({ importSessionId: session.id })
+              }
+              disabled={pauseSession.isPending}
+            >
+              <Pause className="mr-1 h-4 w-4" />
+              {t("settings.import_sessions.pause_session")}
+            </Button>
+          )}
+          {canFinalize && (
+            <ActionConfirmingDialog
+              title={t("settings.import_sessions.finalize_dialog_title")}
+              description={
+                <div>
+                  {t("settings.import_sessions.finalize_dialog_description", {
+                    name: session.name,
+                  })}
+                </div>
+              }
+              actionButton={(setDialogOpen) => (
+                <Button
+                  onClick={() => {
+                    finalizeSession.mutateAsync({
+                      importSessionId: session.id,
+                    });
+                    setDialogOpen(false);
+                  }}
+                  disabled={finalizeSession.isPending}
+                >
+                  {t("settings.import_sessions.finalize_staging")}
+                </Button>
+              )}
+            >
+              <Button size="sm" disabled={finalizeSession.isPending}>
+                <Play className="mr-1 h-4 w-4" />
+                {t("settings.import_sessions.finalize_staging")}
+              </Button>
+            </ActionConfirmingDialog>
+          )}
+          {canResume && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                resumeSession.mutate({ importSessionId: session.id })
+              }
+              disabled={resumeSession.isPending}
+            >
+              <Play className="mr-1 h-4 w-4" />
+              {t("settings.import_sessions.resume_session")}
+            </Button>
+          )}
+          {canDelete && (
+            <ActionConfirmingDialog
+              title={t("settings.import_sessions.delete_dialog_title")}
+              description={
+                <div>
+                  {t("settings.import_sessions.delete_dialog_description", {
+                    name: session.name,
+                  })}
+                </div>
+              }
+              actionButton={(setDialogOpen) => (
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    deleteSession.mutateAsync({
+                      importSessionId: session.id,
+                    });
+                    setDialogOpen(false);
+                  }}
+                  disabled={deleteSession.isPending}
+                >
+                  {t("settings.import_sessions.delete_session")}
+                </Button>
+              )}
+            >
+              <Button
+                variant="destructiveOutline"
+                size="sm"
+                disabled={deleteSession.isPending}
+              >
+                <Trash2 className="mr-1 h-4 w-4" />
+                {t("actions.delete")}
+              </Button>
+            </ActionConfirmingDialog>
+          )}
+        </div>
+      }
+    />
+  );
+}
+
+export function ImportSessionCardContent({
+  session,
+  stats,
+  actions,
+  createdAtLabel,
+}: {
+  session: ZImportSessionWithStats;
+  stats: ZImportSessionWithStats;
+  actions: React.ReactNode;
+  createdAtLabel: string;
+}) {
+  const { t } = useTranslation();
   const statusLabels = (s: ZImportSessionStatus) =>
     switchCase(s, {
       staging: t("settings.import_sessions.status.staging"),
@@ -124,23 +259,12 @@ export function ImportSessionCard({ session }: ImportSessionCardProps) {
       failed: t("settings.import_sessions.status.failed"),
     });
 
-  const stats = liveStats || session;
   const progress =
     stats.totalBookmarks > 0
       ? ((stats.completedBookmarks + stats.failedBookmarks) /
           stats.totalBookmarks) *
         100
       : 0;
-
-  const canDelete =
-    stats.status === "staging" ||
-    stats.status === "completed" ||
-    stats.status === "failed" ||
-    stats.status === "paused";
-
-  const canFinalize = stats.status === "staging" && stats.totalBookmarks > 0;
-  const canPause = stats.status === "pending" || stats.status === "running";
-  const canResume = stats.status === "paused";
 
   return (
     <div className="shadow-xs rounded-xl border border-border/70 bg-background/80 p-4 transition-shadow duration-200 hover:shadow-sm">
@@ -159,114 +283,10 @@ export function ImportSessionCard({ session }: ImportSessionCardProps) {
                 <span>{statusLabels(stats.status)}</span>
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {t("settings.import_sessions.created_at", {
-                time: formatDistanceToNow(session.createdAt, {
-                  addSuffix: true,
-                }),
-              })}
-            </p>
+            <p className="text-sm text-muted-foreground">{createdAtLabel}</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/settings/import/${session.id}`}>
-                <ExternalLink className="mr-1 h-4 w-4" />
-                {t("settings.import_sessions.view_details")}
-              </Link>
-            </Button>
-            {canPause && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  pauseSession.mutate({ importSessionId: session.id })
-                }
-                disabled={pauseSession.isPending}
-              >
-                <Pause className="mr-1 h-4 w-4" />
-                {t("settings.import_sessions.pause_session")}
-              </Button>
-            )}
-            {canFinalize && (
-              <ActionConfirmingDialog
-                title={t("settings.import_sessions.finalize_dialog_title")}
-                description={
-                  <div>
-                    {t("settings.import_sessions.finalize_dialog_description", {
-                      name: session.name,
-                    })}
-                  </div>
-                }
-                actionButton={(setDialogOpen) => (
-                  <Button
-                    onClick={() => {
-                      finalizeSession.mutateAsync({
-                        importSessionId: session.id,
-                      });
-                      setDialogOpen(false);
-                    }}
-                    disabled={finalizeSession.isPending}
-                  >
-                    {t("settings.import_sessions.finalize_staging")}
-                  </Button>
-                )}
-              >
-                <Button size="sm" disabled={finalizeSession.isPending}>
-                  <Play className="mr-1 h-4 w-4" />
-                  {t("settings.import_sessions.finalize_staging")}
-                </Button>
-              </ActionConfirmingDialog>
-            )}
-            {canResume && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  resumeSession.mutate({ importSessionId: session.id })
-                }
-                disabled={resumeSession.isPending}
-              >
-                <Play className="mr-1 h-4 w-4" />
-                {t("settings.import_sessions.resume_session")}
-              </Button>
-            )}
-            {canDelete && (
-              <ActionConfirmingDialog
-                title={t("settings.import_sessions.delete_dialog_title")}
-                description={
-                  <div>
-                    {t("settings.import_sessions.delete_dialog_description", {
-                      name: session.name,
-                    })}
-                  </div>
-                }
-                actionButton={(setDialogOpen) => (
-                  <Button
-                    variant="destructive"
-                    onClick={() => {
-                      deleteSession.mutateAsync({
-                        importSessionId: session.id,
-                      });
-                      setDialogOpen(false);
-                    }}
-                    disabled={deleteSession.isPending}
-                  >
-                    {t("settings.import_sessions.delete_session")}
-                  </Button>
-                )}
-              >
-                <Button
-                  variant="destructiveOutline"
-                  size="sm"
-                  disabled={deleteSession.isPending}
-                >
-                  <Trash2 className="mr-1 h-4 w-4" />
-                  {t("actions.delete")}
-                </Button>
-              </ActionConfirmingDialog>
-            )}
-          </div>
+          {actions}
         </div>
 
         <div className="rounded-xl border border-border/70 bg-card/50 p-4">

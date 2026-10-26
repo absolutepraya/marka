@@ -1,5 +1,8 @@
 "use client";
 
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@karakeep/trpc/routers/_app";
+
 import { ActionButton } from "@/components/ui/action-button";
 import ActionConfirmingDialog from "@/components/ui/action-confirming-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/admin-jobs.bones.json";
 import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "@/lib/i18n/client";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
@@ -98,53 +102,6 @@ function JobStatusExplanation() {
                 {t("admin.background_jobs.status.failed.description")}
               </p>
             </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function JobCardSkeleton() {
-  return (
-    <Card className="shadow-xs relative overflow-hidden rounded-2xl border border-border/70 bg-card/90">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-5 w-5" />
-            <Skeleton className="h-6 w-32" />
-          </div>
-          <Skeleton className="h-6 w-16" />
-        </div>
-        <Skeleton className="mt-2 h-4 w-3/4" />
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-4 w-4" />
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-6 w-8" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-4 w-4" />
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-6 w-8" />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-3 w-16" />
-          </div>
-          <Skeleton className="h-2 w-full" />
-        </div>
-
-        <div className="space-y-3 border-t pt-4">
-          <Skeleton className="h-4 w-32" />
-          <div className="grid gap-2">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
           </div>
         </div>
       </CardContent>
@@ -528,7 +485,6 @@ function useJobActions() {
 
 export default function BackgroundJobs() {
   const api = useTRPC();
-  const { t } = useTranslation();
   const { data: serverStats } = useQuery(
     api.admin.backgroundJobsStats.queryOptions(undefined, {
       refetchInterval: 1000,
@@ -538,23 +494,18 @@ export default function BackgroundJobs() {
 
   const actions = useJobActions();
 
-  if (!serverStats) {
-    return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-5 w-96" />
-        </div>
+  if (!serverStats) return <CapturedSkeleton name="admin-jobs" bones={bones} />;
+  return <BackgroundJobsContent serverStats={serverStats} actions={actions} />;
+}
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <JobCardSkeleton key={index} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+export function BackgroundJobsContent({
+  serverStats,
+  actions,
+}: {
+  serverStats: inferRouterOutputs<AppRouter>["admin"]["backgroundJobsStats"];
+  actions: ReturnType<typeof useJobActions>;
+}) {
+  const { t } = useTranslation();
   const jobs = [
     {
       title: t("admin.background_jobs.jobs.crawler.title"),

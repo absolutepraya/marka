@@ -119,6 +119,7 @@
     "rename": "Rename"
   },
   "highlights": {
+    "search_placeholder": "Search highlights...",
     "no_highlights": "You don't have any highlights yet."
   },
   "tags": {
@@ -765,6 +766,7 @@
   "admin": {
     "admin_settings": "Admin Settings",
     "server_stats": {
+      "description": "Core usage and release signals for the current instance.",
       "server_stats": "Server Stats",
       "total_users": "Total Users",
       "total_bookmarks": "Total Bookmarks",

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EditingButton } from "@/components/ui/editing-button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TagPillsSkeleton } from "./TagPillsSkeleton";
 import { toast } from "@/components/ui/sonner";
 import Spinner from "@/components/ui/spinner";
 import useBulkTagActionsStore from "@/lib/bulkTagActions";
@@ -180,13 +180,7 @@ export default function AllTagsView() {
         isLoading: boolean,
       ) => {
         if (isLoading && tags.length === 0) {
-          return (
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: 15 }).map((_, index) => (
-                <Skeleton key={`tag-skeleton-${index}`} className="h-6 w-16" />
-              ))}
-            </div>
-          );
+          return <TagPillsSkeleton />;
         }
 
         if (tags.length === 0) {
@@ -224,13 +218,7 @@ export default function AllTagsView() {
                 />
               ),
             )}
-            {isLoading &&
-              Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton
-                  key={`tag-skeleton-loading-${index}`}
-                  className="h-6 w-16"
-                />
-              ))}
+            {isLoading && <TagPillsSkeleton className="w-full" />}
           </div>
         );
       },

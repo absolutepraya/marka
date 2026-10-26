@@ -722,6 +722,7 @@
       "unlimited": "Ilimitado"
     },
     "server_stats": {
+      "description": "Indicadores principais de utilização e versão da instância atual.",
       "total_bookmarks": "Total de favoritos",
       "server_version": "Versão do servidor",
       "server_stats": "Estatísticas do servidor",
@@ -1068,6 +1069,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Pesquisar destaques...",
     "no_highlights": "Você ainda não tem nenhum destaque."
   },
   "dialogs": {

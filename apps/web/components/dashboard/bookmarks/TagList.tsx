@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { badgeVariants } from "@/components/ui/badge";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
+import bones from "@/components/loading-ui/bones/bookmark-tags.bones.json";
 import { useSession } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
@@ -20,40 +22,54 @@ export default function TagList({
 
   if (loading) {
     return (
-      <div className="flex w-full flex-col justify-end space-y-2 p-2">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-full" />
-      </div>
+      <CapturedSkeleton
+        name="bookmark-tags"
+        bones={bones}
+        className="w-full"
+        fallback={<Skeleton className="h-12 w-full" />}
+      />
     );
   }
   return (
     <>
-      {bookmark.tags.map((t) => (
-        <div key={t.id} className={className}>
-          {isOwner ? (
-            <Link
-              key={t.id}
-              className={cn(
-                badgeVariants({ variant: "secondary" }),
-                "text-nowrap hover:bg-foreground hover:text-secondary",
-              )}
-              href={`/dashboard/tags/${t.id}`}
-            >
-              {t.name}
-            </Link>
-          ) : (
-            <span
-              key={t.id}
-              className={cn(
-                badgeVariants({ variant: "secondary" }),
-                "text-nowrap",
-              )}
-            >
-              {t.name}
-            </span>
-          )}
-        </div>
+      {bookmark.tags.map((tag) => (
+        <BookmarkTag
+          key={tag.id}
+          id={tag.id}
+          name={tag.name}
+          isOwner={isOwner}
+          className={className}
+        />
       ))}
     </>
+  );
+}
+
+export function BookmarkTag({
+  id,
+  name,
+  isOwner,
+  className,
+}: {
+  id: string;
+  name: string;
+  isOwner: boolean;
+  className?: string;
+}) {
+  const tagClass = cn(
+    badgeVariants({ variant: "secondary" }),
+    "text-nowrap",
+    isOwner && "hover:bg-foreground hover:text-secondary",
+  );
+  return (
+    <div className={className}>
+      {isOwner ? (
+        <Link className={tagClass} href={`/dashboard/tags/${id}`}>
+          {name}
+        </Link>
+      ) : (
+        <span className={tagClass}>{name}</span>
+      )}
+    </div>
   );
 }

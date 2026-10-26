@@ -677,11 +677,13 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Buscar destacados...",
     "no_highlights": "Aínda non tes nada destacado."
   },
   "admin": {
     "admin_settings": "Axustes de Administrador",
     "server_stats": {
+      "description": "Indicadores básicos de uso e versión da instancia actual.",
       "server_stats": "Estatísticas do servidor",
       "total_users": "Número de usuarios",
       "total_bookmarks": "Número de marcadores",

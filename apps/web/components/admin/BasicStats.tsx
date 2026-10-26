@@ -2,17 +2,18 @@
 
 import { AdminCard } from "@/components/admin/AdminCard";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useClientConfig } from "@/lib/clientConfig";
 import { useTranslation } from "@/lib/i18n/client";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Download, Users } from "lucide-react";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
 import {
   formatServerVersionDisplay,
   normalizeReleaseVersion,
 } from "@karakeep/shared/version";
+
+import { BasicStatsContent, MetricValue } from "./BasicStatsContent";
+import BasicStatsSkeleton from "./BasicStatsSkeleton";
 
 const REPO_LATEST_RELEASE_API =
   "https://api.github.com/repos/absolutepraya/marka/releases/latest";
@@ -54,9 +55,7 @@ function ReleaseInfo() {
 
   return (
     <div className="space-y-2">
-      <p className="text-3xl font-semibold tracking-tight text-foreground">
-        {visibleVersion}
-      </p>
+      <MetricValue>{visibleVersion}</MetricValue>
       {hasUpdate && (
         <a
           href={REPO_RELEASE_PAGE}
@@ -75,50 +74,6 @@ function ReleaseInfo() {
   );
 }
 
-function MetricTile({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: React.ReactNode;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="shadow-xs rounded-xl border border-border/70 bg-background/80 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <div className="flex size-9 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground [&_svg]:size-4">
-          {icon}
-        </div>
-      </div>
-      {value}
-    </div>
-  );
-}
-
-function StatsSkeleton() {
-  return (
-    <AdminCard>
-      <div className="mb-4 space-y-2">
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="shadow-xs rounded-xl border border-border/70 bg-background/80 p-4"
-          >
-            <Skeleton className="mb-4 h-4 w-24" />
-            <Skeleton className="h-8 w-16" />
-          </div>
-        ))}
-      </div>
-    </AdminCard>
-  );
-}
-
 export default function BasicStats() {
   const api = useTRPC();
   const { t } = useTranslation();
@@ -128,45 +83,24 @@ export default function BasicStats() {
     }),
   );
 
-  if (!serverStats) {
-    return <StatsSkeleton />;
-  }
-
   return (
     <AdminCard>
-      <div className="mb-4 space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">
-          {t("admin.server_stats.server_stats")}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Core usage and release signals for the current instance.
-        </p>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <MetricTile
-          label={t("admin.server_stats.total_users")}
-          value={
-            <p className="text-3xl font-semibold tracking-tight text-foreground">
-              {serverStats.numUsers}
-            </p>
-          }
-          icon={<Users className="h-4 w-4" />}
+      {serverStats ? (
+        <BasicStatsContent
+          numUsers={serverStats.numUsers}
+          numBookmarks={serverStats.numBookmarks}
+          version={<ReleaseInfo />}
+          labels={{
+            heading: t("admin.server_stats.server_stats"),
+            description: t("admin.server_stats.description"),
+            users: t("admin.server_stats.total_users"),
+            bookmarks: t("admin.server_stats.total_bookmarks"),
+            version: t("admin.server_stats.server_version"),
+          }}
         />
-        <MetricTile
-          label={t("admin.server_stats.total_bookmarks")}
-          value={
-            <p className="text-3xl font-semibold tracking-tight text-foreground">
-              {serverStats.numBookmarks}
-            </p>
-          }
-          icon={<BookOpen className="h-4 w-4" />}
-        />
-        <MetricTile
-          label={t("admin.server_stats.server_version")}
-          value={<ReleaseInfo />}
-          icon={<Download className="h-4 w-4" />}
-        />
-      </div>
+      ) : (
+        <BasicStatsSkeleton />
+      )}
     </AdminCard>
   );
 }

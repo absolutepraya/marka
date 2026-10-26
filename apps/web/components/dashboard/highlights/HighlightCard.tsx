@@ -70,6 +70,47 @@ export default function HighlightCard({
   };
 
   return (
+    <HighlightCardContent
+      highlight={highlight}
+      clickable={clickable}
+      className={className}
+      needsReview={needsReview}
+      onBookmarkClick={onBookmarkClick}
+      actions={
+        !readOnly && (
+          <div className="flex gap-2">
+            <EditingButton
+              tooltip={t("actions.delete")}
+              loading={isDeleting}
+              variant="ghost"
+              onClick={() => deleteHighlight({ highlightId: highlight.id })}
+            >
+              <Trash2 className="size-4 text-destructive" />
+            </EditingButton>
+          </div>
+        )
+      }
+    />
+  );
+}
+
+export function HighlightCardContent({
+  highlight,
+  clickable,
+  className,
+  needsReview = false,
+  onBookmarkClick,
+  actions,
+}: {
+  highlight: ZHighlight;
+  clickable: boolean;
+  className?: string;
+  needsReview?: boolean;
+  onBookmarkClick: () => void;
+  actions?: React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
     <div className={cn("flex items-center justify-between", className)}>
       <HighlightWrapper
         clickable={clickable}
@@ -101,18 +142,7 @@ export default function HighlightCard({
           </span>
         )}
       </HighlightWrapper>
-      {!readOnly && (
-        <div className="flex gap-2">
-          <EditingButton
-            tooltip={t("actions.delete")}
-            loading={isDeleting}
-            variant="ghost"
-            onClick={() => deleteHighlight({ highlightId: highlight.id })}
-          >
-            <Trash2 className="size-4 text-destructive" />
-          </EditingButton>
-        </div>
-      )}
+      {actions}
     </div>
   );
 }

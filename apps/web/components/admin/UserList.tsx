@@ -1,5 +1,8 @@
 "use client";
 
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@karakeep/trpc/routers/_app";
+
 import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
 import { ButtonWithTooltip } from "@/components/ui/button";
@@ -65,6 +68,88 @@ export default function UsersSection() {
   );
 
   return (
+    <UsersContent
+      users={users}
+      userStats={userStats}
+      createAction={
+        <AddUserDialog>
+          <ButtonWithTooltip tooltip="Create User" variant="outline">
+            <UserPlus size={16} />
+          </ButtonWithTooltip>
+        </AddUserDialog>
+      }
+      rowActions={(u) => (
+        <div className="flex items-center gap-1.5">
+          <ActionConfirmingDialog
+            title={t("admin.users_list.delete_user")}
+            description={t("admin.users_list.delete_user_confirm_description", {
+              name: u.name ?? "this user",
+            })}
+            actionButton={(setDialogOpen) => (
+              <ActionButton
+                variant="destructive"
+                loading={isDeletionPending}
+                onClick={async () => {
+                  await deleteUser({ userId: u.id });
+                  setDialogOpen(false);
+                }}
+              >
+                Delete
+              </ActionButton>
+            )}
+          >
+            <ButtonWithTooltip
+              tooltip={t("admin.users_list.delete_user")}
+              variant="outline"
+              disabled={session!.user.id === u.id}
+            >
+              <Trash size={16} />
+            </ButtonWithTooltip>
+          </ActionConfirmingDialog>
+          <ResetPasswordDialog userId={u.id}>
+            <ButtonWithTooltip
+              tooltip={t("admin.users_list.reset_password")}
+              variant="outline"
+              disabled={session!.user.id === u.id || !u.localUser}
+            >
+              <KeyRound size={16} />
+            </ButtonWithTooltip>
+          </ResetPasswordDialog>
+          <UpdateUserDialog
+            userId={u.id}
+            currentRole={u.role!}
+            currentQuota={u.bookmarkQuota}
+            currentStorageQuota={u.storageQuota}
+          >
+            <ButtonWithTooltip
+              tooltip="Edit User"
+              variant="outline"
+              disabled={session!.user.id === u.id}
+            >
+              <Pencil size={16} />
+            </ButtonWithTooltip>
+          </UpdateUserDialog>
+        </div>
+      )}
+    />
+  );
+}
+
+export function UsersContent({
+  users,
+  userStats,
+  createAction,
+  rowActions,
+}: {
+  users: inferRouterOutputs<AppRouter>["users"]["list"]["users"];
+  userStats: inferRouterOutputs<AppRouter>["admin"]["userStats"];
+  createAction: React.ReactNode;
+  rowActions: (
+    user: inferRouterOutputs<AppRouter>["users"]["list"]["users"][number],
+  ) => React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
     <AdminCard>
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -76,11 +161,7 @@ export default function UsersSection() {
               Review account roles, quotas, storage usage, and recovery actions.
             </p>
           </div>
-          <AddUserDialog>
-            <ButtonWithTooltip tooltip="Create User" variant="outline">
-              <UserPlus size={16} />
-            </ButtonWithTooltip>
-          </AddUserDialog>
+          {createAction}
         </div>
 
         <div className="shadow-xs overflow-hidden rounded-xl border border-border/70 bg-background/80">
@@ -142,62 +223,7 @@ export default function UsersSection() {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <ActionConfirmingDialog
-                        title={t("admin.users_list.delete_user")}
-                        description={t(
-                          "admin.users_list.delete_user_confirm_description",
-                          {
-                            name: u.name ?? "this user",
-                          },
-                        )}
-                        actionButton={(setDialogOpen) => (
-                          <ActionButton
-                            variant="destructive"
-                            loading={isDeletionPending}
-                            onClick={async () => {
-                              await deleteUser({ userId: u.id });
-                              setDialogOpen(false);
-                            }}
-                          >
-                            Delete
-                          </ActionButton>
-                        )}
-                      >
-                        <ButtonWithTooltip
-                          tooltip={t("admin.users_list.delete_user")}
-                          variant="outline"
-                          disabled={session!.user.id === u.id}
-                        >
-                          <Trash size={16} />
-                        </ButtonWithTooltip>
-                      </ActionConfirmingDialog>
-                      <ResetPasswordDialog userId={u.id}>
-                        <ButtonWithTooltip
-                          tooltip={t("admin.users_list.reset_password")}
-                          variant="outline"
-                          disabled={session!.user.id === u.id || !u.localUser}
-                        >
-                          <KeyRound size={16} />
-                        </ButtonWithTooltip>
-                      </ResetPasswordDialog>
-                      <UpdateUserDialog
-                        userId={u.id}
-                        currentRole={u.role!}
-                        currentQuota={u.bookmarkQuota}
-                        currentStorageQuota={u.storageQuota}
-                      >
-                        <ButtonWithTooltip
-                          tooltip="Edit User"
-                          variant="outline"
-                          disabled={session!.user.id === u.id}
-                        >
-                          <Pencil size={16} />
-                        </ButtonWithTooltip>
-                      </UpdateUserDialog>
-                    </div>
-                  </TableCell>
+                  <TableCell>{rowActions(u)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

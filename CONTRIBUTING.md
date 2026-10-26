@@ -104,6 +104,11 @@ The renderer exports through Excalidraw itself so the committed SVG and PNG reta
 ## Change expectations
 
 ### UI / UX changes
+
+For content loading placeholders, regenerate their Boneyard captures after
+layout changes. See [generated loading skeletons](docs/skeleton-loading.md)
+for the fixtures, capture commands, and verification steps.
+
 - Include screenshots or a short screen recording.
 - Explain why the change fits Marka specifically.
 - Keep the design language consistent with the current app rather than introducing a second style system.

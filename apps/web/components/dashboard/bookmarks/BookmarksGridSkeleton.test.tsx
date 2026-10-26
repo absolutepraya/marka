@@ -23,6 +23,10 @@ vi.mock("@/lib/serverHints", () => ({
   useServerIsMobile: () => mocks.isMobile,
 }));
 
+vi.mock("@/lib/i18n/client", () => ({
+  useTranslation: () => ({ t: () => "Chargement…" }),
+}));
+
 import BookmarksGridSkeleton from "./BookmarksGridSkeleton";
 
 beforeEach(() => {
@@ -54,6 +58,17 @@ function getResponsiveGrid(container: HTMLElement) {
 }
 
 describe("BookmarksGridSkeleton responsive columns", () => {
+  it("announces loading once while hiding decorative card geometry", () => {
+    const container = renderMarkup();
+    const status = container.querySelector('[role="status"]');
+    expect(status?.getAttribute("aria-label")).toBe("Chargement…");
+    expect(status?.getAttribute("aria-busy")).toBe("true");
+    expect(container.querySelectorAll('[role="status"]').length).toBe(1);
+    expect(
+      container.querySelector('[aria-hidden="true"] [data-bookmark-skeleton]'),
+    ).not.toBeNull();
+  });
+
   it("uses CSS media breakpoints in SSR markup before Masonry can measure", () => {
     mocks.isMobile = false;
     const grid = getResponsiveGrid(renderMarkup());

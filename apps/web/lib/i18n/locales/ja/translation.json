@@ -69,6 +69,7 @@
       "regenerate_ai_summaries_for_all_bookmarks": "すべてのブックマークのAI要約を再生成"
     },
     "server_stats": {
+      "description": "現在のインスタンスの主な使用状況とバージョン情報。",
       "server_version": "サーバーバージョン",
       "server_stats": "サーバー統計情報",
       "total_bookmarks": "総ブックマーク",
@@ -1080,6 +1081,7 @@
     "cleanups": "クリーンアップ"
   },
   "highlights": {
+    "search_placeholder": "ハイライトを検索...",
     "no_highlights": "まだハイライトがありません。"
   },
   "banners": {

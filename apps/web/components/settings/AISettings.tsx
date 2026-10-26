@@ -1,4 +1,6 @@
 "use client";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/ai-prompts.bones.json";
 
 import React from "react";
 import { TagsEditor } from "@/components/dashboard/bookmarks/TagsEditor";
@@ -20,7 +22,6 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -631,100 +632,102 @@ export function PromptRow({ prompt }: { prompt: ZPrompt }) {
   return (
     <Form {...form}>
       <form
-        className="flex gap-2"
+        className="w-full"
         onSubmit={form.handleSubmit(async (value) => {
           await updatePrompt(value);
         })}
       >
-        <FormField
-          control={form.control}
-          name="promptId"
-          render={({ field }) => {
-            return (
-              <FormItem className="hidden">
-                <FormControl>
-                  <Input type="hidden" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
-        />
-        <FormField
-          control={form.control}
-          name="text"
-          render={({ field }) => {
-            return (
-              <FormItem className="flex-1">
-                <FormControl>
-                  <Input
-                    placeholder="Add a custom prompt"
-                    type="text"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
-        />
+        <PromptRowLayout>
+          <FormField
+            control={form.control}
+            name="promptId"
+            render={({ field }) => {
+              return (
+                <FormItem className="hidden">
+                  <FormControl>
+                    <Input type="hidden" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+          <FormField
+            control={form.control}
+            name="text"
+            render={({ field }) => {
+              return (
+                <FormItem className="flex-1">
+                  <FormControl>
+                    <Input
+                      placeholder="Add a custom prompt"
+                      type="text"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
 
-        <FormField
-          control={form.control}
-          name="appliesTo"
-          render={({ field }) => {
-            return (
-              <FormItem className="flex-0">
-                <FormControl>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Applies To" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="all_tagging">
-                          {t("settings.ai.all_tagging")}
-                        </SelectItem>
-                        <SelectItem value="text">
-                          {t("settings.ai.text_tagging")}
-                        </SelectItem>
-                        <SelectItem value="images">
-                          {t("settings.ai.image_tagging")}
-                        </SelectItem>
-                        <SelectItem value="summary">
-                          {t("settings.ai.summarization")}
-                        </SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
-        />
-        <ActionButton
-          loading={isUpdating}
-          variant="secondary"
-          type="submit"
-          className="items-center"
-        >
-          <Save className="mr-2 size-4" />
-          {t("actions.save")}
-        </ActionButton>
-        <ActionButton
-          loading={isDeleting}
-          variant="destructive"
-          onClick={() => deletePrompt({ promptId: prompt.id })}
-          className="items-center"
-          type="button"
-        >
-          <Trash2 className="mr-2 size-4" />
-          {t("actions.delete")}
-        </ActionButton>
+          <FormField
+            control={form.control}
+            name="appliesTo"
+            render={({ field }) => {
+              return (
+                <FormItem className="flex-0">
+                  <FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Applies To" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="all_tagging">
+                            {t("settings.ai.all_tagging")}
+                          </SelectItem>
+                          <SelectItem value="text">
+                            {t("settings.ai.text_tagging")}
+                          </SelectItem>
+                          <SelectItem value="images">
+                            {t("settings.ai.image_tagging")}
+                          </SelectItem>
+                          <SelectItem value="summary">
+                            {t("settings.ai.summarization")}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+          <ActionButton
+            loading={isUpdating}
+            variant="secondary"
+            type="submit"
+            className="items-center"
+          >
+            <Save className="mr-2 size-4" />
+            {t("actions.save")}
+          </ActionButton>
+          <ActionButton
+            loading={isDeleting}
+            variant="destructive"
+            onClick={() => deletePrompt({ promptId: prompt.id })}
+            className="items-center"
+            type="button"
+          >
+            <Trash2 className="mr-2 size-4" />
+            {t("actions.delete")}
+          </ActionButton>
+        </PromptRowLayout>
       </form>
     </Form>
   );
@@ -749,7 +752,7 @@ export function TaggingRules() {
         </div>
       )}
       <div className="flex flex-col gap-2">
-        {isLoading && <FullPageSpinner />}
+        {isLoading && <CapturedSkeleton name="ai-prompts" bones={bones} />}
         {prompts &&
           prompts.map((prompt) => (
             <PromptRow key={prompt.id} prompt={prompt} />
@@ -924,5 +927,13 @@ export default function AISettings() {
       <TaggingRules />
       <PromptDemo />
     </SettingsPage>
+  );
+}
+
+export function PromptRowLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-wrap items-start gap-2 [&_input]:min-w-0">
+      {children}
+    </div>
   );
 }
