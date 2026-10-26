@@ -30,6 +30,18 @@ _Avoid_: using sublist to mean every descendant at any depth.
 Lists with the same immediate parent. Top-level lists are siblings at the library root.
 _Avoid_: treating lists at the same depth under different parents as siblings.
 
+**List membership**:
+The relationship placing a bookmark in a manual list. A bookmark may belong to multiple lists independently.
+_Avoid_: treating a bookmark as having one exclusive containing list.
+
+**List move**:
+A change to a list's parent, including placement at the library root, with its nested subtree and bookmark memberships retained.
+_Avoid_: confusing a list move with a list merge or a bookmark move.
+
+**Bookmark move**:
+A change of a bookmark's membership from a source manual list to a destination manual list. Memberships in other lists remain independent.
+_Avoid_: treating addition to a destination alone as a completed move.
+
 **Bookmark type**:
 A top-level classification of a bookmark as a link, text, asset, or unknown content.
 _Avoid_: making media or Office files separate top-level bookmark types.

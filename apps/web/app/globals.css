@@ -798,3 +798,9 @@ textarea,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Native drag indicators may still show the platform copy or move badge. */
+html[data-bookmark-dragging="true"],
+html[data-bookmark-dragging="true"] * {
+  cursor: grabbing !important;
+}

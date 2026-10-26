@@ -800,6 +800,34 @@
     "follow_us_on_x": "Suivez-nous sur X"
   },
   "lists": {
+    "move": {
+      "title": "Déplacer la liste vers…",
+      "description": "Choisissez un nouveau parent pour « {{name}} » et ses sous-listes.",
+      "top_level": "Premier niveau",
+      "submit": "Déplacer",
+      "success": "« {{name}} » a été déplacée.",
+      "sharing_warning": "Déplacer cette liste peut modifier les accès hérités de son ancien ou nouveau parent, y compris pour ses sous-listes. Les partages directs sont conservés.",
+      "offline": "Connectez-vous au serveur pour déplacer une liste."
+    },
+    "drag": {
+      "handle": "Faire glisser le favori vers une liste",
+      "hint": "Faites glisser cette poignée vers une liste dans la barre latérale. Vous pouvez aussi ajouter des favoris à une liste depuis leur menu.",
+      "untitled": "Favori sans titre",
+      "preview_one": "{{count}} favori",
+      "preview_other": "{{count}} favoris",
+      "offline": "Connectez-vous au serveur pour faire glisser des favoris.",
+      "busy": "Attendez la fin du déplacement en cours.",
+      "not_owned": "Vous pouvez uniquement faire glisser vos propres favoris vers une autre liste. Désélectionnez ceux appartenant à une autre personne et réessayez.",
+      "moved_one": "{{count}} favori déplacé vers « {{list}} ».",
+      "moved_other": "{{count}} favoris déplacés vers « {{list}} ».",
+      "added_one": "{{count}} favori ajouté à « {{list}} ».",
+      "added_other": "{{count}} favoris ajoutés à « {{list}} ».",
+      "added_only_one": "{{count}} favori ajouté à « {{list}} », mais impossible de le retirer de la liste source.",
+      "added_only_other": "{{count}} favoris ajoutés à « {{list}} », mais impossible de les retirer de la liste source.",
+      "failed_one": "Impossible d’ajouter {{count}} favori.",
+      "failed_other": "Impossible d’ajouter {{count}} favoris.",
+      "retry": "Faites de nouveau glisser les favoris incomplets pour réessayer."
+    },
     "all_lists": "Toutes les listes",
     "favourites": "Favoris",
     "new_list": "Nouvelle liste",

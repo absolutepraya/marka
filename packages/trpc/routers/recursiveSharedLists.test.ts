@@ -25,6 +25,33 @@ async function inviteAndAccept(
 }
 
 describe("recursive shared-list permissions", () => {
+  test<CustomTestContext>("reparenting rejects destinations owned by another user, including shared-editor destinations", async ({
+    apiCallers,
+  }) => {
+    const [ownerApi, otherApi] = apiCallers;
+    const list = await ownerApi.lists.create({
+      name: "Own list",
+      icon: "📁",
+      type: "manual",
+    });
+    const foreign = await otherApi.lists.create({
+      name: "Other owner's list",
+      icon: "📁",
+      type: "manual",
+    });
+    await expect(
+      ownerApi.lists.edit({ listId: list.id, parentId: foreign.id }),
+    ).rejects.toThrow("List not found");
+    await inviteAndAccept(otherApi, ownerApi, foreign.id, "editor", true);
+    await expect(
+      ownerApi.lists.edit({ listId: list.id, parentId: foreign.id }),
+    ).rejects.toThrow();
+    expect((await ownerApi.lists.get({ listId: list.id })).parentId).toBeNull();
+    await expect(
+      ownerApi.lists.edit({ listId: list.id, parentId: "missing" }),
+    ).rejects.toThrow("List not found");
+  });
+
   test<CustomTestContext>("recursive grant exposes current descendants", async ({
     apiCallers,
   }) => {

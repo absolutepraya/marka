@@ -26,6 +26,7 @@ import DeleteListConfirmationDialog from "./DeleteListConfirmationDialog";
 import LeaveListConfirmationDialog from "./LeaveListConfirmationDialog";
 import { ManageCollaboratorsModal } from "./ManageCollaboratorsModal";
 import { MergeListModal } from "./MergeListModal";
+import { MoveListModal } from "./MoveListModal";
 import { ShareListModal } from "./ShareListModal";
 
 export function ListOptions({
@@ -46,6 +47,7 @@ export function ListOptions({
   const [leaveListDialogOpen, setLeaveListDialogOpen] = useState(false);
   const [newNestedListModalOpen, setNewNestedListModalOpen] = useState(false);
   const [mergeListModalOpen, setMergeListModalOpen] = useState(false);
+  const [moveListModalOpen, setMoveListModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [collaboratorsModalOpen, setCollaboratorsModalOpen] = useState(false);
@@ -91,6 +93,14 @@ export function ListOptions({
       visible: isOwner,
       disabled: false,
       onClick: () => setNewNestedListModalOpen(true),
+    },
+    {
+      id: "move-list",
+      title: t("lists.move.title"),
+      icon: <FolderInput className="size-4" />,
+      visible: isOwner,
+      disabled: false,
+      onClick: () => setMoveListModalOpen(true),
     },
     {
       id: "merge-list",
@@ -170,6 +180,13 @@ export function ListOptions({
         setOpen={setMergeListModalOpen}
         list={list}
       />
+      {moveListModalOpen && (
+        <MoveListModal
+          list={list}
+          open={moveListModalOpen}
+          setOpen={setMoveListModalOpen}
+        />
+      )}
       <DeleteListConfirmationDialog
         list={list}
         open={deleteListDialogOpen}

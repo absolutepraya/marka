@@ -11,11 +11,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { searchFieldSurfaceClassName } from "@/components/ui/search-field";
-import { toast } from "@/components/ui/sonner";
-import {
-  BOOKMARK_DRAG_MIME,
-  BOOKMARK_SOURCE_LIST_MIME,
-} from "@/lib/bookmark-drag";
+import { useBookmarkDropTarget } from "@/lib/hooks/useBookmarkDropTarget";
 import { useTranslation } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { MoreHorizontal, Plus, Search, X } from "lucide-react";
@@ -23,9 +19,7 @@ import { MoreHorizontal, Plus, Search, X } from "lucide-react";
 import type { ZBookmarkList } from "@karakeep/shared/types/lists";
 import {
   augmentBookmarkListsWithInitialData,
-  useAddBookmarkToList,
   useBookmarkLists,
-  useRemoveBookmarkFromList,
 } from "@karakeep/shared-react/hooks/lists";
 import { ZBookmarkListTreeNode } from "@karakeep/shared/utils/listUtils";
 
@@ -34,89 +28,12 @@ import { EditListModal } from "./EditListModal";
 import { ListOptions } from "./ListOptions";
 import { InvitationNotificationBadge } from "../sidebar/InvitationNotificationBadge";
 
-function useDropTarget(listId: string, listName: string) {
-  const { mutateAsync: addToList } = useAddBookmarkToList();
-  const { mutateAsync: removeFromList } = useRemoveBookmarkFromList();
-  const [dropHighlight, setDropHighlight] = useState(false);
-  const dragCounterRef = useRef(0);
-  const { t } = useTranslation();
-
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes(BOOKMARK_DRAG_MIME)) {
-      e.preventDefault();
-      // Dragging out of a (manual) list moves it here; otherwise it's a copy.
-      // Only the MIME *types* are readable during dragover, not the data.
-      e.dataTransfer.dropEffect = e.dataTransfer.types.includes(
-        BOOKMARK_SOURCE_LIST_MIME,
-      )
-        ? "move"
-        : "copy";
-    }
-  }, []);
-
-  const onDragEnter = useCallback((e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes(BOOKMARK_DRAG_MIME)) {
-      e.preventDefault();
-      dragCounterRef.current++;
-      setDropHighlight(true);
-    }
-  }, []);
-
-  const onDragLeave = useCallback(() => {
-    dragCounterRef.current--;
-    if (dragCounterRef.current <= 0) {
-      dragCounterRef.current = 0;
-      setDropHighlight(false);
-    }
-  }, []);
-
-  const onDrop = useCallback(
-    async (e: React.DragEvent) => {
-      dragCounterRef.current = 0;
-      setDropHighlight(false);
-      const bookmarkId = e.dataTransfer.getData(BOOKMARK_DRAG_MIME);
-      if (!bookmarkId) return;
-      e.preventDefault();
-      // When the bookmark was dragged out of another manual list, move it:
-      // add it here, then remove it from where it came from.
-      const sourceListId = e.dataTransfer.getData(BOOKMARK_SOURCE_LIST_MIME);
-      const isMove = !!sourceListId && sourceListId !== listId;
-      try {
-        await addToList({ bookmarkId, listId });
-        if (isMove) {
-          await removeFromList({ bookmarkId, listId: sourceListId });
-        }
-        toast({
-          description: isMove
-            ? t("lists.move_to_list_success", {
-                list: listName,
-                defaultValue: `Moved to "${listName}"`,
-              })
-            : t("lists.add_to_list_success", {
-                list: listName,
-                defaultValue: `Added to "${listName}"`,
-              }),
-        });
-      } catch {
-        toast({
-          description: t("common.something_went_wrong", {
-            defaultValue: "Something went wrong",
-          }),
-          variant: "destructive",
-        });
-      }
-    },
-    [addToList, removeFromList, listId, listName, t],
-  );
-
-  return { dropHighlight, onDragOver, onDragEnter, onDragLeave, onDrop };
-}
-
 function DroppableListSidebarItem({
   node,
   level,
   open,
   numBookmarks,
+  parentPath,
   selectedListId,
   setSelectedListId,
   onNavigate,
@@ -125,6 +42,7 @@ function DroppableListSidebarItem({
   level: number;
   open: boolean;
   numBookmarks?: number;
+  parentPath?: string;
   selectedListId: string | null;
   setSelectedListId: (id: string | null) => void;
   onNavigate?: () => void;
@@ -135,7 +53,7 @@ function DroppableListSidebarItem({
     (node.item.userRole === "owner" || node.item.userRole === "editor");
   const showBookmarkCount = numBookmarks !== undefined && numBookmarks > 0;
   const { dropHighlight, onDragOver, onDragEnter, onDragLeave, onDrop } =
-    useDropTarget(node.item.id, node.item.name);
+    useBookmarkDropTarget(node.item.id, node.item.name);
 
   return (
     <SidebarItem
@@ -158,6 +76,7 @@ function DroppableListSidebarItem({
         </span>
       }
       name={node.item.name}
+      description={parentPath}
       path={`/dashboard/lists/${node.item.id}`}
       onNavigate={onNavigate}
       className="group"
@@ -178,18 +97,18 @@ function DroppableListSidebarItem({
             aria-label={t("lists.navigation.list_options", {
               name: node.item.name,
             })}
-            className="relative h-8 min-w-8 shrink-0 rounded-none rounded-r-xl bg-transparent px-1.5 hover:bg-transparent focus-visible:ring-inset"
+            className="relative h-8 min-w-8 shrink-0 rounded-none rounded-r-lg bg-transparent px-1.5 hover:bg-transparent focus-visible:ring-inset data-[state=open]:bg-transparent"
           >
             <MoreHorizontal
               className={cn(
-                "absolute inset-0 m-auto size-4 opacity-0 transition-opacity duration-100 group-hover:opacity-100",
+                "pointer-coarse:opacity-100 absolute inset-0 m-auto size-4 opacity-0 transition-opacity duration-100 group-focus-within:opacity-100 group-hover:opacity-100",
                 selectedListId == node.item.id ? "opacity-100" : "opacity-0",
               )}
             />
             {showBookmarkCount && (
               <span
                 className={cn(
-                  "px-1 text-xs tabular-nums text-muted-foreground opacity-100 transition-opacity duration-100 group-hover:opacity-0",
+                  "pointer-coarse:opacity-0 px-1 text-xs tabular-nums text-muted-foreground opacity-100 transition-opacity duration-100 group-focus-within:opacity-0 group-hover:opacity-0",
                   selectedListId == node.item.id ? "opacity-0" : "opacity-100",
                 )}
               >
@@ -250,7 +169,7 @@ export default function ListTreePicker({
   const viewedListId = pathName.split("/").at(-1);
   // Search results start at each matched folder (the top-most match), not the
   // tree root: searching "B" in A > B > C yields a tree rooted at B with C
-  // collapsed underneath; the ancestor A is not shown. A match nested under
+  // collapsed underneath and A shown as context on B. A match nested under
   // another match stays inside that ancestor's subtree rather than repeated.
   const matchedRoots = useMemo(() => {
     if (!isSearching) return [];
@@ -267,6 +186,22 @@ export default function ListTreePicker({
     Object.values(lists.root).forEach((node) => walk(node, false));
     return roots;
   }, [isSearching, trimmedQuery, lists.root]);
+
+  const searchParentPaths = useMemo(
+    () =>
+      new Map(
+        isSearching
+          ? lists.allPaths.map((path) => [
+              path[path.length - 1].id,
+              path
+                .slice(0, -1)
+                .map((list) => list.name)
+                .join(" / "),
+            ])
+          : [],
+      ),
+    [isSearching, lists.allPaths],
+  );
 
   // Check if any shared list is currently being viewed
   const isViewingSharedList = useMemo(() => {
@@ -437,6 +372,11 @@ export default function ListTreePicker({
                     level={level}
                     open={open}
                     numBookmarks={numBookmarks}
+                    parentPath={
+                      level === 0
+                        ? searchParentPaths.get(node.item.id)
+                        : undefined
+                    }
                     selectedListId={selectedListId}
                     setSelectedListId={setSelectedListId}
                     onNavigate={onNavigate}

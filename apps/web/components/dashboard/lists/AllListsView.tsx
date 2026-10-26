@@ -57,8 +57,10 @@ function ListRow({
   collapsible: boolean;
   itemCount?: number;
 }) {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const isActive = path === pathname;
+  const [optionsOpen, setOptionsOpen] = useState(false);
 
   return (
     <div
@@ -94,17 +96,25 @@ function ListRow({
               "px-1 text-xs tabular-nums",
               list &&
                 "pointer-fine:group-hover/list-row:opacity-0 pointer-fine:group-focus-within/list-row:opacity-0 transition-opacity",
+              optionsOpen && "pointer-fine:opacity-0",
             )}
           >
             {itemCount.toLocaleString()}
           </span>
         )}
         {list && (
-          <ListOptions list={list}>
+          <ListOptions
+            list={list}
+            isOpen={optionsOpen}
+            onOpenChange={setOptionsOpen}
+          >
             <Button
               size="none"
               variant="ghost"
-              className="pointer-coarse:static pointer-coarse:opacity-100 absolute inset-y-0 right-0 my-auto flex size-7 items-center justify-center rounded-none rounded-r-xl bg-transparent opacity-0 hover:bg-transparent focus-visible:opacity-100 focus-visible:ring-inset group-hover/list-row:opacity-100"
+              aria-label={t("lists.navigation.list_options", {
+                name: list.name,
+              })}
+              className="pointer-coarse:static pointer-coarse:opacity-100 absolute inset-y-0 right-0 my-auto flex size-7 items-center justify-center rounded-lg bg-transparent opacity-0 hover:bg-transparent focus-visible:opacity-100 focus-visible:ring-inset group-focus-within/list-row:opacity-100 group-hover/list-row:opacity-100 data-[state=open]:bg-transparent data-[state=open]:opacity-100"
             >
               <MoreHorizontal className="size-4" />
             </Button>

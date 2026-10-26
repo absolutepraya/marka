@@ -511,6 +511,8 @@ export abstract class List {
   ): Promise<void> {
     this.ensureCanManage();
     if (input.parentId !== undefined && input.parentId !== null) {
+      const parent = await List.fromId(this.ctx, input.parentId);
+      parent.ensureCanManage();
       if (input.parentId === this.list.id) {
         throw new TRPCError({
           code: "BAD_REQUEST",
