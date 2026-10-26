@@ -510,7 +510,11 @@ export abstract class List {
     input: z.infer<typeof zEditBookmarkListSchemaWithValidation>,
   ): Promise<void> {
     this.ensureCanManage();
-    if (input.parentId !== undefined && input.parentId !== null) {
+    if (
+      input.parentId !== undefined &&
+      input.parentId !== null &&
+      input.parentId !== this.list.parentId
+    ) {
       const parent = await List.fromId(this.ctx, input.parentId);
       parent.ensureCanManage();
       if (input.parentId === this.list.id) {

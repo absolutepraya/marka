@@ -25,6 +25,43 @@ async function inviteAndAccept(
 }
 
 describe("recursive shared-list permissions", () => {
+  test<CustomTestContext>("metadata edits preserve an unchanged parent owned by another user", async ({
+    apiCallers,
+  }) => {
+    const [ownerApi, otherApi] = apiCallers;
+    const foreignParent = await otherApi.lists.create({
+      name: "Other owner's parent",
+      icon: "📁",
+      type: "manual",
+    });
+    // Existing create requests can establish cross-owner parentage. Updating
+    // metadata must not require permission to manage that unchanged parent.
+    const list = await ownerApi.lists.create({
+      name: "Existing child",
+      icon: "📁",
+      type: "manual",
+      parentId: foreignParent.id,
+    });
+
+    await ownerApi.lists.edit({
+      listId: list.id,
+      parentId: foreignParent.id,
+      name: "Renamed child",
+      description: "Updated description",
+      icon: "📚",
+    });
+
+    expect(await ownerApi.lists.get({ listId: list.id })).toMatchObject({
+      parentId: foreignParent.id,
+      name: "Renamed child",
+      description: "Updated description",
+      icon: "📚",
+    });
+    await expect(
+      ownerApi.lists.get({ listId: foreignParent.id }),
+    ).rejects.toThrow("List not found");
+  });
+
   test<CustomTestContext>("reparenting rejects destinations owned by another user, including shared-editor destinations", async ({
     apiCallers,
   }) => {
