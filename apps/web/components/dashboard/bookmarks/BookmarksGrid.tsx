@@ -236,14 +236,19 @@ export default function BookmarksGrid({
     );
   }
 
+  const emptyList =
+    showEditorCard &&
+    withinListContext?.type === "manual" &&
+    visibleBookmarks.length === 0 &&
+    !hasNextPage;
+
   const children = [
-    showEditorCard && !isMobile && (
-      // The mobile nav has its own + button + capture modal. Do not pass a
-      // hidden editor card into Masonry on phones: it still consumes the
-      // first column slot and makes the first bookmark start on the right.
+    showEditorCard && (!isMobile || emptyList) && (
+      // Empty editable lists keep their guidance inside the composer on every
+      // screen. Populated mobile lists use the navigation's capture button.
       <div key={"editor"}>
         <StyledBookmarkCard>
-          <EditorCard />
+          <EditorCard emptyList={emptyList} />
         </StyledBookmarkCard>
       </div>
     ),
@@ -253,7 +258,7 @@ export default function BookmarksGrid({
   ];
   return (
     <>
-      {visibleBookmarks.length === 0 && showEditorCard && (
+      {visibleBookmarks.length === 0 && showEditorCard && !emptyList && (
         <NoBookmarksBanner className="mb-4" />
       )}
       {bookmarkLayoutSwitch(layout, {
@@ -261,7 +266,7 @@ export default function BookmarksGrid({
           <Masonry
             className="-ml-2 flex w-auto sm:-ml-3"
             columnClassName="pl-2 sm:pl-3"
-            breakpointCols={breakpointConfig}
+            breakpointCols={emptyList && isMobile ? 1 : breakpointConfig}
           >
             {children}
           </Masonry>
@@ -270,7 +275,7 @@ export default function BookmarksGrid({
           <Masonry
             className="-ml-2 flex w-auto sm:-ml-3"
             columnClassName="pl-2 sm:pl-3"
-            breakpointCols={breakpointConfig}
+            breakpointCols={emptyList && isMobile ? 1 : breakpointConfig}
           >
             {children}
           </Masonry>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import GlobalActions from "@/components/dashboard/GlobalActions";
 import { EditingButton } from "@/components/ui/editing-button";
@@ -23,6 +23,8 @@ import {
   ListPrivacyLabel,
 } from "./ListHeaderComponents";
 
+const subscribeToHydration = () => () => undefined;
+
 export default function ListHeader({
   initialData,
 }: {
@@ -31,7 +33,14 @@ export default function ListHeader({
   const api = useTRPC();
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { data: list, error } = useQuery(
+  // The sidebar can warm these queries before the streamed header hydrates.
+  // Match the server snapshot first, then use the live cache after hydration.
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
+  const { data: cachedList, error } = useQuery(
     api.lists.get.queryOptions(
       {
         listId: initialData.id,
@@ -41,6 +50,7 @@ export default function ListHeader({
       },
     ),
   );
+  const list = hydrated ? cachedList : initialData;
   const {
     data: listsData,
     isPending: listsPending,
@@ -53,18 +63,16 @@ export default function ListHeader({
       placeholderData: keepPreviousData,
     }),
   );
-  const itemCount = statsData?.stats.get(list.id);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-  }, [list.id]);
-  const hierarchyPath = listsData?.getPathById(list.id) ?? [list];
+  const itemCount = hydrated ? statsData?.stats.get(list.id) : undefined;
+  const hierarchyPath = (hydrated
+    ? listsData?.getPathById(list.id)
+    : undefined) ?? [list];
   const children = useMemo(
     () =>
-      (listsData?.data ?? [])
+      (hydrated ? (listsData?.data ?? []) : [])
         .filter((candidate) => candidate.parentId === list.id)
         .sort((a, b) => a.name.localeCompare(b.name, i18n.resolvedLanguage)),
-    [listsData, list, i18n.resolvedLanguage],
+    [hydrated, listsData, list, i18n.resolvedLanguage],
   );
 
   const parsedQuery = useMemo(() => {
@@ -90,11 +98,7 @@ export default function ListHeader({
             {list.icon}
           </span>
           <div className="min-w-0 flex-1">
-            <h1
-              ref={headingRef}
-              tabIndex={-1}
-              className="scroll-mt-20 break-words text-[1.75rem] font-semibold leading-tight [overflow-wrap:anywhere] sm:text-4xl"
-            >
+            <h1 className="scroll-mt-20 break-words text-[1.75rem] font-semibold leading-tight [overflow-wrap:anywhere] sm:text-4xl">
               {list.name}
             </h1>
             {list.description && (
@@ -140,7 +144,7 @@ export default function ListHeader({
           </ListOptions>
         </div>
       </div>
-      {listsError ? (
+      {hydrated && listsError ? (
         <div
           role="status"
           className="flex flex-wrap items-center gap-2 text-sm"
@@ -154,7 +158,7 @@ export default function ListHeader({
             {t("startup.retry")}
           </Button>
         </div>
-      ) : listsPending ? (
+      ) : !hydrated || listsPending ? (
         <p role="status" className="text-sm text-muted-foreground">
           {t("lists.navigation.loading")}
         </p>

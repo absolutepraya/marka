@@ -18,6 +18,28 @@ describe("useBulkActionsStore", () => {
     });
   });
 
+  it("clears only completed dragged selections and preserves selection mode", () => {
+    useBulkActionsStore.setState({
+      isBulkEditEnabled: true,
+      selectedBookmarkIds: ["done", "incomplete", "unrelated"],
+    });
+    const state = useBulkActionsStore.getState();
+    state.completeBookmarkDrag(["done"], state.selectionSession);
+    expect(useBulkActionsStore.getState().selectedBookmarkIds).toEqual([
+      "incomplete",
+      "unrelated",
+    ]);
+    expect(useBulkActionsStore.getState().isBulkEditEnabled).toBe(true);
+  });
+
+  it("does not clear a new selection session when a previous drop finishes", () => {
+    const previousSession = useBulkActionsStore.getState().selectionSession;
+    useBulkActionsStore.getState().setIsBulkEditEnabled(true);
+    useBulkActionsStore.getState().setSelectedBookmarkIds(["a"]);
+    useBulkActionsStore.getState().completeBookmarkDrag(["a"], previousSession);
+    expect(useBulkActionsStore.getState().selectedBookmarkIds).toEqual(["a"]);
+  });
+
   it("toggles bookmark selection", () => {
     useBulkActionsStore.getState().toggleBookmark("a");
     expect(useBulkActionsStore.getState().selectedBookmarkIds).toEqual(["a"]);

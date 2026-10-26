@@ -839,6 +839,34 @@
     "follow_us_on_x": "Follow us on X"
   },
   "lists": {
+    "move": {
+      "title": "Move list to…",
+      "description": "Choose a new parent for “{{name}}” and its nested lists.",
+      "top_level": "Top level",
+      "submit": "Move",
+      "success": "Moved “{{name}}”.",
+      "sharing_warning": "Moving this list can change access inherited from its old or new parent, including access to nested lists. Direct sharing stays in place.",
+      "offline": "Connect to the server to move a list."
+    },
+    "drag": {
+      "handle": "Drag bookmark to a list",
+      "hint": "Drag this handle to a list in the sidebar. You can also add bookmarks to a list from their menu.",
+      "untitled": "Untitled bookmark",
+      "preview_one": "{{count}} bookmark",
+      "preview_other": "{{count}} bookmarks",
+      "offline": "Connect to the server to drag bookmarks.",
+      "busy": "Wait for the current drop to finish.",
+      "not_owned": "Only bookmarks you own can be dragged to another list. Deselect bookmarks owned by someone else and try again.",
+      "moved_one": "Moved {{count}} bookmark to “{{list}}”.",
+      "moved_other": "Moved {{count}} bookmarks to “{{list}}”.",
+      "added_one": "Added {{count}} bookmark to “{{list}}”.",
+      "added_other": "Added {{count}} bookmarks to “{{list}}”.",
+      "added_only_one": "Added {{count}} bookmark to “{{list}}”, but could not remove it from the source list.",
+      "added_only_other": "Added {{count}} bookmarks to “{{list}}”, but could not remove them from the source list.",
+      "failed_one": "Could not add {{count}} bookmark.",
+      "failed_other": "Could not add {{count}} bookmarks.",
+      "retry": "Drag incomplete bookmarks again to retry."
+    },
     "all_lists": "All Lists",
     "favourites": "Favourites",
     "search_placeholder": "Search lists",
@@ -1128,6 +1156,8 @@
     "placeholder": "Paste a link or an image, write a note or drag and drop an image in here…",
     "placeholder_v2": "Paste a link, write a note or drop an image…",
     "capture": {
+      "empty_list_title": "This list is empty.",
+      "empty_list_hint": "Save your first bookmark below.",
       "placeholder": "Paste a link or write a note…",
       "content_label": "Link or note",
       "choose_files": "Choose files",

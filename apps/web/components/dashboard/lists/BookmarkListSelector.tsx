@@ -26,6 +26,7 @@ import { truncateListPath } from "./listPath";
 interface DataProps {
   isPending: boolean;
   allPaths?: ZBookmarkList[][];
+  rootLabel?: string;
 }
 
 interface ListSelectorComponentProps extends DataProps {
@@ -56,6 +57,8 @@ interface MultiSelectionProps {
 }
 
 interface SelectionProps {
+  ownerOnly?: boolean;
+  rootLabel?: string;
   hideSubtreeOf?: string;
   hideBookmarkIds?: string[];
   listTypes?: ZBookmarkList["type"][];
@@ -76,6 +79,7 @@ function ListSelectorComponent({
   allPaths,
   disabled,
   listboxId,
+  rootLabel,
 }: ListSelectorComponentProps) {
   const [searchValue, setSearchValue] = useState("");
   const isMobile = useIsMobile();
@@ -128,6 +132,25 @@ function ListSelectorComponent({
                 : "No lists found."}
             </CommandEmpty>
             <CommandGroup className="max-h-60 overflow-y-auto">
+              {rootLabel &&
+                (!searchValue.trim() ||
+                  rootLabel
+                    .toLowerCase()
+                    .includes(searchValue.trim().toLowerCase())) && (
+                  <CommandItem
+                    value="__library_root__"
+                    onSelect={() => onSelect("")}
+                    className="cursor-pointer"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 size-4",
+                        isItemSelected("") ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {rootLabel}
+                  </CommandItem>
+                )}
               {visiblePaths?.map((path) => {
                 const list = path[path.length - 1];
                 const fullName = listNameFromPath(path);
@@ -168,6 +191,7 @@ function BookmarkListSingleSelector({
   isPending,
   allPaths,
   disabled,
+  rootLabel,
 }: SingleSelectionProps & DataProps) {
   const [open, setOpen] = useState(false);
   const listboxId = useId();
@@ -198,6 +222,7 @@ function BookmarkListSingleSelector({
       allPaths={allPaths}
       disabled={disabled}
       listboxId={listboxId}
+      rootLabel={rootLabel}
     >
       <Button
         variant="outline"
@@ -208,7 +233,7 @@ function BookmarkListSingleSelector({
         disabled={disabled}
       >
         <span className="min-w-0 flex-1 truncate" title={selectedListTitle}>
-          {selectedListName || placeholder}
+          {selectedListName || (!value && rootLabel ? rootLabel : placeholder)}
         </span>
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
@@ -325,6 +350,7 @@ export function BookmarkListSelector(props: BookmarkListSelectorProps) {
   });
   const {
     hideSubtreeOf,
+    ownerOnly = false,
     hideBookmarkIds = [],
     listTypes = ["manual", "smart"],
     allPathsOverride,
@@ -338,6 +364,7 @@ export function BookmarkListSelector(props: BookmarkListSelectorProps) {
     const lastItem = path[path.length - 1];
     if (
       hiddenBookmarkIdSet.has(lastItem.id) ||
+      (ownerOnly && lastItem.userRole !== "owner") ||
       !listTypeSet.has(lastItem.type)
     ) {
       return false;

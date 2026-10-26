@@ -20,6 +20,9 @@ const mocks = vi.hoisted(() => ({
   mobile: false,
   lists: [] as ZBookmarkList[],
 }));
+vi.mock("@/lib/offline-library/provider", () => ({
+  useOfflineLibraryStatus: () => ({ kind: "online" }),
+}));
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard/lists/C" }));
 vi.mock("@tanstack/react-query", () => ({
   keepPreviousData: (data: unknown) => data,
@@ -218,7 +221,7 @@ describe("list switcher", () => {
     expect(screen.getByText("Far away")).toBeTruthy();
     const search = screen.getByRole("searchbox", { name: "Search lists" });
     fireEvent.change(search, { target: { value: "Far away" } });
-    expect(screen.queryByText("E")).toBeNull();
+    expect(screen.getByText("E").getAttribute("title")).toBe("E");
     expect(screen.getByText("Far away")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(screen.getByText("A")).toBeTruthy();

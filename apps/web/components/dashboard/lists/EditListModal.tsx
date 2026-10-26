@@ -331,6 +331,7 @@ export function EditListModal({
                       <div className="flex items-center gap-1">
                         <FormControl>
                           <BookmarkListSelector
+                            ownerOnly
                             // Hide the current list from the list of parents
                             hideSubtreeOf={list ? list.id : undefined}
                             value={field.value}
