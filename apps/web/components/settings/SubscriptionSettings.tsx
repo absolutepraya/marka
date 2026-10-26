@@ -1,5 +1,11 @@
 "use client";
 
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@karakeep/trpc/routers/_app";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/subscription.bones.json";
+import priceBones from "@/components/loading-ui/bones/subscription-price.bones.json";
+
 import { useEffect, useState } from "react";
 import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "@/lib/i18n/client";
@@ -17,9 +23,6 @@ import { SettingsSection } from "./SettingsPage";
 export default function SubscriptionSettings() {
   const api = useTRPC();
   const { t } = useTranslation();
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
-    "monthly",
-  );
   const {
     data: subscriptionStatus,
     refetch,
@@ -75,6 +78,49 @@ export default function SubscriptionSettings() {
     syncStripeState();
   }, []);
 
+  return (
+    <SettingsSection
+      title={t("settings.subscription.subscription")}
+      description={t("settings.subscription.manage_subscription")}
+    >
+      {isQueryLoading ? (
+        <CapturedSkeleton name="subscription" bones={bones} />
+      ) : (
+        <SubscriptionDetails
+          subscriptionStatus={subscriptionStatus}
+          subscriptionPrice={subscriptionPrice}
+          isLoading={isLoading}
+          onCheckout={(billingPeriod) =>
+            createCheckoutSession.mutate({ billingPeriod })
+          }
+          onPortal={() => createPortalSession.mutate()}
+        />
+      )}
+    </SettingsSection>
+  );
+}
+
+export function SubscriptionDetails({
+  subscriptionStatus,
+  subscriptionPrice,
+  isLoading,
+  onCheckout,
+  onPortal,
+}: {
+  subscriptionStatus:
+    | inferRouterOutputs<AppRouter>["subscriptions"]["getSubscriptionStatus"]
+    | undefined;
+  subscriptionPrice:
+    | inferRouterOutputs<AppRouter>["subscriptions"]["getSubscriptionPrice"]
+    | undefined;
+  isLoading: boolean;
+  onCheckout: (period: "monthly" | "yearly") => void;
+  onPortal: () => void;
+}) {
+  const { t } = useTranslation();
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
   const hasYearlyPricing = !!subscriptionPrice?.yearly;
 
   const currentPrice =
@@ -107,203 +153,191 @@ export default function SubscriptionSettings() {
     }
   };
 
-  const formatPrice = (amount: number | null, currency: string) => {
-    if (amount === null) return null;
-    return `${amount / 100} ${currency.toUpperCase()}`;
-  };
-
   return (
-    <SettingsSection
-      title={t("settings.subscription.subscription")}
-      description={t("settings.subscription.manage_subscription")}
-    >
-      {isQueryLoading ? (
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-5 w-16" />
-                <Skeleton className="h-5 w-12" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-40" />
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-24" />
-                  <Skeleton className="h-4 w-64" />
-                  <Skeleton className="h-6 w-20" />
-                </div>
-                <Skeleton className="h-10 w-32" />
-              </div>
-            </div>
+    <>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">
+            {t("settings.subscription.current_plan")}
+          </label>
+          <div className="flex items-center gap-2">
+            {subscriptionStatus?.tier &&
+              getStatusBadge(subscriptionStatus.tier)}
           </div>
         </div>
-      ) : (
-        <>
-          <div className="grid gap-4 md:grid-cols-2">
+
+        {subscriptionStatus?.hasActiveSubscription && (
+          <>
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                {t("settings.subscription.current_plan")}
+                {t("settings.subscription.billing_period")}
               </label>
-              <div className="flex items-center gap-2">
-                {subscriptionStatus?.tier &&
-                  getStatusBadge(subscriptionStatus.tier)}
+              <div className="text-sm text-muted-foreground">
+                {formatDate(subscriptionStatus.startDate)} -{" "}
+                {formatDate(subscriptionStatus.endDate)}
               </div>
             </div>
+          </>
+        )}
+      </div>
 
-            {subscriptionStatus?.hasActiveSubscription && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {t("settings.subscription.billing_period")}
-                  </label>
-                  <div className="text-sm text-muted-foreground">
-                    {formatDate(subscriptionStatus.startDate)} -{" "}
-                    {formatDate(subscriptionStatus.endDate)}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
+      <div className="space-y-4">
+        {!subscriptionStatus?.hasActiveSubscription ? (
           <div className="space-y-4">
-            {!subscriptionStatus?.hasActiveSubscription ? (
-              <div className="space-y-4">
-                <div className="rounded-lg border p-4">
-                  <h3 className="font-semibold">
-                    {t("settings.subscription.paid_plan")}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t("settings.subscription.unlock_bigger_quota")}
-                  </p>
+            <div className="rounded-lg border p-4">
+              <h3 className="font-semibold">
+                {t("settings.subscription.paid_plan")}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("settings.subscription.unlock_bigger_quota")}
+              </p>
 
-                  <ul className="mt-4 space-y-1.5">
-                    {(
-                      ["pro_feature_bookmarks", "pro_feature_storage"] as const
-                    ).map((key) => (
-                      <li key={key} className="flex items-center text-sm">
-                        <Check className="mr-2 h-4 w-4 shrink-0 text-green-500" />
-                        {t(`settings.subscription.${key}`)}
-                      </li>
-                    ))}
-                  </ul>
+              <ul className="mt-4 space-y-1.5">
+                {(
+                  ["pro_feature_bookmarks", "pro_feature_storage"] as const
+                ).map((key) => (
+                  <li key={key} className="flex items-center text-sm">
+                    <Check className="mr-2 h-4 w-4 shrink-0 text-green-500" />
+                    {t(`settings.subscription.${key}`)}
+                  </li>
+                ))}
+              </ul>
 
-                  <div className="mt-4 flex items-end justify-between border-t pt-4">
-                    <div>
-                      {hasYearlyPricing && (
-                        <div className="mb-2 inline-flex items-center rounded-lg bg-muted p-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={
-                              billingPeriod === "monthly" ? "outline" : "ghost"
-                            }
-                            aria-pressed={billingPeriod === "monthly"}
-                            onClick={() => setBillingPeriod("monthly")}
-                          >
-                            {t("settings.subscription.monthly")}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={
-                              billingPeriod === "yearly" ? "outline" : "ghost"
-                            }
-                            aria-pressed={billingPeriod === "yearly"}
-                            onClick={() => setBillingPeriod("yearly")}
-                          >
-                            {t("settings.subscription.yearly")}
-                            {subscriptionPrice?.monthly?.amount &&
-                              subscriptionPrice?.yearly?.amount && (
-                                <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                                  {t("settings.subscription.yearly_savings", {
-                                    percent: Math.round(
-                                      (1 -
-                                        subscriptionPrice.yearly.amount /
-                                          (subscriptionPrice.monthly.amount *
-                                            12)) *
-                                        100,
-                                    ),
-                                  })}
-                                </span>
-                              )}
-                          </Button>
-                        </div>
-                      )}
-                      {currentPrice && currentPrice.amount ? (
-                        <span className="flex items-baseline gap-2">
-                          <span className="text-2xl font-bold">
-                            {formatPrice(
-                              currentPrice.amount,
-                              currentPrice.currency,
-                            )}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            /
-                            {billingPeriod === "yearly"
-                              ? t("settings.subscription.per_year")
-                              : t("settings.subscription.per_month")}
-                          </span>
-                          <span className="text-xs italic text-muted-foreground">
-                            ({t("settings.subscription.excl_vat")})
-                          </span>
-                        </span>
-                      ) : (
-                        <Skeleton className="h-6 w-24" />
-                      )}
+              <div className="mt-4 flex flex-col items-start gap-4 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  {hasYearlyPricing && (
+                    <div className="mb-2 inline-flex items-center rounded-lg bg-muted p-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          billingPeriod === "monthly" ? "outline" : "ghost"
+                        }
+                        aria-pressed={billingPeriod === "monthly"}
+                        onClick={() => setBillingPeriod("monthly")}
+                      >
+                        {t("settings.subscription.monthly")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          billingPeriod === "yearly" ? "outline" : "ghost"
+                        }
+                        aria-pressed={billingPeriod === "yearly"}
+                        onClick={() => setBillingPeriod("yearly")}
+                      >
+                        {t("settings.subscription.yearly")}
+                        {subscriptionPrice?.monthly?.amount &&
+                          subscriptionPrice?.yearly?.amount && (
+                            <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                              {t("settings.subscription.yearly_savings", {
+                                percent: Math.round(
+                                  (1 -
+                                    subscriptionPrice.yearly.amount /
+                                      (subscriptionPrice.monthly.amount * 12)) *
+                                    100,
+                                ),
+                              })}
+                            </span>
+                          )}
+                      </Button>
                     </div>
-                    <Button
-                      onClick={() =>
-                        createCheckoutSession.mutate({ billingPeriod })
-                      }
-                      disabled={isLoading}
-                      size="lg"
-                      className="ease-(--ease-out) shadow-md transition-[transform,box-shadow] duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
-                    >
-                      {isLoading && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      {t("settings.subscription.subscribe_now")}
-                    </Button>
-                  </div>
+                  )}
+                  {currentPrice && currentPrice.amount ? (
+                    <SubscriptionPrice
+                      amount={currentPrice.amount}
+                      currency={currentPrice.currency}
+                      billingPeriod={billingPeriod}
+                    />
+                  ) : (
+                    <CapturedSkeleton
+                      name="subscription-price"
+                      bones={priceBones}
+                      fallback={<Skeleton className="h-6 w-24" />}
+                      className="w-24"
+                    />
+                  )}
                 </div>
+                <Button
+                  onClick={() => onCheckout(billingPeriod)}
+                  disabled={isLoading}
+                  size="lg"
+                  className="ease-(--ease-out) shadow-md transition-[transform,box-shadow] duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+                >
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {t("settings.subscription.subscribe_now")}
+                </Button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => createPortalSession.mutate()}
-                    disabled={isLoading}
-                    variant="outline"
-                  >
-                    {isLoading && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    {t("settings.subscription.manage_billing")}
-                  </Button>
-                </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                onClick={() => onPortal()}
+                disabled={isLoading}
+                variant="outline"
+              >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("settings.subscription.manage_billing")}
+              </Button>
+            </div>
 
-                {subscriptionStatus.cancelAtPeriodEnd && (
-                  <Alert>
-                    <AlertDescription>
-                      {t("settings.subscription.subscription_canceled", {
-                        date: formatDate(subscriptionStatus.endDate),
-                      })}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
+            {subscriptionStatus.cancelAtPeriodEnd && (
+              <Alert>
+                <AlertDescription>
+                  {t("settings.subscription.subscription_canceled", {
+                    date: formatDate(subscriptionStatus.endDate),
+                  })}
+                </AlertDescription>
+              </Alert>
             )}
           </div>
-        </>
-      )}
-    </SettingsSection>
+        )}
+      </div>
+    </>
+  );
+}
+
+export function SubscriptionPrice({
+  amount,
+  currency,
+  billingPeriod,
+}: {
+  amount: number;
+  currency: string;
+  billingPeriod: "monthly" | "yearly";
+}) {
+  const { t } = useTranslation();
+  return (
+    <span className="flex flex-wrap items-baseline gap-2">
+      <SubscriptionPriceAmount amount={amount} currency={currency} />
+      <span className="text-sm text-muted-foreground">
+        /
+        {billingPeriod === "yearly"
+          ? t("settings.subscription.per_year")
+          : t("settings.subscription.per_month")}
+      </span>
+      <span className="text-xs italic text-muted-foreground">
+        ({t("settings.subscription.excl_vat")})
+      </span>
+    </span>
+  );
+}
+
+export function SubscriptionPriceAmount({
+  amount,
+  currency,
+}: {
+  amount: number;
+  currency: string;
+}) {
+  return (
+    <span className="text-2xl font-bold">
+      {amount / 100} {currency.toUpperCase()}
+    </span>
   );
 }

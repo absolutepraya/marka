@@ -1,5 +1,10 @@
 "use client";
 
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@karakeep/trpc/routers/_app";
+
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/quota.bones.json";
 import { useTranslation } from "@/lib/i18n/client";
 import { useQuery } from "@tanstack/react-query";
 import { Database, HardDrive } from "lucide-react";
@@ -113,40 +118,25 @@ function QuotaProgressItem({
 
 export function QuotaProgress() {
   const api = useTRPC();
-  const { t } = useTranslation();
   const { data: quotaUsage, isLoading } = useQuery(
     api.subscriptions.getQuotaUsage.queryOptions(),
   );
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.subscription.usage_quotas")}</CardTitle>
-          <CardDescription>
-            {t("settings.subscription.loading_usage")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="animate-pulse space-y-2">
-              <div className="h-4 w-1/3 rounded bg-muted"></div>
-              <div className="h-2 rounded bg-muted"></div>
-            </div>
-            <div className="animate-pulse space-y-2">
-              <div className="h-4 w-1/3 rounded bg-muted"></div>
-              <div className="h-2 rounded bg-muted"></div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (isLoading) return <CapturedSkeleton name="quota" bones={bones} />;
 
   if (!quotaUsage) {
     return null;
   }
 
+  return <QuotaContent quotaUsage={quotaUsage} />;
+}
+
+export function QuotaContent({
+  quotaUsage,
+}: {
+  quotaUsage: inferRouterOutputs<AppRouter>["subscriptions"]["getQuotaUsage"];
+}) {
+  const { t } = useTranslation();
   return (
     <Card>
       <CardHeader>

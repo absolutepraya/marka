@@ -1,20 +1,16 @@
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { localCaptureUrl, writeBonesAtomically } from "./skeleton-capture.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const web = join(root, "apps/web");
 const require = createRequire(join(web, "package.json"));
-const url = new URL(process.argv[2] ?? "http://localhost:3000");
-if (
-  url.protocol !== "http:" ||
-  !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
-) {
-  throw new Error("Use a local development server URL for fixture capture.");
-}
+const url = localCaptureUrl(process.argv[2]);
 const widths = [112, 144, 176, 208, 256, 320, 400, 560, 800, 1100, 1360];
 const layouts = ["masonry", "grid", "list", "compact"];
 const output = await mkdtemp(join(tmpdir(), "marka-bookmark-skeletons-"));
@@ -71,9 +67,9 @@ try {
       }
     }
   }
-  await writeFile(
+  await writeBonesAtomically(
     join(web, "components/dashboard/bookmarks/bones/bookmark-cards.bones.json"),
-    `${JSON.stringify(captures, null, 2)}\n`,
+    captures,
   );
   console.log("Updated bookmark skeletons from real card fixtures.");
 } finally {

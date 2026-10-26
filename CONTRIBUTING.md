@@ -105,8 +105,8 @@ The renderer exports through Excalidraw itself so the committed SVG and PNG reta
 
 ### UI / UX changes
 
-For bookmark cards and the admin statistics card, regenerate their Boneyard
-skeletons after layout changes. See [generated loading skeletons](docs/skeleton-loading.md)
+For content loading placeholders, regenerate their Boneyard captures after
+layout changes. See [generated loading skeletons](docs/skeleton-loading.md)
 for the fixtures, capture commands, and verification steps.
 
 - Include screenshots or a short screen recording.

@@ -1,7 +1,7 @@
 # Generated loading skeletons
 
-Marka uses `boneyard-js@1.10.0` for bookmark dashboard cards and the admin overview's
-statistics. Both use synthetic fixtures and commit their generated geometry, so
+Marka uses `boneyard-js@1.10.0` for content loading placeholders throughout the
+web app. These use synthetic fixtures and commit their generated geometry, so
 normal builds and production requests never perform browser capture.
 
 ## Bookmark dashboard
@@ -106,3 +106,43 @@ These local dashboard previews use synthetic data.
 - [Mobile masonry, 390px](pr-assets/boneyard/dashboard-masonry-mobile.png)
 - [Mobile list, 390px](pr-assets/boneyard/dashboard-list-mobile.png)
 - [Desktop compact, 1440px](pr-assets/boneyard/dashboard-compact-desktop.png)
+- [Mobile service connections, 390px](pr-assets/boneyard/service-connections-mobile.png)
+- [Desktop background jobs, 1440px](pr-assets/boneyard/background-jobs-desktop.png)
+
+## Other content surfaces
+
+`pnpm skeletons:surfaces http://localhost:3000` captures the remaining content
+placeholders: admin users, invitations, service connections and background jobs;
+personal usage statistics; subscription details, inline pricing and quota usage;
+the lists index; tag groups; and bookmark tags. The command produces 99 samples
+across eleven surfaces and the same nine viewport breakpoints as admin statistics.
+Replace the port with the current workspace's web port.
+
+The development-only `/dev/boneyard/surfaces` gallery shows these placeholders.
+Use `?state=loaded` to compare synthetic loaded content, `?surface=admin-users`
+(or another capture name) to inspect one surface, and `?capture=1` for generation.
+The gallery reuses data-free presentation components and inert synthetic actions;
+it does not mount admin queries, subscription synchronization, or checkout.
+The app shell may still perform its normal session and offline-library reads.
+
+`CapturedSkeleton` measures its content container, keeps mobile and desktop
+styles separate, and selects the nearest captured content width. It reserves
+the generated height and remounts Boneyard when the selected geometry changes.
+Captured panel outlines retain the app's card and border tokens. A translated
+status announces each loading region; geometry stays hidden from assistive
+technology. The server retains a visible CSS fallback, and animation follows
+the existing reduced-motion rules. Each consumer imports only its own capture.
+
+Action spinners, import progress, media preparation, and page-level startup
+indicators retain their existing behavior. Cached content, background refresh,
+and pagination decisions remain owned by the existing query components.
+
+All three capture commands validate their complete output before replacing
+tracked JSON. Each replacement uses a temporary file in the destination
+filesystem and an atomic rename, so a watcher cannot read a partially written
+capture. Commit generated geometry with changes to its source layout.
+
+```bash
+node --test scripts/skeleton-capture.test.mjs
+pnpm --filter @karakeep/web exec vitest run components/loading-ui/CapturedSkeleton.test.tsx components/loading-ui/surfaceGeometry.test.ts components/settings/SubscriptionSettings.test.tsx components/dashboard/tags/TagPill.test.tsx app/dev/boneyard/surfaces/SurfaceFixtures.test.tsx
+```

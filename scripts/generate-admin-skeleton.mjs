@@ -1,20 +1,16 @@
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { localCaptureUrl, writeBonesAtomically } from "./skeleton-capture.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const web = join(root, "apps/web");
 const require = createRequire(join(web, "package.json"));
-const baseUrl = new URL(process.argv[2] ?? "http://localhost:3000");
-if (
-  baseUrl.protocol !== "http:" ||
-  !["localhost", "127.0.0.1", "[::1]"].includes(baseUrl.hostname)
-) {
-  throw new Error("Use a local development server URL for fixture capture.");
-}
+const baseUrl = localCaptureUrl(process.argv[2]);
 const breakpoints = [320, 390, 640, 768, 1023, 1024, 1280, 1440, 1920];
 const output = await mkdtemp(join(tmpdir(), "marka-admin-skeleton-"));
 
@@ -59,9 +55,9 @@ try {
     }
   }
   // Import the JSON directly: no side-effect registry is needed for one view.
-  await writeFile(
+  await writeBonesAtomically(
     join(web, "components/admin/bones/admin-stats.bones.json"),
-    `${JSON.stringify(bones, null, 2)}\n`,
+    bones,
   );
   console.log("Updated admin statistics skeleton from the local fixture.");
 } finally {

@@ -48,7 +48,8 @@
     "doctor:staged": "node scripts/run-react-doctor-staged.mjs",
     "doctor:ci": "react-doctor --project @karakeep/web,@karakeep/browser-extension,@karakeep/mobile,@karakeep/landing,@karakeep/shared-react --scope full --blocking none --json | node scripts/check-react-doctor-score.mjs 99",
     "skeletons:generate": "node scripts/generate-admin-skeleton.mjs",
-    "skeletons:bookmarks": "node scripts/generate-bookmark-skeletons.mjs"
+    "skeletons:bookmarks": "node scripts/generate-bookmark-skeletons.mjs",
+    "skeletons:surfaces": "node scripts/generate-surface-skeletons.mjs"
   },
   "dependencies": {
     "husky": "^9.0.11"
