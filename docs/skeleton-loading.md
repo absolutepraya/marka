@@ -119,7 +119,8 @@ personal usage statistics; subscription details, inline pricing and quota usage;
 the lists index; tag groups; bookmark tags; RSS feeds, webhooks, backups, assets
 and broken links; automation rules and custom AI prompts; import history,
 session details and filtered results; and highlight search results and reader
-highlight cards. The command produces 207 samples across 23 surfaces and the
+highlight cards; bookmark list membership, list collaborators, and shared-content
+editors. The command produces 234 samples across 26 surfaces and the
 same nine viewport breakpoints as admin statistics.
 Replace the port with the current workspace's web port.
 
@@ -154,8 +155,13 @@ The highlights route streams its data below a visible heading and search frame,
 using the same captured rows as the Suspense fallback.
 
 Settings captures mirror the centered `max-w-4xl` column and the inner section
-padding. Rules and prompt rows wrap at narrow widths. Native mobile, sharing
-dialogs, and variable article/preview bodies are separate follow-up scopes.
+padding. Rules and prompt rows wrap at narrow widths. Dialog captures use their
+actual mobile sheet widths, desktop maximum widths, borders, and inner padding.
+Only their data-dependent bodies become skeletons; headings, invitation/grant
+forms, and footers stay visible. List membership keeps its offline cache and
+queued mutations. Collaborator roles, inheritance, expired invitations, removal
+confirmation, and content-editor access remain owned by the existing controllers.
+Native mobile and variable article/preview bodies are separate follow-up scopes.
 
 All three capture commands validate their complete output before replacing
 tracked JSON. Each replacement uses a temporary file in the destination
@@ -164,5 +170,5 @@ capture. Commit generated geometry with changes to its source layout.
 
 ```bash
 node --test scripts/skeleton-capture.test.mjs
-pnpm --filter @karakeep/web exec vitest run components/loading-ui/CapturedSkeleton.test.tsx components/loading-ui/surfaceGeometry.test.ts components/settings/SubscriptionSettings.test.tsx components/dashboard/tags/TagPill.test.tsx app/dev/boneyard/surfaces/SurfaceFixtures.test.tsx
+pnpm --filter @karakeep/web exec vitest run components/loading-ui/CapturedSkeleton.test.tsx components/loading-ui/DialogSkeletons.test.tsx components/loading-ui/surfaceGeometry.test.ts components/settings/SubscriptionSettings.test.tsx components/dashboard/tags/TagPill.test.tsx app/dev/boneyard/surfaces/SurfaceFixtures.test.tsx
 ```

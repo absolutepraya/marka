@@ -34,6 +34,9 @@ const names = [
   "import-results",
   "highlights",
   "highlight-cards",
+  "manage-lists",
+  "collaborators",
+  "content-editors",
 ];
 const breakpoints = [320, 390, 640, 768, 1023, 1024, 1280, 1440, 1920];
 const output = await mkdtemp(join(tmpdir(), "marka-surface-skeletons-"));

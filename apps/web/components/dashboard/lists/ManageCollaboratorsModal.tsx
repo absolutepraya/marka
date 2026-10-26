@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import collaboratorsBones from "@/components/loading-ui/bones/collaborators.bones.json";
+import { CollaboratorsContent } from "./CollaboratorsContent";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,25 +25,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
-import { UserAvatar } from "@/components/ui/user-avatar";
 import { useTranslation } from "@/lib/i18n/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Clock3,
-  Loader2,
-  RefreshCw,
-  Trash2,
-  UserPlus,
-  Users,
-} from "lucide-react";
+import { Loader2, RefreshCw, Trash2, UserPlus, Users } from "lucide-react";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
 import { ZBookmarkList } from "@karakeep/shared/types/lists";
 
-import {
-  canManageCollaboratorOnList,
-  formatInvitationDate,
-} from "./collaborationUi";
+import { canManageCollaboratorOnList } from "./collaborationUi";
 
 export function ManageCollaboratorsModal({
   open: userOpen,
@@ -269,274 +260,180 @@ export function ManageCollaboratorsModal({
           <div className="space-y-3">
             <Label>{t("lists.collaborators.current")}</Label>
             {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="size-6 animate-spin" />
-              </div>
+              <CapturedSkeleton
+                name="collaborators"
+                bones={collaboratorsBones}
+              />
             ) : (
-              <div className="space-y-2">
-                {data?.owner && (
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <UserAvatar
-                        name={data.owner.name}
-                        image={data.owner.image}
-                        className="size-10"
-                      />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">
-                          {data.owner.name}
-                        </div>
-                        {data.owner.email && (
-                          <div className="truncate text-sm text-muted-foreground">
-                            {data.owner.email}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {t("lists.collaborators.owner")}
-                    </span>
-                  </div>
-                )}
-
-                {visibleCollaborators.map((collaborator) => {
+              <CollaboratorsContent
+                owner={data?.owner}
+                collaborators={visibleCollaborators}
+                renderActions={(collaborator) => {
                   const pending = collaborator.status === "pending";
                   const expired = pending && collaborator.expired;
                   const manageable = canManageCollaboratorOnList(collaborator);
-                  return (
-                    <div
-                      key={collaborator.id}
-                      className="rounded-lg border p-3"
-                    >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <UserAvatar
-                            name={collaborator.user.name}
-                            image={
-                              collaborator.status === "accepted"
-                                ? collaborator.user.image
-                                : null
-                            }
-                            className="size-10"
-                          />
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="truncate font-medium">
-                                {collaborator.user.name}
-                              </span>
-                              {pending && (
-                                <Badge
-                                  variant={expired ? "destructive" : "outline"}
-                                >
-                                  {expired
-                                    ? t("lists.collaboration.expired")
-                                    : t("lists.collaborators.pending")}
-                                </Badge>
-                              )}
-                              {collaborator.inherited && (
-                                <Badge variant="secondary">
-                                  {t("lists.collaboration.inherited")}
-                                </Badge>
-                              )}
-                              {collaborator.recursive && (
-                                <Badge variant="outline">
-                                  {t("lists.collaboration.nested_lists")}
-                                </Badge>
-                              )}
-                            </div>
-                            {collaborator.user.email && (
-                              <div className="truncate text-sm text-muted-foreground">
-                                {collaborator.user.email}
-                              </div>
-                            )}
-                            {collaborator.inherited &&
-                              collaborator.sourceListName && (
-                                <div className="text-xs text-muted-foreground">
-                                  {t("lists.collaboration.inherited_from", {
-                                    name: collaborator.sourceListName,
-                                  })}
-                                </div>
-                              )}
-                            {pending && collaborator.expiresAt && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Clock3 className="size-3" />
-                                {expired
-                                  ? t("lists.collaboration.expired")
-                                  : t("lists.collaboration.expires")}{" "}
-                                {formatInvitationDate(collaborator.expiresAt)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {readOnly || collaborator.inherited ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">
-                              {roleLabel(collaborator.role)}
-                            </span>
-                            {!readOnly &&
-                              collaborator.inherited &&
-                              collaborator.user.email && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEmail(collaborator.user.email ?? "");
-                                    setRole(collaborator.role);
-                                    setRecursive(false);
-                                  }}
-                                >
-                                  {t("lists.collaboration.override_here")}
-                                </Button>
-                              )}
-                          </div>
-                        ) : pending ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Select
-                              value={collaborator.role}
-                              disabled={expired}
-                              onValueChange={(value) =>
-                                updateInvitation.mutate({
-                                  invitationId: collaborator.id,
-                                  role: value as "viewer" | "editor",
-                                  recursive: collaborator.recursive,
-                                })
-                              }
-                            >
-                              <SelectTrigger
-                                className="w-28"
-                                aria-label={t(
-                                  "lists.collaboration.pending_invitation_role",
-                                )}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="viewer">
-                                  {t("lists.collaborators.viewer")}
-                                </SelectItem>
-                                <SelectItem value="editor">
-                                  {t("lists.collaborators.editor")}
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <label className="flex items-center gap-2 text-xs">
-                              <input
-                                type="checkbox"
-                                checked={collaborator.recursive}
-                                disabled={expired}
-                                onChange={(event) =>
-                                  updateInvitation.mutate({
-                                    invitationId: collaborator.id,
-                                    role: collaborator.role,
-                                    recursive: event.target.checked,
-                                  })
-                                }
-                              />
-                              {t("lists.collaboration.nested_lists")}
-                            </label>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                resendInvitation.mutate({
-                                  invitationId: collaborator.id,
-                                })
-                              }
-                            >
-                              <RefreshCw className="mr-1 size-3" />
-                              {t("lists.collaboration.resend")}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                revokeInvitation.mutate({
-                                  invitationId: collaborator.id,
-                                })
-                              }
-                            >
-                              {t("lists.collaborators.revoke")}
-                            </Button>
-                          </div>
-                        ) : manageable ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Select
-                              value={collaborator.role}
-                              onValueChange={(value) =>
-                                updateCollaborator.mutate({
-                                  listId: list.id,
-                                  userId: collaborator.userId,
-                                  role: value as "viewer" | "editor",
-                                  recursive: collaborator.recursive,
-                                })
-                              }
-                            >
-                              <SelectTrigger
-                                className="w-28"
-                                aria-label={t(
-                                  "lists.collaboration.collaborator_role",
-                                )}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="viewer">
-                                  {t("lists.collaborators.viewer")}
-                                </SelectItem>
-                                <SelectItem value="editor">
-                                  {t("lists.collaborators.editor")}
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <label className="flex items-center gap-2 text-xs">
-                              <input
-                                type="checkbox"
-                                checked={collaborator.recursive}
-                                onChange={(event) =>
-                                  updateCollaborator.mutate({
-                                    listId: list.id,
-                                    userId: collaborator.userId,
-                                    role: collaborator.role,
-                                    recursive: event.target.checked,
-                                  })
-                                }
-                              />
-                              {t("lists.collaboration.nested_lists")}
-                            </label>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              aria-label={t("lists.collaboration.remove_aria", {
-                                name: collaborator.user.name,
-                              })}
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    t(
-                                      "lists.collaboration.remove_confirmation",
-                                      {
-                                        name: collaborator.user.name,
-                                      },
-                                    ),
-                                  )
-                                ) {
-                                  removeCollaborator.mutate({
-                                    listId: list.id,
-                                    userId: collaborator.userId,
-                                  });
-                                }
-                              }}
-                            >
-                              <Trash2 className="size-4 text-destructive" />
-                            </Button>
-                          </div>
-                        ) : null}
-                      </div>
+                  return readOnly || collaborator.inherited ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {roleLabel(collaborator.role)}
+                      </span>
+                      {!readOnly &&
+                        collaborator.inherited &&
+                        collaborator.user.email && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEmail(collaborator.user.email ?? "");
+                              setRole(collaborator.role);
+                              setRecursive(false);
+                            }}
+                          >
+                            {t("lists.collaboration.override_here")}
+                          </Button>
+                        )}
                     </div>
-                  );
-                })}
-              </div>
+                  ) : pending ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select
+                        value={collaborator.role}
+                        disabled={expired}
+                        onValueChange={(value) =>
+                          updateInvitation.mutate({
+                            invitationId: collaborator.id,
+                            role: value as "viewer" | "editor",
+                            recursive: collaborator.recursive,
+                          })
+                        }
+                      >
+                        <SelectTrigger
+                          className="w-28"
+                          aria-label={t(
+                            "lists.collaboration.pending_invitation_role",
+                          )}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="viewer">
+                            {t("lists.collaborators.viewer")}
+                          </SelectItem>
+                          <SelectItem value="editor">
+                            {t("lists.collaborators.editor")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={collaborator.recursive}
+                          disabled={expired}
+                          onChange={(event) =>
+                            updateInvitation.mutate({
+                              invitationId: collaborator.id,
+                              role: collaborator.role,
+                              recursive: event.target.checked,
+                            })
+                          }
+                        />
+                        {t("lists.collaboration.nested_lists")}
+                      </label>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          resendInvitation.mutate({
+                            invitationId: collaborator.id,
+                          })
+                        }
+                      >
+                        <RefreshCw className="mr-1 size-3" />
+                        {t("lists.collaboration.resend")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          revokeInvitation.mutate({
+                            invitationId: collaborator.id,
+                          })
+                        }
+                      >
+                        {t("lists.collaborators.revoke")}
+                      </Button>
+                    </div>
+                  ) : manageable ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select
+                        value={collaborator.role}
+                        onValueChange={(value) =>
+                          updateCollaborator.mutate({
+                            listId: list.id,
+                            userId: collaborator.userId,
+                            role: value as "viewer" | "editor",
+                            recursive: collaborator.recursive,
+                          })
+                        }
+                      >
+                        <SelectTrigger
+                          className="w-28"
+                          aria-label={t(
+                            "lists.collaboration.collaborator_role",
+                          )}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="viewer">
+                            {t("lists.collaborators.viewer")}
+                          </SelectItem>
+                          <SelectItem value="editor">
+                            {t("lists.collaborators.editor")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={collaborator.recursive}
+                          onChange={(event) =>
+                            updateCollaborator.mutate({
+                              listId: list.id,
+                              userId: collaborator.userId,
+                              role: collaborator.role,
+                              recursive: event.target.checked,
+                            })
+                          }
+                        />
+                        {t("lists.collaboration.nested_lists")}
+                      </label>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t("lists.collaboration.remove_aria", {
+                          name: collaborator.user.name,
+                        })}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              t("lists.collaboration.remove_confirmation", {
+                                name: collaborator.user.name,
+                              }),
+                            )
+                          ) {
+                            removeCollaborator.mutate({
+                              listId: list.id,
+                              userId: collaborator.userId,
+                            });
+                          }
+                        }}
+                      >
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ) : null;
+                }}
+              />
             )}
           </div>
         </div>

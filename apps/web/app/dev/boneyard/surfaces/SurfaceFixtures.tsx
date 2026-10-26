@@ -1,4 +1,5 @@
 "use client";
+import { dialogSurfaceNames, DialogFixture } from "./DialogFixtures";
 import { highPriorityNames, HighPriorityFixture } from "./HighPriorityFixtures";
 
 import { UsersContent } from "@/components/admin/UserList";
@@ -94,12 +95,17 @@ export const surfaceNames = [
   "tags",
   "bookmark-tags",
   ...highPriorityNames,
+  ...dialogSurfaceNames,
 ] as const;
 export type SurfaceName = (typeof surfaceNames)[number];
 
 /** Only data-free presentation components, never live query/mutation controllers. */
 export function SurfaceFixture({ name }: { name: SurfaceName }) {
   switch (name) {
+    case "manage-lists":
+    case "collaborators":
+    case "content-editors":
+      return <DialogFixture name={name} />;
     case "admin-users":
       return (
         <UsersContent

@@ -29,7 +29,14 @@ import high9 from "@/components/loading-ui/bones/import-results.bones.json";
 import high10 from "@/components/loading-ui/bones/highlights.bones.json";
 import high11 from "@/components/loading-ui/bones/highlight-cards.bones.json";
 
+import manageLists from "@/components/loading-ui/bones/manage-lists.bones.json";
+import collaborators from "@/components/loading-ui/bones/collaborators.bones.json";
+import contentEditors from "@/components/loading-ui/bones/content-editors.bones.json";
+
 const captures = {
+  "manage-lists": manageLists,
+  collaborators,
+  "content-editors": contentEditors,
   "admin-users": adminUsers,
   "admin-invites": adminInvites,
   "admin-connections": adminConnections,
@@ -56,6 +63,9 @@ const captures = {
 };
 
 const titles: Record<SurfaceName, string> = {
+  "manage-lists": "Manage lists",
+  collaborators: "List collaborators",
+  "content-editors": "Content editors",
   "admin-users": "Users",
   "admin-invites": "Invitations",
   "admin-connections": "Service connections",
@@ -100,16 +110,22 @@ export default function SurfacePreview({
           key={name}
           data-preview-surface={name}
           className={
-            name === "subscription-price"
-              ? "w-24"
-              : name === "highlight-cards"
-                ? "mx-auto w-full sm:w-72"
-                : name.startsWith("admin-") ||
-                    name === "lists" ||
-                    name === "tags" ||
-                    name === "highlights"
-                  ? "mx-auto w-full max-w-7xl"
-                  : "mx-auto w-full max-w-4xl"
+            name === "manage-lists"
+              ? `mx-auto w-[100vw] max-sm:-ml-4 sm:max-w-md ${capture ? "sm:w-[calc(100vw-2rem)]" : "sm:w-full"}`
+              : name === "collaborators"
+                ? `mx-auto w-[100vw] max-sm:-ml-4 sm:max-w-2xl ${capture ? "sm:w-[calc(100vw-2rem)]" : "sm:w-full"}`
+                : name === "content-editors"
+                  ? `mx-auto w-[100vw] max-sm:-ml-4 sm:max-w-xl ${capture ? "sm:w-[calc(100vw-2rem)]" : "sm:w-full"}`
+                  : name === "subscription-price"
+                    ? "w-24"
+                    : name === "highlight-cards"
+                      ? "mx-auto w-full sm:w-72"
+                      : name.startsWith("admin-") ||
+                          name === "lists" ||
+                          name === "tags" ||
+                          name === "highlights"
+                        ? "mx-auto w-full max-w-7xl"
+                        : "mx-auto w-full max-w-4xl"
           }
         >
           {!capture && (
@@ -119,21 +135,25 @@ export default function SurfacePreview({
           )}
           <div
             className={
-              name === "subscription"
-                ? "p-5"
-                : name === "highlights"
-                  ? "rounded-xl border bg-card p-4 sm:p-5"
-                  : [
-                        "feeds",
-                        "webhooks",
-                        "backups",
-                        "rules",
-                        "ai-prompts",
-                        "import-sessions",
-                        "import-results",
-                      ].includes(name)
-                    ? "border border-transparent px-5 py-4"
-                    : undefined
+              name === "manage-lists"
+                ? "border-transparent bg-card sm:border"
+                : name === "collaborators" || name === "content-editors"
+                  ? "border-transparent bg-card p-5 sm:border sm:p-6"
+                  : name === "subscription"
+                    ? "p-5"
+                    : name === "highlights"
+                      ? "rounded-xl border bg-card p-4 sm:p-5"
+                      : [
+                            "feeds",
+                            "webhooks",
+                            "backups",
+                            "rules",
+                            "ai-prompts",
+                            "import-sessions",
+                            "import-results",
+                          ].includes(name)
+                        ? "border border-transparent px-5 py-4"
+                        : undefined
             }
           >
             {capture ? (
