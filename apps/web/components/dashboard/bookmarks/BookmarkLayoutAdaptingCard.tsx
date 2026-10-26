@@ -2,10 +2,8 @@
 
 import type { BookmarksLayoutTypes } from "@/lib/userLocalSettings/types";
 import type { ReactNode } from "react";
-import { useCallback } from "react";
 import Link from "next/link";
 import { useSession } from "@/lib/auth/client";
-import { setBookmarkDragData } from "@/lib/bookmark-drag";
 import useBulkActionsStore from "@/lib/bulkActions";
 import {
   bookmarkLayoutSwitch,
@@ -17,7 +15,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Check,
   AudioLines,
-  GripVertical,
   Image as ImageIcon,
   NotebookPen,
   Video,
@@ -35,6 +32,7 @@ import {
 import { switchCase } from "@karakeep/shared/utils/switch";
 
 import BookmarkActionBar from "./BookmarkActionBar";
+import { BookmarkDragHandle } from "./BookmarkDragHandle";
 import { canSelectBookmarkForBulkActions } from "./bookmarkListPermissions";
 import BookmarkFormattedCreatedAt from "./BookmarkFormattedCreatedAt";
 import BookmarkOwnerIcon from "./BookmarkOwnerIcon";
@@ -153,7 +151,7 @@ function MultiBookmarkSelector({ bookmark }: { bookmark: ZBookmark }) {
     <button
       type="button"
       className={cn(
-        "absolute left-0 top-0 z-50 h-full w-full transition-colors",
+        "absolute left-0 top-0 z-50 h-full w-full cursor-pointer transition-colors",
         isSelected ? "bg-foreground/10" : "bg-transparent",
       )}
       aria-label={getBookmarkTitle(bookmark) ?? "Untitled bookmark"}
@@ -173,66 +171,6 @@ function MultiBookmarkSelector({ bookmark }: { bookmark: ZBookmark }) {
         </div>
       </div>
     </button>
-  );
-}
-
-function DragHandle({
-  bookmark,
-  className,
-}: {
-  bookmark: ZBookmark;
-  className?: string;
-}) {
-  const { isBulkEditEnabled } = useBulkActionsStore();
-  // Only editable manual lists can offer a move out of the source list.
-  const listContext = useBookmarkListContext();
-  const handleDragStart = useCallback(
-    (e: React.DragEvent) => {
-      e.stopPropagation();
-      setBookmarkDragData(e.dataTransfer, bookmark.id, listContext);
-
-      // Create a small pill element as the drag preview
-      const pill = document.createElement("div");
-      const title = getBookmarkTitle(bookmark) ?? "Untitled";
-      pill.textContent =
-        title.length > 40 ? title.substring(0, 40) + "\u2026" : title;
-      Object.assign(pill.style, {
-        position: "fixed",
-        left: "-9999px",
-        top: "-9999px",
-        padding: "6px 12px",
-        borderRadius: "8px",
-        backgroundColor: "var(--card)",
-        border: "1px solid var(--border)",
-        boxShadow: "var(--elevation-overlay)",
-        fontSize: "13px",
-        fontFamily: "inherit",
-        color: "var(--foreground)",
-        maxWidth: "240px",
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-      });
-      document.body.appendChild(pill);
-      e.dataTransfer.setDragImage(pill, 0, 0);
-      requestAnimationFrame(() => pill.remove());
-    },
-    [bookmark, listContext],
-  );
-
-  if (isBulkEditEnabled) return null;
-
-  return (
-    <div
-      draggable
-      onDragStart={handleDragStart}
-      className={cn(
-        "absolute z-40 hidden cursor-grab rounded bg-background/70 p-0.5 opacity-0 shadow-sm transition-opacity duration-200 group-hover:opacity-100 [@media(pointer:fine)]:block",
-        className,
-      )}
-    >
-      <GripVertical className="size-4 text-muted-foreground" />
-    </div>
   );
 }
 
@@ -263,7 +201,7 @@ function ListView({
     >
       <MultiBookmarkSelector bookmark={bookmark} />
       <OwnerIndicator bookmark={bookmark} />
-      <DragHandle
+      <BookmarkDragHandle
         bookmark={bookmark}
         className="left-1 top-1/2 -translate-y-1/2"
       />
@@ -342,16 +280,27 @@ function GridView({
     >
       <MultiBookmarkSelector bookmark={bookmark} />
       <OwnerIndicator bookmark={bookmark} />
-      <DragHandle bookmark={bookmark} className="left-2 top-2" />
+      <BookmarkDragHandle bookmark={bookmark} className="left-2 top-2" />
       {img && (
         <div className="aspect-square w-full shrink-0 overflow-hidden border-b border-border/60 bg-muted/20 sm:aspect-auto sm:h-56 sm:min-h-56">
           {img}
         </div>
       )}
       <div className="flex h-full flex-col justify-between gap-1 overflow-hidden p-2 pb-1 sm:gap-0 sm:p-0">
-        <div className="grow-1 flex flex-col gap-1.5 overflow-hidden sm:gap-2 sm:p-3">
+        <div
+          className={cn(
+            "grow-1 flex flex-col gap-1.5 overflow-hidden sm:gap-2 sm:p-3",
+            !img && !(showTitle && title) && "[@media(pointer:fine)]:pt-10",
+          )}
+        >
           {showTitle && title && (
-            <div className="line-clamp-2 flex-none shrink-0 overflow-hidden text-ellipsis break-words text-sm font-semibold leading-snug tracking-tight sm:text-lg">
+            <div
+              className={cn(
+                "line-clamp-2 flex-none shrink-0 overflow-hidden text-ellipsis break-words text-sm font-semibold leading-snug tracking-tight sm:text-lg",
+                !img &&
+                  "[@media(pointer:fine)]:min-h-8 [@media(pointer:fine)]:pl-9",
+              )}
+            >
               {title}
             </div>
           )}
@@ -441,7 +390,11 @@ function CompactView({
     >
       <MultiBookmarkSelector bookmark={bookmark} />
       <OwnerIndicator bookmark={bookmark} />
-      <div className="flex h-full items-center justify-between gap-3 overflow-hidden p-3">
+      <BookmarkDragHandle
+        bookmark={bookmark}
+        className="left-1 top-1/2 -translate-y-1/2"
+      />
+      <div className="flex h-full items-center justify-between gap-3 overflow-hidden p-3 [@media(pointer:fine)]:pl-11">
         <div className="flex min-w-0 items-center gap-2.5 overflow-hidden">
           {bookmark.content.type === BookmarkTypes.LINK && (
             <Favicon
