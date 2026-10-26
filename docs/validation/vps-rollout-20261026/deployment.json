@@ -1,0 +1,231 @@
+{
+  "final-verification": {
+    "allPassed": true,
+    "application": {
+      "version": "56e4aba47e2a10642f96c41e2ea42cb4d5583545",
+      "release": "0.14.0",
+      "commit": "56e4aba47e2a10642f96c41e2ea42cb4d5583545",
+      "shortCommit": "56e4aba"
+    },
+    "originalContainers": 21,
+    "unrelatedContainersPreserved": 15,
+    "allRunningAndNoUnhealthyChecks": true,
+    "workerReadyEndpointPassed": true,
+    "libraryTablesUnchanged": 12,
+    "bookmarksPreserved": 1178,
+    "usersPreserved": 4,
+    "searchDocuments": 691,
+    "vectorDocuments": 0,
+    "oldSearchVolumeRetained": true,
+    "oldSearchVolumeActive": false,
+    "newSearchVolume": "karakeep_meilisearch_v155_20261026",
+    "volumeWriters": {
+      "karakeep_data": [
+        "karakeep-workers-1",
+        "karakeep-web-1"
+      ],
+      "karakeep_meilisearch": [],
+      "karakeep_meilisearch_v155_20261026": [
+        "karakeep-meilisearch-1"
+      ]
+    },
+    "rendererNetworkMembers": [
+      "karakeep-workers-1",
+      "rsshub-browserless-1",
+      "rsshub-rsshub-1"
+    ],
+    "tokenRelationshipsPreserved": true,
+    "crawlerConcurrencyUnchanged": true,
+    "markaTimeoutOverrideVerified": true,
+    "rsshubFiniteEndpointPreserved": true,
+    "appImagesPreserved": true,
+    "rendererPublishesNoHostPort": true,
+    "composeHashes": {
+      "marka": "a980dff73ffe2b440632a74698135aea156a4657dba93e18742a1e67b1881f83",
+      "rsshub": "a6c85269eacdc19c2c040d03713c3f6f603603a86fdcc3246744f40e9e7417a4"
+    },
+    "maintenanceToAppReadySeconds": 314.22,
+    "memory": {
+      "availableKiB": 2673128,
+      "swapUsedKiB": 2324972
+    }
+  },
+  "final-resources": {
+    "karakeep-web-1": {
+      "current": 239853568,
+      "peak": 248512512,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "restartCount": 0,
+      "oomKilled": false
+    },
+    "karakeep-workers-1": {
+      "current": 329224192,
+      "peak": 425623552,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "restartCount": 0,
+      "oomKilled": false
+    },
+    "karakeep-meilisearch-1": {
+      "current": 161136640,
+      "peak": 173928448,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "restartCount": 0,
+      "oomKilled": false
+    },
+    "rsshub-rsshub-1": {
+      "current": 283639808,
+      "peak": 320978944,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "restartCount": 0,
+      "oomKilled": false
+    },
+    "rsshub-browserless-1": {
+      "current": 453181440,
+      "peak": 694931456,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "restartCount": 0,
+      "oomKilled": false
+    },
+    "karakeep-watchtower-1": {
+      "current": 51666944,
+      "peak": 61427712,
+      "events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "restartCount": 0,
+      "oomKilled": false
+    }
+  },
+  "final-search-result": {
+    "version": "1.55.0",
+    "indexes": [
+      {
+        "index": "bookmarks",
+        "documents": 691,
+        "documentsSha256": "dd3298e441f400c79a19c8fc207bd84996dabfe400f083e462468155bb0e35a0",
+        "settingsPreserved": true
+      },
+      {
+        "index": "bookmarks_vectors",
+        "documents": 0,
+        "documentsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "settingsPreserved": true
+      }
+    ],
+    "queries": 12,
+    "knownRebuildDifferences": [
+      {
+        "querySha256": "76ed42d22129dc354362704eb4b54208041b68736f976932aada43bc0035f7c0",
+        "before": 54,
+        "after": 70
+      },
+      {
+        "querySha256": "b7f166596ea32461d282cf429319c8c2a2a270c9456d4f587943832430062323",
+        "before": 5,
+        "after": 9
+      }
+    ],
+    "originalHitsRetainedInOrder": true,
+    "tenantFilteringSortingPaginationPassed": true
+  },
+  "watchtower-result": {
+    "image": "ghcr.io/nicholas-fedor/watchtower:1.23.2@sha256:62fb91130ddb493f869cad7e198fa260dd16c5da293ed092cbd5d8781566f7a6",
+    "ownershipCorrected": true,
+    "eligible": [
+      "karakeep-web-1",
+      "karakeep-workers-1"
+    ],
+    "scheduledScanObserved": true,
+    "scanFailed": 0,
+    "scanScanned": 2,
+    "scanUpdated": 0,
+    "running": true,
+    "health": "healthy",
+    "unrelatedLocalImageMetadataWarning": "mcp-hub-rsshub-1"
+  },
+  "production-rsshub-route": {
+    "status": 200,
+    "seconds": 7.52,
+    "itemCount": 1,
+    "itemIdsSha256": "4152e3c4cad3673344ab06bbb2961a3dc0eb1a011bff269b942de81da7435da3",
+    "rendererTargetLogged": true,
+    "newRendererLogActivity": true
+  },
+  "guard-summary": {
+    "samples": 126,
+    "failed": false,
+    "minAvailableKiB": 2523204,
+    "maxSwapIncreaseKiB": 3344
+  },
+  "public-https-version": {
+    "httpStatus": 200,
+    "version": {
+      "version": "56e4aba47e2a10642f96c41e2ea42cb4d5583545",
+      "release": "0.14.0",
+      "commit": "56e4aba47e2a10642f96c41e2ea42cb4d5583545",
+      "shortCommit": "56e4aba"
+    }
+  },
+  "functional": {
+    "created": true,
+    "deleted": true,
+    "capturePassed": true,
+    "searchPassed": true,
+    "screenshotBytes": 60216,
+    "screenshotSha256": "3b12ed06bc8fb8e94797b05403d10219eb2603c88ac573ca62c1802dbe49cfa7",
+    "screenshotContentType": "image/jpeg",
+    "storedAssets": 1,
+    "searchCleanupPassed": true,
+    "apiDeletionStatus": 404,
+    "screenshotVisuallyInspected": true
+  },
+  "productionApplied": true,
+  "restrictedBackupDirectory": "/Users/absolutepraya/Documents/Backups/marka-vps-rollout-20261026-153619",
+  "cleanup": {
+    "migrationDirectoryRemoved": true,
+    "temporaryCredentialsRemoved": true,
+    "importerAndProbeContainersAbsent": true,
+    "remoteAndLocalArtifactHashesMatched": 18,
+    "oldAndNewSearchVolumesRetained": true
+  }
+}

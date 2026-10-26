@@ -6,16 +6,16 @@ CHROME_CONTAINER="marka-dev-chrome"
 BROWSERLESS_CONTAINER="marka-dev-browserless"
 LEGACY_MEILI_CONTAINER="karakeep-dev-meilisearch"
 LEGACY_CHROME_CONTAINER="karakeep-dev-chrome"
-MEILI_VOLUME="marka-dev-meilisearch-data"
+MEILI_VOLUME="marka-dev-meilisearch-v155-data"
 MEILI_PORT="7700"
 CHROME_PORT="${MARKA_DEV_CHROME_PORT:-9250}"
 BROWSERLESS_PORT="${MARKA_DEV_BROWSERLESS_PORT:-9251}"
 RENDERER="${MARKA_DEV_RENDERER:-browserless}"
-MEILI_IMAGE="getmeili/meilisearch:v1.41.0"
+MEILI_IMAGE="getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c"
 CHROME_IMAGE="ghcr.io/karakeep-app/karakeep-chrome:release"
-# Same Browserless v1 build as the personal production renderer. Apple Silicon
-# runs this amd64 image through the Docker runtime's emulation support.
-BROWSERLESS_IMAGE="browserless/chrome@sha256:57d19e414d9fe4ae9d2ab12ba768c97f38d51246c5b31af55a009205c136012f"
+# Same multi-architecture Browserless v2 build as the personal VPS renderer.
+# Docker selects the native architecture, including arm64 on Apple Silicon.
+BROWSERLESS_IMAGE="ghcr.io/browserless/chromium:v2.57.3@sha256:40dff7c23e0e378ba451c23ef66394ffb81bd11e6b9fe8ef3066d59eb402cc5d"
 CHROME_CONTAINER_WAS_ADOPTED=false
 
 info() { printf '==> %s\n' "$*"; }
@@ -86,6 +86,9 @@ chrome_host_port() {
 ensure_meilisearch() {
   adopt_legacy_container "$LEGACY_MEILI_CONTAINER" "$MEILI_CONTAINER"
   if container_exists "$MEILI_CONTAINER"; then
+    local existing_image
+    existing_image="$(docker inspect -f '{{.Config.Image}}' "$MEILI_CONTAINER")"
+    [[ "$existing_image" == "$MEILI_IMAGE" ]] || die "Existing $MEILI_CONTAINER uses a different image. Back up and migrate shared search before changing its image; never open an older database with a newer engine."
     if container_running "$MEILI_CONTAINER"; then
       info "Reusing shared Meilisearch on http://127.0.0.1:$MEILI_PORT"
       return
@@ -166,14 +169,17 @@ ensure_browserless() {
     # Pass the token by environment name, never as a command argument or log.
     TOKEN="$generated_token" docker run -d \
       --name "$BROWSERLESS_CONTAINER" \
-      --platform linux/amd64 \
       --restart unless-stopped \
-      --memory 1g \
+      --memory 1536m \
+      --shm-size 256m \
+      --cpus 1 \
       -p "127.0.0.1:$BROWSERLESS_PORT:3000" \
       --env TOKEN \
-      -e CONNECTION_TIMEOUT=60000 \
+      -e CONCURRENT=2 \
+      -e QUEUED=4 \
+      -e TIMEOUT=60000 \
       --health-cmd 'node -e "fetch(\"http://127.0.0.1:3000/pressure?token=\"+encodeURIComponent(process.env.TOKEN)).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"' \
-      --health-interval 2s --health-timeout 3s --health-start-period 20s \
+      --health-interval 10s --health-timeout 3s --health-start-period 20s \
       "$BROWSERLESS_IMAGE" >/dev/null || die "Failed to start local Browserless."
   fi
   local attempt health

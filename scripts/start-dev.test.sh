@@ -75,7 +75,7 @@ EOF
 const assert=require('node:assert/strict');const fs=require('node:fs');const e=JSON.parse(fs.readFileSync(process.argv[2]));const root=process.argv[3];
 assert.equal(e.NO_COLOR,'true');assert.equal(e.DATA_DIR,root+'/.data/local');assert.equal(e.ASSETS_DIR,root+'/.data/local/assets');assert.equal(e.ASSET_STORE_S3_ENDPOINT,'');
 assert.equal(e.API_URL,'http://localhost:4017');assert.equal(e.NEXTAUTH_URL,e.API_URL);assert.equal(e.MEILI_ADDR,'http://127.0.0.1:7700');assert.equal(e.MEILI_MASTER_KEY,'');assert.equal(e.MEILI_INDEX_PREFIX,'fixture_');
-assert.equal(e.BROWSERLESS_URL,'ws://127.0.0.1:9251');assert.equal(e.BROWSERLESS_TOKEN,'local-test-token');assert.equal(e.BROWSER_WEB_URL,'');assert.equal(e.BROWSER_WEBSOCKET_URL,'');assert.equal(e.BROWSER_CONNECT_ONDEMAND,'true');assert.equal(e.BROWSER_REUSE_CONNECTION,'true');assert.equal(e.CRAWLER_NUM_WORKERS,'2');assert.equal(e.WORKER_PROFILE,'screenshot-first');assert.equal(e.WORKERS_PORT,'14017');
+assert.equal(e.BROWSERLESS_URL,'ws://127.0.0.1:9251/?timeout=0');assert.equal(e.BROWSERLESS_TOKEN,'local-test-token');assert.equal(e.BROWSER_WEB_URL,'');assert.equal(e.BROWSER_WEBSOCKET_URL,'');assert.equal(e.BROWSER_CONNECT_ONDEMAND,'true');assert.equal(e.BROWSER_REUSE_CONNECTION,'true');assert.equal(e.CRAWLER_NUM_WORKERS,'2');assert.equal(e.WORKER_PROFILE,'screenshot-first');assert.equal(e.WORKERS_PORT,'14017');
 JS
 if grep -Eq 'production-secret|local-test-token' "$root/success.log"; then fail 'Startup leaked a token'; fi
 (cd "$root/project" && bash ./stop-dev.sh) >/dev/null

@@ -1,12 +1,13 @@
 # VPS dependency upgrade experiment, 25 October 2026
 
-The subsequent [26 October native VPS experiment](vps-rehearsal-20261026/RESULTS.md)
-is complete. It adds production-corpus, native browser, and shared-memory
-evidence, plus an existing Instagram route failure that blocks feed parity.
-The local results below remain historical evidence; no production upgrade has
-been performed.
+The later approved [production rollout](vps-rollout-20261026/DEPLOYED.md) is
+complete. The [native VPS experiment](vps-rehearsal-20261026/RESULTS.md) and
+[follow-up](vps-rehearsal-20261026/FOLLOWUP.md) record the intervening
+production-corpus, browser, capacity, and proxy checks. Instagram repair
+remains separate. The local results and initial decisions below are historical
+evidence from before production cutover.
 
-This is local compatibility evidence and a proposed rollout sequence. Production
+This was local compatibility evidence and a proposed rollout sequence. Production
 deployment, image publication, production data migration, and VPS file changes
 were not performed. Tailscale and host reboots remain excluded.
 
@@ -23,7 +24,7 @@ were not performed. Tailscale and host reboots remain excluded.
   the exact live configuration before deployment. Keep its update separate from
   search and renderer changes.
 
-No production/dev/installer pins have been changed. The repository changes are
+At the end of this local experiment, no production/dev/installer pins had changed. The repository changes were
 experiment probes, test-runner options, a regression assertion, and this report.
 
 ## Live baseline checked

@@ -1,0 +1,30 @@
+{
+  "watchtowerEligibleContainers": [
+    "karakeep-web-1",
+    "karakeep-workers-1"
+  ],
+  "proposedVolumeAlreadyExists": false,
+  "appRevision": "56e4aba47e2a10642f96c41e2ea42cb4d5583545",
+  "appRelease": "0.14.0",
+  "runtimeTargets": [
+    "rsshub-browserless-1",
+    "rsshub-rsshub-1",
+    "karakeep-meilisearch-1",
+    "karakeep-workers-1",
+    "karakeep-web-1",
+    "karakeep-watchtower-1"
+  ],
+  "configurationChangesApplied": false,
+  "composePreconditions": {
+    "/home/praya/rsshub/docker-compose.yml": {
+      "sha256": "d32235c6f92621a8731c0be3de3249657c1afa7176e5d301b216dd67a10d87d6",
+      "mode": "0o644"
+    },
+    "/home/praya/marka/docker-compose.yml": {
+      "sha256": "02b8e180ac52454302d3a6ce8ed4baf35ee05b8819723c3a098ed1b4e9d6fd4f",
+      "mode": "0o644"
+    }
+  },
+  "originalContainerCount": 21,
+  "captureFreshContainerBaselineBeforeExecution": true
+}

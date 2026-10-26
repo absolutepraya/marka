@@ -1,0 +1,13 @@
+{
+  "allPassed": true,
+  "patchesApplyAndReverseExactly": 3,
+  "composeConfigurationsValidated": 3,
+  "missingVolumeSelectionRejected": true,
+  "preservedDataVolume": "karakeep_data",
+  "newSearchVolumeExternal": true,
+  "oldSearchVolumeNotMountedInImporter": true,
+  "rendererHasNoHostPort": true,
+  "rsshubEndpointAndOtherDependenciesPreserved": true,
+  "realCredentialsUsedForComposeValidation": false,
+  "productionConfigurationChangesApplied": false
+}

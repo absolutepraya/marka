@@ -48,12 +48,13 @@ services:
       MEILI_ADDR: http://meilisearch:7700
       WORKER_PROFILE: screenshot-first
       BROWSER_CONNECT_ONDEMAND: "true"
+      BROWSERLESS_URL: "ws://browserless:3000/?timeout=0"
     networks:
       - default
       - renderer
 
   meilisearch:
-    image: getmeili/meilisearch:v1.41.0
+    image: getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c
     restart: unless-stopped
     mem_limit: 512m
     env_file:
@@ -66,7 +67,7 @@ services:
   watchtower:
     # Maintained fork; the original containrrr/watchtower is abandoned and its
     # Docker client (API 1.25) is too old for modern engines (min API 1.44).
-    image: ghcr.io/nicholas-fedor/watchtower:latest
+    image: ghcr.io/nicholas-fedor/watchtower:1.23.2@sha256:62fb91130ddb493f869cad7e198fa260dd16c5da293ed092cbd5d8781566f7a6
     restart: unless-stopped
     mem_limit: 128m
     volumes:
@@ -79,6 +80,8 @@ services:
 volumes:
   data:
   meilisearch:
+    external: true
+    name: ${KARAKEEP_MEILI_VOLUME:?set KARAKEEP_MEILI_VOLUME to the verified imported volume}
 
 networks:
   renderer:

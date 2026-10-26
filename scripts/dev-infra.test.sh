@@ -67,7 +67,11 @@ case "${1:-}" in
       if [[ "$3" == *"State.Health.Status"* ]]; then
         printf 'healthy\n'
       elif [[ "$3" == *"Config.Image"* ]]; then
-        printf '%s\n' 'browserless/chrome@sha256:57d19e414d9fe4ae9d2ab12ba768c97f38d51246c5b31af55a009205c136012f'
+        if [[ "$name" == *meilisearch ]]; then
+          printf '%s\n' "${FAKE_MEILI_IMAGE:-getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c}"
+        else
+          printf '%s\n' 'ghcr.io/browserless/chromium:v2.57.3@sha256:40dff7c23e0e378ba451c23ef66394ffb81bd11e6b9fe8ef3066d59eb402cc5d'
+        fi
       elif [[ "$3" == *"HostConfig.PortBindings"* || "$3" == *"9222/tcp"* ]]; then
         printf '%s\n' "$(sed -n '2p' "$state_dir/$name")"
       else
@@ -183,7 +187,14 @@ done
 bash "$INFRA" up >/dev/null
 assert_contains "$FAKE_DOCKER_LOG" "marka-dev-meilisearch"
 assert_contains "$FAKE_DOCKER_LOG" "127.0.0.1:7700:7700"
-assert_contains "$FAKE_DOCKER_LOG" "getmeili/meilisearch:v1.41.0"
+assert_contains "$FAKE_DOCKER_LOG" "getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c"
+assert_contains "$FAKE_DOCKER_LOG" "marka-dev-meilisearch-v155-data:/meili_data"
+
+# Refuse an implicit search-engine upgrade against an existing database.
+if FAKE_MEILI_IMAGE=getmeili/meilisearch:v1.41.0 bash "$INFRA" up >"$root/meili-mismatch.out" 2>&1; then
+  fail "Shared infra unexpectedly accepted an old search-engine image"
+fi
+assert_contains "$root/meili-mismatch.out" "Back up and migrate shared search"
 assert_contains "$FAKE_DOCKER_LOG" "marka-dev-chrome"
 assert_contains "$FAKE_DOCKER_LOG" "127.0.0.1:9250:9222"
 assert_contains "$FAKE_DOCKER_LOG" "ghcr.io/karakeep-app/karakeep-chrome:release"
@@ -447,10 +458,15 @@ printf 'true\n9250\n' >"$state_dir/marka-dev-chrome"
 : >"$FAKE_DOCKER_LOG"
 MARKA_DEV_RENDERER=browserless bash "$INFRA" up >/dev/null
 assert_contains "$FAKE_DOCKER_LOG" "127.0.0.1:9251:3000"
-assert_contains "$FAKE_DOCKER_LOG" "--platform linux/amd64"
-assert_contains "$FAKE_DOCKER_LOG" "--memory 1g"
+assert_not_contains "$FAKE_DOCKER_LOG" "--platform linux/amd64"
+assert_contains "$FAKE_DOCKER_LOG" "--memory 1536m"
+assert_contains "$FAKE_DOCKER_LOG" "--shm-size 256m"
+assert_contains "$FAKE_DOCKER_LOG" "--cpus 1"
 assert_contains "$FAKE_DOCKER_LOG" "--env TOKEN"
-assert_contains "$FAKE_DOCKER_LOG" "CONNECTION_TIMEOUT=60000"
+assert_contains "$FAKE_DOCKER_LOG" "CONCURRENT=2"
+assert_contains "$FAKE_DOCKER_LOG" "QUEUED=4"
+assert_contains "$FAKE_DOCKER_LOG" "TIMEOUT=60000"
+assert_contains "$FAKE_DOCKER_LOG" "--health-interval 10s"
 assert_not_contains "$FAKE_DOCKER_LOG" "rm -f marka-dev-chrome"
 assert_not_contains "$FAKE_DOCKER_LOG" "TOKEN="
 first_browserless_runs="$(grep -c '^run ' "$FAKE_DOCKER_LOG" || true)"

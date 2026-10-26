@@ -1,0 +1,138 @@
+{
+  "allPassed": true,
+  "worktrees": [
+    {
+      "name": "t3-778b0d57",
+      "webPort": 4025,
+      "workerPort": 14025,
+      "health": {
+        "web": 200,
+        "workers": 200
+      },
+      "indexPrefix": "t3-778b0d57-1025_",
+      "originalDataDirectoryPreserved": true,
+      "libraryFingerprintMatches": true,
+      "rendererTimeoutOverrideVerified": true,
+      "directNetworkingVerified": true,
+      "crawlerSettingsPreserved": true
+    },
+    {
+      "name": "t3-936c2aac",
+      "webPort": 4023,
+      "workerPort": 14023,
+      "health": {
+        "web": 200,
+        "workers": 200
+      },
+      "indexPrefix": "t3-936c2aac-1023_",
+      "originalDataDirectoryPreserved": true,
+      "libraryFingerprintMatches": true,
+      "rendererTimeoutOverrideVerified": true,
+      "directNetworkingVerified": true,
+      "crawlerSettingsPreserved": true
+    },
+    {
+      "name": "t3-edac63b8",
+      "webPort": 4024,
+      "workerPort": 14024,
+      "health": {
+        "web": 200,
+        "workers": 200
+      },
+      "indexPrefix": "t3-edac63b8-1024_",
+      "originalDataDirectoryPreserved": true,
+      "libraryFingerprintMatches": true,
+      "rendererTimeoutOverrideVerified": true,
+      "directNetworkingVerified": true,
+      "crawlerSettingsPreserved": true
+    },
+    {
+      "name": "t3code-e9ae2bf5",
+      "webPort": 4013,
+      "workerPort": 14013,
+      "health": {
+        "web": 200,
+        "workers": 200
+      },
+      "indexPrefix": "t3code-e9ae2bf5-1013_",
+      "originalDataDirectoryPreserved": true,
+      "libraryFingerprintMatches": true,
+      "rendererTimeoutOverrideVerified": true,
+      "directNetworkingVerified": true,
+      "crawlerSettingsPreserved": true
+    }
+  ],
+  "migratedOriginalIndexes": 19,
+  "migratedOriginalDocuments": 919,
+  "originalSearchDocumentsAndSettingsPreserved": true,
+  "additionalInitializedIndexes": [
+    "t3code-e9ae2bf5-1013_bookmarks"
+  ],
+  "filteringQueriesPassed": 4,
+  "uniqueWorkspaceNamespaces": 4,
+  "containers": [
+    {
+      "name": "marka-dev-browserless",
+      "image": "ghcr.io/browserless/chromium:v2.57.3@sha256:40dff7c23e0e378ba451c23ef66394ffb81bd11e6b9fe8ef3066d59eb402cc5d",
+      "architecture": "arm64",
+      "running": true,
+      "restartCount": 0,
+      "memoryCurrent": 359395328,
+      "memoryPeak": 1211756544,
+      "memoryEvents": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      }
+    },
+    {
+      "name": "marka-dev-meilisearch",
+      "image": "getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c",
+      "architecture": "arm64",
+      "running": true,
+      "restartCount": 0,
+      "memoryCurrent": 233226240,
+      "memoryPeak": 235397120,
+      "memoryEvents": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      }
+    }
+  ],
+  "rendererPressure": {
+    "running": 0,
+    "queued": 0,
+    "maxConcurrent": 2,
+    "maxQueued": 4
+  },
+  "legacyChromeStopped": true,
+  "legacyChromePortClosed": true,
+  "importerRemoved": true,
+  "oldSearchVolumeRetained": true,
+  "unrelatedContainersPreserved": true,
+  "localProxyMode": "direct",
+  "productionChanged": false,
+  "sourceRendererJobsPassed": 16,
+  "realLocalPipeline": {
+    "workspace": "t3code-e9ae2bf5",
+    "created": true,
+    "deleted": true,
+    "crawlPassed": true,
+    "searchPassed": true,
+    "assetRetrievalPassed": true,
+    "screenshotBytes": 60216,
+    "screenshotSha256": "3b12ed06bc8fb8e94797b05403d10219eb2603c88ac573ca62c1802dbe49cfa7",
+    "searchCleanupPassed": true,
+    "apiDeletionStatus": 404
+  },
+  "screenshotVisuallyInspected": true
+}

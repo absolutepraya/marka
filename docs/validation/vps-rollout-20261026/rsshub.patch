@@ -1,0 +1,32 @@
+--- a/rsshub/docker-compose.yml
++++ b/rsshub/docker-compose.yml
+@@ -1,6 +1,6 @@
+ services:
+   rsshub:
+-    image: diygod/rsshub
++    image: diygod/rsshub@sha256:bf72c101c07c3c1cc077eedbc75496021260536e3c9b387860d1ddbf91d7d9cd
+     mem_limit: 768m
+     restart: always
+     ports:
+@@ -40,8 +40,10 @@
+       retries: 3
+ 
+   browserless:
+-    image: browserless/chrome
+-    mem_limit: 1g
++    image: ghcr.io/browserless/chromium:v2.57.3@sha256:40dff7c23e0e378ba451c23ef66394ffb81bd11e6b9fe8ef3066d59eb402cc5d
++    mem_limit: 1536m
++    shm_size: 256m
++    cpus: 1
+     restart: always
+     ulimits:
+       core:
+@@ -51,7 +53,7 @@
+       TOKEN: ${BROWSERLESS_TOKEN:?set BROWSERLESS_TOKEN in .env}
+       CONCURRENT: '2'
+       QUEUED: '4'
+-      TIMEOUT: '45000'
++      TIMEOUT: '60000'
+     healthcheck:
+       test: ['CMD-SHELL', 'curl -fsS "http://localhost:3000/pressure?token=$${TOKEN}"']
+       interval: 30s

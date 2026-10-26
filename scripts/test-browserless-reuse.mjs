@@ -7,7 +7,8 @@ if (args.length > 1 || (args.length === 1 && args[0] !== "--with-baseline"))
 const withBaseline = args[0] === "--with-baseline";
 const container =
   process.env.MARKA_BROWSERLESS_TEST_CONTAINER ?? "marka-dev-browserless";
-const sessionTimeout = process.env.MARKA_BROWSERLESS_TEST_SESSION_TIMEOUT_MS;
+const sessionTimeout =
+  process.env.MARKA_BROWSERLESS_TEST_SESSION_TIMEOUT_MS ?? "0";
 if (sessionTimeout !== undefined && !/^(0|[1-9]\d*)$/.test(sessionTimeout))
   throw new Error("Session timeout override must be non-negative milliseconds");
 const root = fileURLToPath(new URL("../", import.meta.url));

@@ -65,7 +65,11 @@ The machine-level infrastructure is shared across all local worktrees:
 - `marka-dev-meilisearch` on `127.0.0.1:7700`
 - `marka-dev-browserless` on `127.0.0.1:9251`, configurable with `MARKA_DEV_BROWSERLESS_PORT`
 
-Browserless uses the same pinned `browserless/chrome` v1 image as the personal production renderer, a 60-second connection timeout, and a 1 GiB container cap. The image is amd64, so Apple Silicon runs it under emulation. A random local token stays in the container environment and is supplied privately to dev processes. Existing legacy Chrome containers are preserved for other worktrees. Select `MARKA_DEV_RENDERER=chrome` explicitly for the legacy CDP path at port 9250.
+Shared local infrastructure uses the same immutable Meilisearch 1.55.0 and Browserless 2.57.3 multi-architecture references as the personal VPS. Docker selects native arm64 on Apple Silicon. Browserless has a 1536 MiB memory cap, 256 MiB shared memory, one CPU, two sessions, four queued sessions, and a 60-second provider default. Managed workers receive an explicit `timeout=0` endpoint override for connection reuse, while worker crawl deadlines stay in force. A random local token remains private. See the [local upgrade validation](validation/local-upgrade-20261026/RESULTS.md) for the migration and capture checks. Legacy Chrome is only started with `MARKA_DEV_RENDERER=chrome` at port 9250; it is unnecessary for the default Browserless path.
+
+The shared search volume is `marka-dev-meilisearch-v155-data`. Existing 1.41 data must be exported as a dump and imported into that new volume before replacing its container. The old `marka-dev-meilisearch-data` volume is retained for rollback. The launcher refuses an existing mismatched search image instead of attempting a raw database upgrade. Stop all consuming worktrees for a consistent migration; never run both engines against one volume.
+
+The four managed workspaces on this Mac use direct networking by operator choice. Omit `CRAWLER_HTTP_PROXY` and `CRAWLER_HTTPS_PROXY` from local `.env` files when no proxy is required; the existing crawler selector does not support empty proxy lists. Production proxy settings are separate and unchanged. Add a developer proxy only with working local credentials and verify it with `pnpm dev:check`.
 
 The worker defaults are `WORKER_PROFILE=screenshot-first`, `CRAWLER_NUM_WORKERS=2` per crawler queue, and `BROWSER_CONNECT_ONDEMAND=true`. `BROWSER_REUSE_CONNECTION` defaults to false and remains configurable. To test reuse, stop this workspace, then run `BROWSER_REUSE_CONNECTION=true pnpm dev:start`. Production is unaffected.
 
@@ -90,7 +94,7 @@ Every generated worktree points at the same local infrastructure endpoints:
 
 ```text
 MEILI_ADDR=http://127.0.0.1:7700
-BROWSERLESS_URL=ws://127.0.0.1:9251 # supplied by dev:start with a local token
+BROWSERLESS_URL=ws://127.0.0.1:9251/?timeout=0 # supplied by dev:start with a local token
 ```
 
 The `wt` slot controls only worktree-owned state. `WT_PORT_BASE` is added to the base web port `3000`, so slot 1 uses `3100`; shared Browserless and Meilisearch keep their stable machine-level ports.
@@ -139,7 +143,7 @@ For Linux source development, use the isolated Compose stack:
 docker compose --env-file .env -p marka-dev-linux -f docker/docker-compose.dev.yml up --build
 ```
 
-This uses Node 24.18.1 on Debian, separate Linux dependency/data volumes, the same Browserless image, and the same worker defaults. It reads root `.env` for optional integrations while overriding storage, renderer, search, and app endpoints locally. Its Browserless token is development-only and its port is private to this Compose network. The web port follows `KARAKEEP_PORT`; stop the native workspace first if it uses that port. Linux source development still includes watchers and does not establish production resource capacity. For capacity measurements use the immutable production worker image in an isolated test deployment.
+This uses Node 24.18.1 on Debian and separate Linux dependency/data volumes. Its separately maintained Compose file still pins Browserless v1 and Meilisearch 1.41.0; the native Mac upgrade above does not change those Linux service versions. It uses the same worker profile defaults. It reads root `.env` for optional integrations while overriding storage, renderer, search, and app endpoints locally. Its Browserless token is development-only and its port is private to this Compose network. The web port follows `KARAKEEP_PORT`; stop the native workspace first if it uses that port. Linux source development still includes watchers and does not establish production resource capacity. For capacity measurements use the immutable production worker image in an isolated test deployment.
 
 If an agent runner terminates detached descendants when a command exits, run the foreground launcher inside a persistent terminal or tmux session. If `next dev` crashes with a stale Turbopack/instrumentation issue, clear `apps/web/.next` and restart. Infra helpers refuse occupied ports belonging to unknown services.
 
@@ -159,7 +163,7 @@ Each phase runs 24 jobs and creates a fresh isolated context per job. One job de
 
 `--with-baseline` adds a matched concurrency-1 phase with reuse off. The output reports connection counts, aggregate acquisition wait, median acquisition wait, job durations, native test-process RSS changes, and sampled renderer memory peaks. These synthetic jobs isolate connection/context overhead and do not represent full page captures or proxy latency. Sampled peaks can miss brief spikes, and shared-renderer activity can affect measurements.
 
-The crawler's five-second connection deadline is retained. On Apple Silicon, multiple separate emulated browser sessions can exhaust the local renderer's 1 GiB cap and miss that deadline; a failed baseline is a failed comparison, not evidence to enable production reuse. For throughput/capacity decisions, repeat against an isolated Linux deployment on representative hardware. Keep production reuse disabled until its separately approved validation and rollout. See the [local validation record](validation/browserless-reuse.md) for measured results and failed comparisons.
+The crawler's five-second connection deadline is retained. Earlier measurements used an emulated Browserless v1 image with a 1 GiB cap; those historical capacity results do not describe the native v2 configuration above. A failed baseline remains a failed comparison. For production capacity decisions, use isolated Linux validation on representative hardware. See the [local validation record](validation/browserless-reuse.md) for the historical measurements and the [VPS deployment record](validation/vps-rollout-20261026/DEPLOYED.md) for the separately approved production rollout.
 
 ### Verify the offline iPhone PWA
 
@@ -303,11 +307,37 @@ Expected service shape:
 - `meilisearch`
 - `watchtower`
 
+The personal production Compose pins Meilisearch 1.55.0 and Watchtower 1.23.2
+by digest. It requires `KARAKEEP_MEILI_VOLUME` in the adjacent `.env`, naming
+an existing external search volume. The 26 October 2026 rollout selected
+`karakeep_meilisearch_v155_20261026` after importing and verifying a fresh dump.
+The original `karakeep_meilisearch` volume is retained for rollback. Do not
+point an older engine at the newer database or select an empty volume to
+bypass the required-variable check. The portable installer generates a separate
+Compose file and does not require this personal volume name.
+
 ### Worker-only secrets and Browserless
 
 Create `.workers.env` beside the production compose file. It is mounted only into `workers`, never `web`, and must contain `BROWSERLESS_TOKEN`, proxy credentials, and `OPENAI_API_KEY`. For the full enrichment rollout, configure the same worker-only file with `OPENAI_BASE_URL`, `INFERENCE_TEXT_MODEL`, `INFERENCE_IMAGE_MODEL`, `INFERENCE_ENABLE_AUTO_TAGGING`, `INFERENCE_ENABLE_AUTO_SUMMARIZATION`, `OCR_USE_LLM`, `TRANSCRIPTION_ENABLED`, `AZURE_SPEECH_ENDPOINT`, `AZURE_SPEECH_REGION`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_MODEL`, `AZURE_SPEECH_API_VERSION`, `EMBEDDING_ENABLE_AUTO_INDEXING`, `EMBEDDING_TEXT_MODEL`, and `EMBEDDING_DIMENSIONS` as applicable. When enabled, Marka uses MAI-Transcribe-2 only for media transcription. For YouTube links, `yt-dlp` captions remain preferred and Azure Speech is used only when no usable captions are available. Keep the token and all credential values out of source control. `BROWSERLESS_URL` targets the Browserless service through `karakeep-renderer`.
 
-For the existing `browserless/chrome` v1 service, configure its private host with:
+The existing personal VPS renderer now uses the immutable Browserless 2.57.3
+reference in the [rollout record](validation/vps-rollout-20261026/DEPLOYED.md),
+with a 1536 MiB memory cap, 256 MiB shared memory, and one CPU. Its environment is:
+
+```text
+CONCURRENT=2
+QUEUED=4
+TIMEOUT=60000
+```
+
+The Marka worker Compose override sets
+`BROWSERLESS_URL=ws://browserless:3000/?timeout=0` for reused v2 connections.
+The token remains in the worker-only environment file. RSSHub keeps its
+existing token-protected endpoint without a timeout override and retains its
+own helper deadlines. Crawler concurrency and current search settings are
+unchanged.
+
+For a retained or rollback `browserless/chrome` v1 service, configure its private host with:
 
 ```text
 MAX_CONCURRENT_SESSIONS=2
@@ -315,11 +345,11 @@ MAX_QUEUE_LENGTH=4
 CONNECTION_TIMEOUT=45000
 ```
 
-The v1 service reads these names; `CONCURRENT`, `QUEUED`, and `TIMEOUT` do not set its limits. Verify the effective configuration before a capacity change.
+The v1 service reads these names; `CONCURRENT`, `QUEUED`, and `TIMEOUT` do not set its limits. Restore its matching worker endpoint when reverting the renderer. Verify the effective configuration before a capacity change.
 
 Do not publish a Browserless port. The external `karakeep-renderer` Docker network is the only path from workers to Browserless.
 
-Connection reuse is opt-in with `BROWSER_REUSE_CONNECTION=true` in the worker environment while keeping `BROWSER_CONNECT_ONDEMAND=true`. The default remains per-crawl connections. Reuse keeps separate contexts, proxy settings, cookies, and request validation for each crawl, disconnects after 30 idle seconds, and reconnects on the next crawl after provider disconnects. A retained Browserless session consumes renderer capacity. Reuse requests Browserless `timeout=-1` so a provider session timer cannot shorten a later crawl; the worker retains its per-crawl deadlines and 30-second idle disconnect. An explicit `timeout` query parameter in `BROWSERLESS_URL` is preserved and may interrupt active crawls when that session lifetime expires. Validate repeated and concurrent crawls and resource use before enabling this in production. Set `BROWSER_REUSE_CONNECTION=false` to roll back; change `CRAWLER_NUM_WORKERS` separately so the effects can be measured independently. `CRAWLER_NUM_WORKERS` applies to each of the normal and low-priority crawler runners; a value of 2 can permit four simultaneous crawls across both queues. Include both queues in capacity validation. Compare the existing `crawlerWorker.crawlPage.getBrowserInstance` and cleanup spans, using `crawler.browser.reused` to distinguish warm acquisitions.
+Connection reuse is opt-in with `BROWSER_REUSE_CONNECTION=true` in the worker environment while keeping `BROWSER_CONNECT_ONDEMAND=true`. The default remains per-crawl connections. Reuse keeps separate contexts, proxy settings, cookies, and request validation for each crawl, disconnects after 30 idle seconds, and reconnects on the next crawl after provider disconnects. A retained Browserless session consumes renderer capacity. Without an explicit endpoint override, reuse requests the v1-compatible `timeout=-1`; the personal VPS supplies the required v2 `timeout=0` override above. The worker retains its per-crawl deadlines and 30-second idle disconnect. An explicit `timeout` query parameter in `BROWSERLESS_URL` is preserved and may interrupt active crawls when that session lifetime expires. Validate repeated and concurrent crawls and resource use before enabling this in production. Set `BROWSER_REUSE_CONNECTION=false` to roll back; change `CRAWLER_NUM_WORKERS` separately so the effects can be measured independently. `CRAWLER_NUM_WORKERS` applies to each of the normal and low-priority crawler runners; a value of 2 can permit four simultaneous crawls across both queues. Include both queues in capacity validation. Compare the existing `crawlerWorker.crawlPage.getBrowserInstance` and cleanup spans, using `crawler.browser.reused` to distinguish warm acquisitions.
 
 ### Controlled embedding-cleanup rollout
 

@@ -1,8 +1,15 @@
 # Native VPS experiment results, 26 October 2026
 
-The approved temporary VPS experiment is complete and cleaned up. No production
-upgrade or endpoint switch occurred. All 21 original containers retained their
-IDs and start times. Marka still reports release `0.13.0`, commit `b01deb5`.
+The later approved [production rollout](../vps-rollout-20261026/DEPLOYED.md) is
+complete. The results below describe the earlier temporary experiment, which
+was completed and cleaned up without a production upgrade or endpoint switch.
+At that experiment's completion, all 21 original containers retained their IDs
+and start times, and Marka reported release `0.13.0`, commit `b01deb5`.
+
+The [follow-up](FOLLOWUP.md) clarifies the search result difference, records the
+user's decision to keep search settings and separate Instagram repair, and
+reports the extended renderer validation. The results below describe the
+initial rehearsal.
 
 ## Decision
 
@@ -20,9 +27,10 @@ IDs and start times. Marka still reports release `0.13.0`, commit `b01deb5`.
 - **Watchtower:** unchanged. Its previous disposable-daemon results remain the
   evidence; this experiment did not update it or reconcile its ownership labels.
 
-Do not describe these results as a completed production upgrade. Review the
-search matching difference and rerun authenticated feed comparisons after the
-existing baseline failure clears before a coordinated renderer cutover.
+Do not describe these results as a completed production upgrade. At the initial
+rehearsal, the remaining gates were review of the search matching difference,
+a renderer memory decision, and authenticated feed comparisons. The follow-up
+records the later decisions and replacement browser-dependent route check.
 
 ## Exact scope and environment
 
@@ -72,10 +80,11 @@ passed. Ten query hit sets matched exactly. Two expanded on 1.55.0:
 - Another returned 9 instead of 5, retaining all 5 old matches.
 
 All settings were identical and the source index's last-update timestamp stayed
-stable throughout comparison. This is an observed engine matching difference,
-not evidence of lost data or a configuration mismatch. The precise matching
-rule responsible was not isolated. Review relevance expectations before rollout;
-do not change Marka's intended search semantics just to make versions agree.
+stable throughout comparison. This was an observed live-versus-imported index
+matching difference, not evidence of lost data or a configuration mismatch.
+The initial experiment did not isolate its cause. The follow-up found the same
+broader matches after a fresh import into 1.41 as into 1.55, so a version-only
+explanation is not supported. The user chose to preserve search settings.
 
 The comparison harness was corrected to check global date ordering only for
 blank queries. For content queries, the existing ranking rules can rank word

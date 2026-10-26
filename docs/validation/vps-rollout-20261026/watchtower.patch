@@ -1,0 +1,11 @@
+--- a/deploy/docker-compose.prod.yml
++++ b/deploy/docker-compose.prod.yml
+@@ -67,7 +67,7 @@
+   watchtower:
+     # Maintained fork; the original containrrr/watchtower is abandoned and its
+     # Docker client (API 1.25) is too old for modern engines (min API 1.44).
+-    image: ghcr.io/nicholas-fedor/watchtower:latest
++    image: ghcr.io/nicholas-fedor/watchtower:1.23.2@sha256:62fb91130ddb493f869cad7e198fa260dd16c5da293ed092cbd5d8781566f7a6
+     restart: unless-stopped
+     mem_limit: 128m
+     volumes:
