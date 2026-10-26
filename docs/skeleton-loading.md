@@ -1,0 +1,108 @@
+# Generated loading skeletons
+
+Marka uses `boneyard-js@1.10.0` for bookmark dashboard cards and the admin overview's
+statistics. Both use synthetic fixtures and commit their generated geometry, so
+normal builds and production requests never perform browser capture.
+
+## Bookmark dashboard
+
+`BookmarksGridSkeleton` retains the existing CSS grid and saved column-count
+policy. Its cards use captures of the real `BookmarkCard` and shared
+`BookmarkCardFrame` for masonry, grid, list, and compact views. This applies to
+the initial dashboard/search fetch and to waiting for an offline replica. Cached
+bookmarks remain visible during refreshes, and pagination retains its existing
+Load More progress indicator.
+
+Start local development, then regenerate against the workspace's web port:
+
+```bash
+pnpm skeletons:bookmarks http://localhost:3000
+```
+
+The development-only `/dev/boneyard/bookmarks?capture=1` page renders synthetic,
+inert real cards at eleven container widths from 112 to 1360 pixels. The CLI
+captures these at 390px and 1440px viewports, preserving the separate mobile and
+desktop card styles. It treats inline-content divs as leaves so line-clamped
+titles are measured at their visible size. All 88 samples must be valid before
+the generator replaces
+`apps/web/components/dashboard/bookmarks/bones/bookmark-cards.bones.json`.
+
+Each placeholder measures its actual container, chooses the nearest sample,
+and resets Boneyard when its width, layout, or media breakpoint changes. Mobile
+square previews grow with the container while text and icons keep their height.
+This supports the user's one to six desktop columns without capturing entire
+dashboard arrangements. The adapter also corrects Boneyard's square-image circle
+heuristic for rectangular card previews. It reserves the generated height,
+retains a CSS-sized SSR fallback, uses theme tokens and the existing pulse and
+reduced-motion rules, and announces loading once for the whole grid.
+
+For visual checks, open `/dev/boneyard/bookmarks` with these query parameters:
+
+- `layout=masonry|grid|list|compact`
+- `columns=1` to `columns=6`
+- `state=loaded` for real cards, `state=pagination` for their progress indicator,
+  `state=offline` for the initial offline wait, or `state=offline-ready` for
+  visible cached cards; omit `state` for loading
+
+These previews use synthetic data in the dashboard shell. Offline and pagination
+preview states illustrate presentation; the real behavior is covered by the
+`UpdatableBookmarksGrid` and `LocalFirstBookmarksGrid` tests.
+
+```bash
+pnpm --filter @karakeep/web exec vitest run components/dashboard/bookmarks/BookmarkCardSkeleton.test.tsx components/dashboard/bookmarks/bookmarkSkeletonGeometry.test.ts components/dashboard/bookmarks/BookmarksGridSkeleton.test.tsx components/dashboard/bookmarks/UpdatableBookmarksGrid.test.tsx components/dashboard/bookmarks/LocalFirstBookmarksGrid.test.tsx
+```
+
+## Admin statistics
+
+The admin overview's statistics card uses `boneyard-js@1.10.0`. Its generated
+geometry comes from `BasicStatsFixture`, which renders the same
+`BasicStatsContent` as the real card using synthetic counts and a release version.
+Capture never needs an admin session or live statistics.
+
+After changing this view's layout, start local development with `pnpm dev:start`
+and regenerate against that workspace's web port:
+
+```bash
+pnpm skeletons:generate http://localhost:3000
+```
+
+Replace `3000` with the workspace's assigned port. The generator accepts only a
+loopback HTTP URL. It captures `/dev/boneyard` at 320, 390, 640, 768, 1023, 1024,
+1280, 1440, and 1920 pixels. The fixture mirrors the admin sidebar and content
+padding, including the three-column switch at 1024 pixels. Boneyard uses its own
+Playwright CLI for capture and may install Chromium if it is missing.
+
+The generator validates all captures before replacing
+`apps/web/components/admin/bones/admin-stats.bones.json`. Commit this JSON with
+the layout change; do not edit its measurements by hand. The component imports
+the JSON directly, so it does not need a generated side-effect registry. Normal
+builds and production requests do not perform browser capture.
+
+To inspect loading and loaded states, open `/dev/boneyard` and
+`/dev/boneyard?state=loaded`. This route shows Next.js's not-found page outside
+development.
+
+`BasicStatsSkeleton` retains the existing placeholder for server rendering and
+until Boneyard can select a responsive capture after hydration. Its viewport
+selection matches the capture widths despite the sidebar narrowing the card.
+It reserves the generated height and resets Boneyard when the selected capture
+changes, avoiding stale desktop measurements after a resize to mobile.
+Colors use Marka's `--muted` token, animation uses the existing Tailwind pulse
+and global reduced-motion rules, and a translated status announces loading while
+the decorative geometry is hidden from assistive technology.
+
+Verify with:
+
+```bash
+pnpm --filter @karakeep/web exec vitest run components/admin/BasicStats.test.tsx
+pnpm --filter @karakeep/web typecheck
+```
+
+## Review screenshots
+
+These local dashboard previews use synthetic data.
+
+- [Desktop grid, 1440px](pr-assets/boneyard/dashboard-grid-desktop.png)
+- [Mobile masonry, 390px](pr-assets/boneyard/dashboard-masonry-mobile.png)
+- [Mobile list, 390px](pr-assets/boneyard/dashboard-list-mobile.png)
+- [Desktop compact, 1440px](pr-assets/boneyard/dashboard-compact-desktop.png)

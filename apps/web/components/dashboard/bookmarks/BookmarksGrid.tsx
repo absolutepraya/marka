@@ -18,7 +18,6 @@ import {
 import { SCREENS } from "@/lib/breakpoints";
 import { useServerIsMobile } from "@/lib/serverHints";
 import { cn } from "@/lib/utils";
-import { Slot } from "@radix-ui/react-slot";
 import { ErrorBoundary } from "react-error-boundary";
 import { useInView } from "react-intersection-observer";
 import Masonry from "react-masonry-css";
@@ -27,30 +26,10 @@ import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
 import { useBookmarkListContext } from "@karakeep/shared-react/hooks/bookmark-list-context";
 
 import BookmarkCard from "./BookmarkCard";
+import { BookmarkCardFrame } from "./BookmarkCardFrame";
 import EditorCard from "./EditorCard";
 import UnknownCard from "./UnknownCard";
 import { getBookmarkGridBreakpointConfig } from "./bookmarkGridColumns";
-
-function StyledBookmarkCard({
-  children,
-  className,
-  ...props
-}: {
-  children: React.ReactNode;
-  className?: string;
-} & React.HTMLAttributes<HTMLElement>) {
-  return (
-    <Slot
-      className={cn(
-        "shadow-xs ease-(--ease-out) mb-1 overflow-hidden rounded-xl border border-border/80 bg-card transition-[border-color,box-shadow,background-color] duration-200 hover:border-border hover:shadow-md sm:mb-3 sm:rounded-2xl",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </Slot>
-  );
-}
 
 const BookmarkGridItem = memo(function BookmarkGridItem({
   bookmark,
@@ -65,14 +44,14 @@ const BookmarkGridItem = memo(function BookmarkGridItem({
 
   return (
     <ErrorBoundary fallback={<UnknownCard bookmark={bookmark} />}>
-      <StyledBookmarkCard
+      <BookmarkCardFrame
         className={cn(
           isFocused &&
             "ring-2 ring-primary ring-offset-2 ring-offset-background",
         )}
       >
         <BookmarkCard bookmark={bookmark} bookmarkIndex={index} />
-      </StyledBookmarkCard>
+      </BookmarkCardFrame>
     </ErrorBoundary>
   );
 });
@@ -242,9 +221,9 @@ export default function BookmarksGrid({
       // hidden editor card into Masonry on phones: it still consumes the
       // first column slot and makes the first bookmark start on the right.
       <div key={"editor"}>
-        <StyledBookmarkCard>
+        <BookmarkCardFrame>
           <EditorCard />
-        </StyledBookmarkCard>
+        </BookmarkCardFrame>
       </div>
     ),
     ...visibleBookmarks.map((bookmark, index) => (

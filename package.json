@@ -46,7 +46,9 @@
     "knip": "knip",
     "doctor": "react-doctor --project @karakeep/web,@karakeep/browser-extension,@karakeep/mobile,@karakeep/landing,@karakeep/shared-react --scope full --no-score --blocking none",
     "doctor:staged": "node scripts/run-react-doctor-staged.mjs",
-    "doctor:ci": "react-doctor --project @karakeep/web,@karakeep/browser-extension,@karakeep/mobile,@karakeep/landing,@karakeep/shared-react --scope full --blocking none --json | node scripts/check-react-doctor-score.mjs 99"
+    "doctor:ci": "react-doctor --project @karakeep/web,@karakeep/browser-extension,@karakeep/mobile,@karakeep/landing,@karakeep/shared-react --scope full --blocking none --json | node scripts/check-react-doctor-score.mjs 99",
+    "skeletons:generate": "node scripts/generate-admin-skeleton.mjs",
+    "skeletons:bookmarks": "node scripts/generate-bookmark-skeletons.mjs"
   },
   "dependencies": {
     "husky": "^9.0.11"
