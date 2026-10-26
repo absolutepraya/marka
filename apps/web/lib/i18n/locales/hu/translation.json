@@ -928,6 +928,7 @@
     },
     "admin_settings": "Rendszergazdai beállítások",
     "server_stats": {
+      "description": "Az aktuális példány alapvető használati és verzióadatai.",
       "server_stats": "Szerver statisztika",
       "total_users": "Összes felhasználó",
       "total_bookmarks": "Összes könyvjelző",
@@ -1080,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Keresés a kiemelésekben...",
     "no_highlights": "Még nem emeltél kis semmit."
   },
   "banners": {

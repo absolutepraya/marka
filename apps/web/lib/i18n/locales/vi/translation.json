@@ -568,6 +568,7 @@
   },
   "admin": {
     "server_stats": {
+      "description": "Các chỉ số sử dụng chính và thông tin phiên bản của phiên bản triển khai hiện tại.",
       "total_users": "Tất cả người dùng",
       "total_bookmarks": "Tất cả đánh dấu trang",
       "server_version": "Phiên bản máy chủ",
@@ -784,6 +785,7 @@
     "last_used": "Lần cuối sử dụng"
   },
   "highlights": {
+    "search_placeholder": "Tìm kiếm phần đánh dấu...",
     "no_highlights": "Bạn chưa có đánh dấu nào."
   },
   "lists": {

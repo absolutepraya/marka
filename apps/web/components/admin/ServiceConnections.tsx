@@ -1,8 +1,12 @@
 "use client";
 
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@karakeep/trpc/routers/_app";
+
 import { AdminCard } from "@/components/admin/AdminCard";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/admin-connections.bones.json";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/client";
 import { useQuery } from "@tanstack/react-query";
@@ -73,34 +77,8 @@ function ConnectionStatus({
   );
 }
 
-function ConnectionsSkeleton() {
-  return (
-    <AdminCard>
-      <div className="mb-4 space-y-2">
-        <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-4 w-80" />
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="shadow-xs rounded-xl border border-border/70 bg-background/80 p-4"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-2 w-2 rounded-full" />
-            </div>
-            <Skeleton className="h-5 w-24 rounded-full" />
-          </div>
-        ))}
-      </div>
-    </AdminCard>
-  );
-}
-
 export default function ServiceConnections() {
   const api = useTRPC();
-  const { t } = useTranslation();
   const { data: connections } = useQuery(
     api.admin.checkConnections.queryOptions(undefined, {
       refetchInterval: 10000,
@@ -108,9 +86,18 @@ export default function ServiceConnections() {
   );
 
   if (!connections) {
-    return <ConnectionsSkeleton />;
+    return <CapturedSkeleton name="admin-connections" bones={bones} />;
   }
 
+  return <ConnectionsContent connections={connections} />;
+}
+
+export function ConnectionsContent({
+  connections,
+}: {
+  connections: inferRouterOutputs<AppRouter>["admin"]["checkConnections"];
+}) {
+  const { t } = useTranslation();
   return (
     <AdminCard>
       <div className="mb-4 space-y-1">

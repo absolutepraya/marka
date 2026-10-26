@@ -1,4 +1,6 @@
 "use client";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/backups.bones.json";
 
 import Link from "next/link";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -13,7 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -236,12 +237,87 @@ function BackupRow({ backup }: { backup: z.infer<typeof zBackupSchema> }) {
     }),
   );
 
+  return (
+    <BackupRowContent
+      backup={backup}
+      actions={
+        <>
+          <div className="flex items-center gap-2">
+            {backup.assetId && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full"
+                    disabled={backup.status !== "success"}
+                  >
+                    <Link
+                      href={getAssetUrl(backup.assetId)}
+                      download
+                      prefetch={false}
+                      className={
+                        backup.status !== "success"
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
+                    >
+                      <Download className="size-4" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t("settings.backups.list.actions.download_backup")}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <ActionConfirmingDialog
+              title={t("settings.backups.dialogs.delete_backup_title")}
+              description={t(
+                "settings.backups.dialogs.delete_backup_description",
+              )}
+              actionButton={() => (
+                <ActionButton
+                  loading={isDeleting}
+                  variant="destructive"
+                  onClick={() => deleteBackup({ backupId: backup.id })}
+                  className="items-center"
+                  type="button"
+                >
+                  <Trash2 className="mr-2 size-4" />
+                  {t("settings.backups.list.actions.delete_backup")}
+                </ActionButton>
+              )}
+            >
+              <Button
+                variant="ghostDestructive"
+                size="icon"
+                disabled={isDeleting}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </ActionConfirmingDialog>
+          </div>
+        </>
+      }
+    />
+  );
+}
+
+export function BackupRowContent({
+  backup,
+  actions,
+}: {
+  backup: z.infer<typeof zBackupSchema>;
+  actions: React.ReactNode;
+}) {
+  const { t } = useTranslation();
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
-
   return (
     <TableRow>
       <TableCell>
@@ -288,65 +364,7 @@ function BackupRow({ backup }: { backup: z.infer<typeof zBackupSchema> }) {
           </Badge>
         )}
       </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          {backup.assetId && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full"
-                  disabled={backup.status !== "success"}
-                >
-                  <Link
-                    href={getAssetUrl(backup.assetId)}
-                    download
-                    prefetch={false}
-                    className={
-                      backup.status !== "success"
-                        ? "pointer-events-none opacity-50"
-                        : ""
-                    }
-                  >
-                    <Download className="size-4" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t("settings.backups.list.actions.download_backup")}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          <ActionConfirmingDialog
-            title={t("settings.backups.dialogs.delete_backup_title")}
-            description={t(
-              "settings.backups.dialogs.delete_backup_description",
-            )}
-            actionButton={() => (
-              <ActionButton
-                loading={isDeleting}
-                variant="destructive"
-                onClick={() => deleteBackup({ backupId: backup.id })}
-                className="items-center"
-                type="button"
-              >
-                <Trash2 className="mr-2 size-4" />
-                {t("settings.backups.list.actions.delete_backup")}
-              </ActionButton>
-            )}
-          >
-            <Button
-              variant="ghostDestructive"
-              size="icon"
-              disabled={isDeleting}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </ActionConfirmingDialog>
-        </div>
-      </TableCell>
+      <TableCell>{actions}</TableCell>
     </TableRow>
   );
 }
@@ -400,8 +418,8 @@ function BackupsList() {
       }
     >
       {isLoading && (
-        <div className="flex min-h-40 items-center justify-center rounded-xl border border-border/70 bg-background/80">
-          <FullPageSpinner />
+        <div>
+          <CapturedSkeleton name="backups" bones={bones} />
         </div>
       )}
 
@@ -417,28 +435,11 @@ function BackupsList() {
 
       {backups && backups.backups.length > 0 && (
         <div className="shadow-xs overflow-hidden rounded-xl border border-border/70 bg-background/80">
-          <Table className="whitespace-nowrap">
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  {t("settings.backups.list.table.created_at")}
-                </TableHead>
-                <TableHead>
-                  {t("settings.backups.list.table.bookmarks")}
-                </TableHead>
-                <TableHead>{t("settings.backups.list.table.size")}</TableHead>
-                <TableHead>{t("settings.backups.list.table.status")}</TableHead>
-                <TableHead>
-                  {t("settings.backups.list.table.actions")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {backups.backups.map((backup) => (
-                <BackupRow key={backup.id} backup={backup} />
-              ))}
-            </TableBody>
-          </Table>
+          <BackupsTable>
+            {backups.backups.map((backup) => (
+              <BackupRow key={backup.id} backup={backup} />
+            ))}
+          </BackupsTable>
         </div>
       )}
     </SettingsSection>
@@ -451,5 +452,23 @@ export default function BackupSettings() {
       <BackupConfigurationForm />
       <BackupsList />
     </>
+  );
+}
+
+export function BackupsTable({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <Table className="whitespace-nowrap">
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t("settings.backups.list.table.created_at")}</TableHead>
+          <TableHead>{t("settings.backups.list.table.bookmarks")}</TableHead>
+          <TableHead>{t("settings.backups.list.table.size")}</TableHead>
+          <TableHead>{t("settings.backups.list.table.status")}</TableHead>
+          <TableHead>{t("settings.backups.list.table.actions")}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>{children}</TableBody>
+    </Table>
   );
 }

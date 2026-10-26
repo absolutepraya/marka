@@ -1,4 +1,7 @@
 "use client";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import resultBones from "@/components/loading-ui/bones/import-results.bones.json";
+import bones from "@/components/loading-ui/bones/import-detail.bones.json";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -11,7 +14,6 @@ import { ActionButton } from "@/components/ui/action-button";
 import ActionConfirmingDialog from "@/components/ui/action-confirming-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import { Progress } from "@/components/ui/progress";
 import {
   Table,
@@ -303,7 +305,7 @@ export default function ImportSessionDetail({
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, loadMoreInView]);
 
   if (isStatsLoading) {
-    return <FullPageSpinner />;
+    return <CapturedSkeleton name="import-detail" bones={bones} />;
   }
 
   if (!stats) {
@@ -312,13 +314,6 @@ export default function ImportSessionDetail({
 
   const items: ImportSessionResultItem[] =
     resultsData?.pages.flatMap((page) => page.items) ?? [];
-
-  const progress =
-    stats.totalBookmarks > 0
-      ? ((stats.completedBookmarks + stats.failedBookmarks) /
-          stats.totalBookmarks) *
-        100
-      : 0;
 
   const canDelete =
     stats.status === "staging" ||
@@ -329,6 +324,167 @@ export default function ImportSessionDetail({
   const canPause = stats.status === "pending" || stats.status === "running";
   const canResume = stats.status === "paused";
 
+  const handleDelete = () => {
+    deleteSession.mutateAsync({ importSessionId: sessionId }).then(() => {
+      router.push("/settings/import");
+    });
+  };
+
+  return (
+    <ImportSessionDetailContent
+      stats={stats}
+      filter={filter}
+      setFilter={setFilter}
+      createdDescription={`Created ${formatDistanceToNow(stats.createdAt, { addSuffix: true })}`}
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          {canPause && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                pauseSession.mutate({ importSessionId: sessionId })
+              }
+              disabled={pauseSession.isPending}
+            >
+              <Pause className="mr-1 h-4 w-4" />
+              {t("settings.import_sessions.pause_session")}
+            </Button>
+          )}
+          {canFinalize && (
+            <ActionConfirmingDialog
+              title={t("settings.import_sessions.finalize_dialog_title")}
+              description={
+                <div>
+                  {t("settings.import_sessions.finalize_dialog_description", {
+                    name: stats.name,
+                  })}
+                </div>
+              }
+              actionButton={(setDialogOpen) => (
+                <Button
+                  onClick={() => {
+                    finalizeSession.mutateAsync({
+                      importSessionId: sessionId,
+                    });
+                    setDialogOpen(false);
+                  }}
+                  disabled={finalizeSession.isPending}
+                >
+                  {t("settings.import_sessions.finalize_staging")}
+                </Button>
+              )}
+            >
+              <Button size="sm" disabled={finalizeSession.isPending}>
+                <Play className="mr-1 h-4 w-4" />
+                {t("settings.import_sessions.finalize_staging")}
+              </Button>
+            </ActionConfirmingDialog>
+          )}
+          {canResume && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                resumeSession.mutate({ importSessionId: sessionId })
+              }
+              disabled={resumeSession.isPending}
+            >
+              <Play className="mr-1 h-4 w-4" />
+              {t("settings.import_sessions.resume_session")}
+            </Button>
+          )}
+          {canDelete && (
+            <ActionConfirmingDialog
+              title={t("settings.import_sessions.delete_dialog_title")}
+              description={
+                <div>
+                  {t("settings.import_sessions.delete_dialog_description", {
+                    name: stats.name,
+                  })}
+                </div>
+              }
+              actionButton={(setDialogOpen) => (
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    handleDelete();
+                    setDialogOpen(false);
+                  }}
+                  disabled={deleteSession.isPending}
+                >
+                  {t("settings.import_sessions.delete_session")}
+                </Button>
+              )}
+            >
+              <Button
+                variant="destructiveOutline"
+                size="sm"
+                disabled={deleteSession.isPending}
+              >
+                <Trash2 className="mr-1 h-4 w-4" />
+                {t("actions.delete")}
+              </Button>
+            </ActionConfirmingDialog>
+          )}
+        </div>
+      }
+      results={
+        isResultsLoading ? (
+          <CapturedSkeleton name="import-results" bones={resultBones} />
+        ) : items.length === 0 ? (
+          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            {t("settings.import_sessions.detail.no_results")}
+          </div>
+        ) : (
+          <ImportResultsTable
+            items={items}
+            pagination={
+              hasNextPage && (
+                <div className="flex justify-center pb-2 pt-1">
+                  <ActionButton
+                    ref={loadMoreRef}
+                    ignoreDemoMode={true}
+                    loading={isFetchingNextPage}
+                    onClick={() => fetchNextPage()}
+                    variant="ghost"
+                  >
+                    {t("settings.import_sessions.detail.load_more")}
+                  </ActionButton>
+                </div>
+              )
+            }
+          />
+        )
+      }
+    />
+  );
+}
+
+export function ImportSessionDetailContent({
+  stats,
+  filter,
+  setFilter,
+  actions,
+  results,
+  createdDescription,
+}: {
+  stats: NonNullable<ReturnType<typeof useImportSessionStats>["data"]>;
+  filter: FilterType;
+  setFilter: (filter: FilterType) => void;
+  actions: React.ReactNode;
+  results: React.ReactNode;
+  createdDescription: string;
+}) {
+  const { t: tRaw } = useTranslation();
+  const t = tRaw as SimpleTFunction;
+  const progress =
+    stats.totalBookmarks > 0
+      ? ((stats.completedBookmarks + stats.failedBookmarks) /
+          stats.totalBookmarks) *
+        100
+      : 0;
+
   const statusLabels = (s: ZImportSessionStatus) =>
     switchCase(s, {
       staging: t("settings.import_sessions.status.staging"),
@@ -338,12 +494,6 @@ export default function ImportSessionDetail({
       completed: t("settings.import_sessions.status.completed"),
       failed: t("settings.import_sessions.status.failed"),
     });
-
-  const handleDelete = () => {
-    deleteSession.mutateAsync({ importSessionId: sessionId }).then(() => {
-      router.push("/settings/import");
-    });
-  };
 
   return (
     <div className="space-y-4">
@@ -357,9 +507,7 @@ export default function ImportSessionDetail({
 
       <SettingsPage
         title={stats.name}
-        description={`Created ${formatDistanceToNow(stats.createdAt, {
-          addSuffix: true,
-        })}`}
+        description={createdDescription}
         icon={<Upload className="size-6 shrink-0 text-muted-foreground" />}
         action={
           <Badge
@@ -374,102 +522,7 @@ export default function ImportSessionDetail({
         <SettingsSection
           title="Session overview"
           description="Track progress, inspect the final destination list, and manage the session lifecycle."
-          action={
-            <div className="flex flex-wrap items-center gap-2">
-              {canPause && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    pauseSession.mutate({ importSessionId: sessionId })
-                  }
-                  disabled={pauseSession.isPending}
-                >
-                  <Pause className="mr-1 h-4 w-4" />
-                  {t("settings.import_sessions.pause_session")}
-                </Button>
-              )}
-              {canFinalize && (
-                <ActionConfirmingDialog
-                  title={t("settings.import_sessions.finalize_dialog_title")}
-                  description={
-                    <div>
-                      {t(
-                        "settings.import_sessions.finalize_dialog_description",
-                        {
-                          name: stats.name,
-                        },
-                      )}
-                    </div>
-                  }
-                  actionButton={(setDialogOpen) => (
-                    <Button
-                      onClick={() => {
-                        finalizeSession.mutateAsync({
-                          importSessionId: sessionId,
-                        });
-                        setDialogOpen(false);
-                      }}
-                      disabled={finalizeSession.isPending}
-                    >
-                      {t("settings.import_sessions.finalize_staging")}
-                    </Button>
-                  )}
-                >
-                  <Button size="sm" disabled={finalizeSession.isPending}>
-                    <Play className="mr-1 h-4 w-4" />
-                    {t("settings.import_sessions.finalize_staging")}
-                  </Button>
-                </ActionConfirmingDialog>
-              )}
-              {canResume && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    resumeSession.mutate({ importSessionId: sessionId })
-                  }
-                  disabled={resumeSession.isPending}
-                >
-                  <Play className="mr-1 h-4 w-4" />
-                  {t("settings.import_sessions.resume_session")}
-                </Button>
-              )}
-              {canDelete && (
-                <ActionConfirmingDialog
-                  title={t("settings.import_sessions.delete_dialog_title")}
-                  description={
-                    <div>
-                      {t("settings.import_sessions.delete_dialog_description", {
-                        name: stats.name,
-                      })}
-                    </div>
-                  }
-                  actionButton={(setDialogOpen) => (
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        handleDelete();
-                        setDialogOpen(false);
-                      }}
-                      disabled={deleteSession.isPending}
-                    >
-                      {t("settings.import_sessions.delete_session")}
-                    </Button>
-                  )}
-                >
-                  <Button
-                    variant="destructiveOutline"
-                    size="sm"
-                    disabled={deleteSession.isPending}
-                  >
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    {t("actions.delete")}
-                  </Button>
-                </ActionConfirmingDialog>
-              )}
-            </div>
-          }
+          action={actions}
         >
           <div className="space-y-4">
             <div className="shadow-xs rounded-xl border border-border/70 bg-background/80 p-4">
@@ -582,101 +635,89 @@ export default function ImportSessionDetail({
             </Tabs>
 
             <div className="shadow-xs overflow-hidden rounded-xl border border-border/70 bg-background/80">
-              {isResultsLoading ? (
-                <div className="flex min-h-40 items-center justify-center">
-                  <FullPageSpinner />
-                </div>
-              ) : items.length === 0 ? (
-                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  {t("settings.import_sessions.detail.no_results")}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3 p-1">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>
-                          {t("settings.import_sessions.detail.table_title")}
-                        </TableHead>
-                        <TableHead className="w-[96px]">
-                          {t("settings.import_sessions.detail.table_type")}
-                        </TableHead>
-                        <TableHead className="w-[150px]">
-                          {t("settings.import_sessions.detail.table_result")}
-                        </TableHead>
-                        <TableHead>
-                          {t("settings.import_sessions.detail.table_reason")}
-                        </TableHead>
-                        <TableHead className="w-[120px]">
-                          {t("settings.import_sessions.detail.table_bookmark")}
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="max-w-[300px] truncate font-medium">
-                            {getTitleDisplay(
-                              item,
-                              t("settings.import_sessions.detail.no_title"),
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className="flex w-fit items-center gap-1 border-border/70 bg-background/70 text-xs"
-                            >
-                              {getTypeIcon(item.type)}
-                              {getTypeLabel(item.type, t)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {getResultBadge(item.status, item.result, t)}
-                          </TableCell>
-                          <TableCell className="max-w-[220px] truncate text-sm text-muted-foreground">
-                            {item.resultReason || "—"}
-                          </TableCell>
-                          <TableCell>
-                            {item.resultBookmarkId ? (
-                              <Link
-                                href={`/dashboard/preview/${item.resultBookmarkId}`}
-                                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
-                                prefetch={false}
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                {t(
-                                  "settings.import_sessions.detail.view_bookmark",
-                                )}
-                              </Link>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">
-                                —
-                              </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {hasNextPage && (
-                    <div className="flex justify-center pb-2 pt-1">
-                      <ActionButton
-                        ref={loadMoreRef}
-                        ignoreDemoMode={true}
-                        loading={isFetchingNextPage}
-                        onClick={() => fetchNextPage()}
-                        variant="ghost"
-                      >
-                        {t("settings.import_sessions.detail.load_more")}
-                      </ActionButton>
-                    </div>
-                  )}
-                </div>
-              )}
+              {results}
             </div>
           </div>
         </SettingsSection>
       </SettingsPage>
+    </div>
+  );
+}
+
+export function ImportResultsTable({
+  items,
+  pagination,
+}: {
+  items: ImportSessionResultItem[];
+  pagination?: React.ReactNode;
+}) {
+  const { t: tRaw } = useTranslation();
+  const t = tRaw as SimpleTFunction;
+  return (
+    <div className="flex flex-col gap-3 p-1">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>
+              {t("settings.import_sessions.detail.table_title")}
+            </TableHead>
+            <TableHead className="w-[96px]">
+              {t("settings.import_sessions.detail.table_type")}
+            </TableHead>
+            <TableHead className="w-[150px]">
+              {t("settings.import_sessions.detail.table_result")}
+            </TableHead>
+            <TableHead>
+              {t("settings.import_sessions.detail.table_reason")}
+            </TableHead>
+            <TableHead className="w-[120px]">
+              {t("settings.import_sessions.detail.table_bookmark")}
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell className="max-w-[300px] truncate font-medium">
+                {getTitleDisplay(
+                  item,
+                  t("settings.import_sessions.detail.no_title"),
+                )}
+              </TableCell>
+              <TableCell>
+                <Badge
+                  variant="outline"
+                  className="flex w-fit items-center gap-1 border-border/70 bg-background/70 text-xs"
+                >
+                  {getTypeIcon(item.type)}
+                  {getTypeLabel(item.type, t)}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {getResultBadge(item.status, item.result, t)}
+              </TableCell>
+              <TableCell className="max-w-[220px] truncate text-sm text-muted-foreground">
+                {item.resultReason || "—"}
+              </TableCell>
+              <TableCell>
+                {item.resultBookmarkId ? (
+                  <Link
+                    href={`/dashboard/preview/${item.resultBookmarkId}`}
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
+                    prefetch={false}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    {t("settings.import_sessions.detail.view_bookmark")}
+                  </Link>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {pagination}
     </div>
   );
 }

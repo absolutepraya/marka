@@ -617,6 +617,7 @@
   "admin": {
     "admin_settings": "管理員設定",
     "server_stats": {
+      "description": "目前執行個體的核心使用情況與版本資訊。",
       "server_stats": "伺服器統計資訊",
       "total_users": "使用者總數",
       "total_bookmarks": "書籤總數",
@@ -1080,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "搜尋標記重點...",
     "no_highlights": "您目前尚未有任何標記重點。"
   },
   "bookmark_editor": {

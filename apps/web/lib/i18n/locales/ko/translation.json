@@ -822,6 +822,7 @@
     },
     "admin_settings": "관리자 설정",
     "server_stats": {
+      "description": "현재 인스턴스의 주요 사용 현황 및 버전 정보입니다.",
       "server_stats": "서버 상태",
       "total_users": "총 사용자",
       "total_bookmarks": "총 북마크",
@@ -1080,6 +1081,7 @@
     "follow_us_on_x": "X에서 팔로우하세요"
   },
   "highlights": {
+    "search_placeholder": "하이라이트 검색...",
     "no_highlights": "강조된 부분이 없습니다."
   },
   "banners": {

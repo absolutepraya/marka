@@ -1,5 +1,8 @@
 "use client";
 
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@karakeep/trpc/routers/_app";
+
 import { ActionButton } from "@/components/ui/action-button";
 import { ButtonWithTooltip } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -68,6 +71,73 @@ export default function InvitesList() {
   const activeInvites = invites?.invites || [];
 
   return (
+    <InvitesContent
+      activeInvites={activeInvites}
+      createAction={
+        <CreateInviteDialog>
+          <ButtonWithTooltip tooltip="Send Invite" variant="outline">
+            <UserPlus size={16} />
+          </ButtonWithTooltip>
+        </CreateInviteDialog>
+      }
+      rowActions={(invite) => (
+        <div className="flex items-center gap-1.5">
+          <ButtonWithTooltip
+            tooltip="Resend Invite"
+            variant="outline"
+            size="sm"
+            onClick={() => resendInvite({ inviteId: invite.id })}
+            disabled={isResendPending}
+          >
+            <Mail size={14} />
+          </ButtonWithTooltip>
+          <ActionConfirmingDialog
+            title="Revoke Invite"
+            description={`Are you sure you want to revoke the invite for ${invite.email}? This action cannot be undone.`}
+            actionButton={(setDialogOpen) => (
+              <ActionButton
+                variant="destructive"
+                loading={isRevokePending}
+                onClick={async () => {
+                  await revokeInvite({ inviteId: invite.id });
+                  setDialogOpen(false);
+                }}
+              >
+                Revoke
+              </ActionButton>
+            )}
+          >
+            <ButtonWithTooltip
+              tooltip="Revoke Invite"
+              variant="outline"
+              size="sm"
+            >
+              <MailX size={14} />
+            </ButtonWithTooltip>
+          </ActionConfirmingDialog>
+        </div>
+      )}
+      formatCreatedAt={(date) =>
+        formatDistanceToNow(new Date(date), { addSuffix: true })
+      }
+    />
+  );
+}
+
+export function InvitesContent({
+  activeInvites,
+  createAction,
+  rowActions,
+  formatCreatedAt,
+}: {
+  activeInvites: inferRouterOutputs<AppRouter>["invites"]["list"]["invites"];
+  createAction: React.ReactNode;
+  rowActions: (
+    invite: inferRouterOutputs<AppRouter>["invites"]["list"]["invites"][number],
+  ) => React.ReactNode;
+  formatCreatedAt: (date: Date) => string;
+}) {
+  return (
     <AdminCard>
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -80,11 +150,7 @@ export default function InvitesList() {
               before it is accepted.
             </p>
           </div>
-          <CreateInviteDialog>
-            <ButtonWithTooltip tooltip="Send Invite" variant="outline">
-              <UserPlus size={16} />
-            </ButtonWithTooltip>
-          </CreateInviteDialog>
+          {createAction}
         </div>
 
         {activeInvites.length === 0 ? (
@@ -116,47 +182,9 @@ export default function InvitesList() {
                       {invite.invitedBy.name}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDistanceToNow(new Date(invite.createdAt), {
-                        addSuffix: true,
-                      })}
+                      {formatCreatedAt(invite.createdAt)}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <ButtonWithTooltip
-                          tooltip="Resend Invite"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => resendInvite({ inviteId: invite.id })}
-                          disabled={isResendPending}
-                        >
-                          <Mail size={14} />
-                        </ButtonWithTooltip>
-                        <ActionConfirmingDialog
-                          title="Revoke Invite"
-                          description={`Are you sure you want to revoke the invite for ${invite.email}? This action cannot be undone.`}
-                          actionButton={(setDialogOpen) => (
-                            <ActionButton
-                              variant="destructive"
-                              loading={isRevokePending}
-                              onClick={async () => {
-                                await revokeInvite({ inviteId: invite.id });
-                                setDialogOpen(false);
-                              }}
-                            >
-                              Revoke
-                            </ActionButton>
-                          )}
-                        >
-                          <ButtonWithTooltip
-                            tooltip="Revoke Invite"
-                            variant="outline"
-                            size="sm"
-                          >
-                            <MailX size={14} />
-                          </ButtonWithTooltip>
-                        </ActionConfirmingDialog>
-                      </div>
-                    </TableCell>
+                    <TableCell>{rowActions(invite)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

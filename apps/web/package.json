@@ -68,6 +68,7 @@
     "@trpc/tanstack-react-query": "^11.9.0",
     "ai": "^6.0.193",
     "better-sqlite3": "^11.3.0",
+    "boneyard-js": "1.10.0",
     "cheerio": "^1.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",

@@ -1,0 +1,140 @@
+{
+  "breakpoints": {
+    "320": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    },
+    "390": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    },
+    "640": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    },
+    "768": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    },
+    "1023": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    },
+    "1024": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    },
+    "1280": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    },
+    "1440": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    },
+    "1920": {
+      "name": "subscription-price",
+      "viewportWidth": 96,
+      "width": 96,
+      "height": 32,
+      "bones": [
+        [
+          0,
+          1,
+          74.2188,
+          29,
+          8
+        ]
+      ]
+    }
+  },
+  "_hash": "7dd169641c7faca684a063e8ca289798"
+}

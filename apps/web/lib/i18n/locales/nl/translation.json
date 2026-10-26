@@ -616,6 +616,7 @@
   },
   "admin": {
     "server_stats": {
+      "description": "Belangrijke gebruiks- en versiegegevens voor de huidige instantie.",
       "server_stats": "Server Statistieken",
       "total_users": "Totaal Gebruikers",
       "total_bookmarks": "Totaal Bladwijzers",
@@ -1080,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Markeringen zoeken...",
     "no_highlights": "Je hebt nog geen markeringen."
   },
   "bookmark_editor": {

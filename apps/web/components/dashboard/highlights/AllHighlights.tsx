@@ -1,5 +1,7 @@
 "use client";
 
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/highlights.bones.json";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -23,14 +25,42 @@ import {
 import HighlightCard from "./HighlightCard";
 
 function Highlight({ highlight }: { highlight: ZHighlight }) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { fromNow, localCreatedAt } = useRelativeTime(
     highlight.createdAt,
     i18n.language,
   );
   return (
+    <HighlightRowContent
+      highlight={highlight}
+      fromNow={fromNow}
+      localCreatedAt={localCreatedAt}
+      card={
+        <HighlightCard
+          highlight={highlight}
+          clickable={false}
+          readOnly={false}
+        />
+      }
+    />
+  );
+}
+
+export function HighlightRowContent({
+  highlight,
+  fromNow,
+  localCreatedAt,
+  card,
+}: {
+  highlight: ZHighlight;
+  fromNow: string;
+  localCreatedAt: string;
+  card: React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
     <div className="flex flex-col gap-2">
-      <HighlightCard highlight={highlight} clickable={false} readOnly={false} />
+      {card}
       <span className="flex items-center gap-0.5 text-xs italic text-muted-foreground">
         <span title={localCreatedAt}>{fromNow}</span>
         <Dot />
@@ -87,7 +117,7 @@ export default function AllHighlights({
     ),
   );
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } =
     useSearchQuery ? searchQueryResult : getAllQuery;
 
   const { ref: loadMoreRef, inView: loadMoreButtonInView } = useInView();
@@ -105,8 +135,8 @@ export default function AllHighlights({
       <div className="relative">
         <Input
           type="text"
-          placeholder="Search highlights..."
-          aria-label={t("search.placeholder")}
+          placeholder={t("highlights.search_placeholder")}
+          aria-label={t("highlights.search_placeholder")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           startIcon={<Search className="size-4 text-muted-foreground" />}
@@ -130,6 +160,9 @@ export default function AllHighlights({
 
       {/* Results */}
       <div className="flex flex-col gap-2">
+        {isPending && !data && (
+          <CapturedSkeleton name="highlights" bones={bones} />
+        )}
         {allHighlights &&
           allHighlights.length > 0 &&
           allHighlights.map((h) => (

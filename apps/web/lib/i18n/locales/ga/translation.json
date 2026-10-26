@@ -870,6 +870,7 @@
   },
   "admin": {
     "server_stats": {
+      "description": "Príomhtháscairí úsáide agus leagain don ásc reatha.",
       "total_bookmarks": "Iomlán na Leabharmharcanna",
       "server_version": "Leagan Freastalaí",
       "server_stats": "Staitisticí Freastalaí",
@@ -1054,6 +1055,7 @@
     "compact": "Dlúth"
   },
   "highlights": {
+    "search_placeholder": "Cuardaigh buaicphointí...",
     "no_highlights": "Níl aird a tharraingt ar bith agat go fóill."
   },
   "options": {

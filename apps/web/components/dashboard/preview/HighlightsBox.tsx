@@ -1,3 +1,5 @@
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/highlight-cards.bones.json";
 import { Fragment } from "react";
 import {
   Collapsible,
@@ -27,7 +29,9 @@ export default function HighlightsBox({
     api.highlights.getForBookmark.queryOptions({ bookmarkId }),
   );
 
-  if (isLoading || !highlights || highlights?.highlights.length === 0) {
+  if (isLoading)
+    return <CapturedSkeleton name="highlight-cards" bones={bones} />;
+  if (!highlights || highlights.highlights.length === 0) {
     return null;
   }
 

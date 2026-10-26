@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import contentEditorsBones from "@/components/loading-ui/bones/content-editors.bones.json";
+import { ContentEditors } from "./ContentEditors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -176,51 +179,32 @@ export function SharedContentPermissionsModal({
               <Badge variant="secondary">{data?.editors.length ?? 0}</Badge>
             </div>
             {isPending ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />{" "}
-                {t("shared_content.loading")}
-              </div>
+              <CapturedSkeleton
+                name="content-editors"
+                bones={contentEditorsBones}
+              />
             ) : data?.editors.length ? (
-              <div className="space-y-2">
-                {data.editors.map((editor) => (
-                  <div
-                    key={editor.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
+              <ContentEditors
+                editors={data.editors}
+                renderActions={(editor) => (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-9 shrink-0 gap-2"
+                    disabled={revoke.isPending}
+                    onClick={() =>
+                      revoke.mutate({
+                        bookmarkId: bookmark.id,
+                        userId: editor.id,
+                      })
+                    }
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <UserAvatar
-                        name={editor.name}
-                        image={editor.image}
-                        className="size-9"
-                      />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {editor.name}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {editor.email}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="min-h-9 shrink-0 gap-2"
-                      disabled={revoke.isPending}
-                      onClick={() =>
-                        revoke.mutate({
-                          bookmarkId: bookmark.id,
-                          userId: editor.id,
-                        })
-                      }
-                    >
-                      <UserRoundX className="size-4" aria-hidden="true" />
-                      {t("shared_content.revoke")}
-                    </Button>
-                  </div>
-                ))}
-              </div>
+                    <UserRoundX className="size-4" aria-hidden="true" />
+                    {t("shared_content.revoke")}
+                  </Button>
+                )}
+              />
             ) : (
               <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
                 {t("shared_content.no_editors")}

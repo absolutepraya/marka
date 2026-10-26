@@ -1,4 +1,6 @@
 "use client";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/rules.bones.json";
 
 import { useState } from "react";
 import { RuleEditor } from "@/components/dashboard/rules/RuleEngineRuleEditor";
@@ -8,7 +10,6 @@ import {
   SettingsSection,
 } from "@/components/settings/SettingsPage";
 import { Button } from "@/components/ui/button";
-import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import { useTranslation } from "@/lib/i18n/client";
 import { useQuery } from "@tanstack/react-query";
 import { GitBranch, PlusCircle } from "lucide-react";
@@ -65,7 +66,7 @@ export default function RulesSettingsPage() {
         }
       >
         {!rules || isLoading ? (
-          <FullPageSpinner />
+          <CapturedSkeleton name="rules" bones={bones} />
         ) : (
           <RuleList
             rules={rules.rules}

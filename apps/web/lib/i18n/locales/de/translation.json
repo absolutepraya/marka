@@ -617,6 +617,7 @@
   "admin": {
     "admin_settings": "Admin-Einstellungen",
     "server_stats": {
+      "description": "Wichtige Nutzungs- und Versionsdaten der aktuellen Instanz.",
       "server_stats": "Serverstatistiken",
       "total_users": "Gesamte Benutzer",
       "total_bookmarks": "Gesamte Lesezeichen",
@@ -1025,6 +1026,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Textmarkierungen durchsuchen...",
     "no_highlights": "Du hast noch keine Highlights."
   },
   "dialogs": {

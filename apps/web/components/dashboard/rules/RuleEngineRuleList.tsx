@@ -54,6 +54,67 @@ export default function RuleList({
     },
   });
 
+  return (
+    <RuleListContent
+      rules={rules}
+      renderActions={(rule) => (
+        <div className="flex items-center space-x-2">
+          <Switch
+            disabled={!!demoMode || isUpdating}
+            checked={rule.enabled}
+            onCheckedChange={(checked) =>
+              updateRule({
+                ...rule,
+                enabled: checked,
+              })
+            }
+          />
+          <EditingButton
+            tooltip={t("actions.edit")}
+            ignoreDemoMode
+            variant="ghost"
+            onClick={() => onEditRule(rule)}
+          >
+            <Edit className="h-4 w-4" />
+          </EditingButton>
+          <ActionConfirmingDialog
+            title={t("settings.rules.delete_rule")}
+            description={t("settings.rules.delete_rule_confirmation")}
+            actionButton={(setDialogOpen) => (
+              <ActionButton
+                loading={isDeleting}
+                variant="destructive"
+                onClick={() => {
+                  deleteRule({ id: rule.id });
+                  setDialogOpen(true);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {t("actions.delete")}
+              </ActionButton>
+            )}
+          >
+            <EditingButton
+              tooltip={t("actions.delete")}
+              variant="ghostDestructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </EditingButton>
+          </ActionConfirmingDialog>
+        </div>
+      )}
+    />
+  );
+}
+
+export function RuleListContent({
+  rules,
+  renderActions,
+}: {
+  rules: RuleEngineRule[];
+  renderActions: (rule: RuleEngineRule) => React.ReactNode;
+}) {
+  const { t } = useTranslation();
   if (rules.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-8 text-center">
@@ -72,13 +133,13 @@ export default function RuleList({
       {rules.map((rule) => (
         <Card key={rule.id} className={rule.enabled ? "" : "opacity-70"}>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="mr-4 flex-1">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1 sm:mr-4">
                 <h3 className="font-medium">{rule.name}</h3>
                 <p className="line-clamp-2 text-sm text-muted-foreground">
                   {rule.description}
                 </p>
-                <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                <div className="mt-2 flex flex-wrap items-center text-xs text-muted-foreground">
                   <span className="flex items-center">
                     <span className="mr-1">Trigger:</span>
                     <span className="font-medium">
@@ -92,50 +153,7 @@ export default function RuleList({
                   </span>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  disabled={!!demoMode || isUpdating}
-                  checked={rule.enabled}
-                  onCheckedChange={(checked) =>
-                    updateRule({
-                      ...rule,
-                      enabled: checked,
-                    })
-                  }
-                />
-                <EditingButton
-                  tooltip={t("actions.edit")}
-                  ignoreDemoMode
-                  variant="ghost"
-                  onClick={() => onEditRule(rule)}
-                >
-                  <Edit className="h-4 w-4" />
-                </EditingButton>
-                <ActionConfirmingDialog
-                  title={t("settings.rules.delete_rule")}
-                  description={t("settings.rules.delete_rule_confirmation")}
-                  actionButton={(setDialogOpen) => (
-                    <ActionButton
-                      loading={isDeleting}
-                      variant="destructive"
-                      onClick={() => {
-                        deleteRule({ id: rule.id });
-                        setDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {t("actions.delete")}
-                    </ActionButton>
-                  )}
-                >
-                  <EditingButton
-                    tooltip={t("actions.delete")}
-                    variant="ghostDestructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </EditingButton>
-                </ActionConfirmingDialog>
-              </div>
+              {renderActions(rule)}
             </div>
           </CardContent>
         </Card>

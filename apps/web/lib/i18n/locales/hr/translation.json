@@ -15,6 +15,7 @@
     },
     "admin_settings": "Postavke administratora",
     "server_stats": {
+      "description": "Osnovni podaci o korištenju i izdanjima trenutačne instance.",
       "server_stats": "Statistike servera",
       "total_users": "Ukupno korisnika",
       "total_bookmarks": "Ukupno oznaka",
@@ -784,6 +785,7 @@
     "rename": "Preimenuj"
   },
   "highlights": {
+    "search_placeholder": "Pretraži istaknute stavke...",
     "no_highlights": "Još nemaš nijednu istaknutu stavku."
   },
   "options": {

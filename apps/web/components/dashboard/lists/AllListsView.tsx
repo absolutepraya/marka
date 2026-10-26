@@ -38,7 +38,7 @@ import { ListOptions } from "./ListOptions";
 // A single compact tree row: chevron, emoji tile, name, item count, and an
 // options menu that fades in on hover. Indentation tracks the nesting level,
 // mirroring the sidebar tree but with a touch more room for a full page.
-function ListRow({
+export function ListRow({
   name,
   icon,
   path,
@@ -125,7 +125,7 @@ function ListRow({
   );
 }
 
-function Section({
+export function ListSection({
   title,
   children,
 }: {
@@ -278,7 +278,7 @@ export default function AllListsView({
         )
       ) : (
         <>
-          <Section title="Pinned">
+          <ListSection title="Pinned">
             <ListRow
               collapsible={false}
               name={t("lists.favourites")}
@@ -293,18 +293,18 @@ export default function AllListsView({
               itemCount={archivedCount}
               path={`/dashboard/archive`}
             />
-          </Section>
+          </ListSection>
 
           {hasOwnedLists ? (
-            <Section title={t("lists.all_lists")}>
+            <ListSection title={t("lists.all_lists")}>
               <CollapsibleBookmarkLists
                 listsData={lists}
                 filter={(node) => node.item.userRole === "owner"}
                 render={renderRow}
               />
-            </Section>
+            </ListSection>
           ) : (
-            <Section title={t("lists.all_lists")}>
+            <ListSection title={t("lists.all_lists")}>
               <EmptyState
                 compact={true}
                 icon={<ClipboardList />}
@@ -321,17 +321,17 @@ export default function AllListsView({
                   </EditListModal>
                 }
               />
-            </Section>
+            </ListSection>
           )}
 
           {hasSharedLists && (
-            <Section title={t("lists.shared_lists")}>
+            <ListSection title={t("lists.shared_lists")}>
               <CollapsibleBookmarkLists
                 listsData={lists}
                 filter={(node) => node.item.userRole !== "owner"}
                 render={renderRow}
               />
-            </Section>
+            </ListSection>
           )}
         </>
       )}

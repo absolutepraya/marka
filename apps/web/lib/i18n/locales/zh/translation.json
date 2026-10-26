@@ -617,6 +617,7 @@
   "admin": {
     "admin_settings": "管理员设置",
     "server_stats": {
+      "description": "当前实例的核心使用情况和版本信息。",
       "server_stats": "服务器统计",
       "total_users": "总用户数",
       "total_bookmarks": "总书签数",
@@ -1080,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "搜索高亮...",
     "no_highlights": "你目前没有高亮的地方。"
   },
   "banners": {
