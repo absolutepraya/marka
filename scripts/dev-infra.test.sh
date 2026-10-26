@@ -52,6 +52,7 @@ cat >"$fake_bin/docker" <<'EOF_DOCKER'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 state_dir="${FAKE_DOCKER_STATE:?}"
+volume_dir="${FAKE_DOCKER_VOLUMES:?}"
 log="${FAKE_DOCKER_LOG:?}"
 printf '%q ' "$@" >>"$log"
 printf '\n' >>"$log"
@@ -82,6 +83,10 @@ case "${1:-}" in
     name="${2:-}"
     [[ -f "$state_dir/$name" ]]
     ;;
+  volume)
+    [[ "${2:-}" == inspect ]] || exit 2
+    [[ -f "$volume_dir/${3:?}" ]]
+    ;;
   start)
     name="${2:?}"
     [[ -f "$state_dir/$name" ]] || exit 1
@@ -104,6 +109,12 @@ case "${1:-}" in
         port="${args[$((i + 1))]#*:}"
         port="${port%%:*}"
         break
+      fi
+    done
+    for ((i = 1; i < ${#args[@]}; i++)); do
+      if [[ "${args[$i]}" == "-v" ]]; then
+        volume="${args[$((i + 1))]%%:*}"
+        touch "$volume_dir/$volume"
       fi
     done
     printf 'true\n%s\n' "$port" >"$state_dir/$name"
@@ -152,6 +163,8 @@ chmod +x "$fake_bin/lsof"
 
 export PATH="$fake_bin:$PATH"
 export MARKA_DEV_RENDERER=chrome
+export FAKE_DOCKER_VOLUMES="$root/docker-volumes"
+mkdir -p "$FAKE_DOCKER_VOLUMES"
 export FAKE_DOCKER_STATE="$state_dir"
 export FAKE_DOCKER_LOG="$root/docker.log"
 : >"$FAKE_DOCKER_LOG"
@@ -183,12 +196,36 @@ for invalid_port in 0 65536 abc; do
   assert_contains "$root/invalid-$invalid_port.out" "between 1 and 65535"
 done
 
-# Shared infra starts exactly one stable Meilisearch and Chrome container.
+# Removing the old container must not bypass the dump-migration requirement.
+touch "$FAKE_DOCKER_VOLUMES/marka-dev-meilisearch-data"
+if bash "$INFRA" up >"$root/unmigrated.out" 2>&1; then
+  fail "Shared infra created empty search state beside an unmigrated old volume"
+fi
+assert_contains "$root/unmigrated.out" "Search migration required"
+assert_contains "$root/unmigrated.out" "marka-dev-meilisearch-data"
+assert_contains "$root/unmigrated.out" "marka-dev-meilisearch-v155-data"
+assert_not_contains "$FAKE_DOCKER_LOG" "run "
+[[ ! -e "$FAKE_DOCKER_VOLUMES/marka-dev-meilisearch-v155-data" ]] || fail "Migration guard created the new volume"
+[[ -e "$FAKE_DOCKER_VOLUMES/marka-dev-meilisearch-data" ]] || fail "Migration guard removed the old volume"
+rm "$FAKE_DOCKER_VOLUMES/marka-dev-meilisearch-data"
+
+# A fresh machine with neither volume still starts shared search and Chrome.
 bash "$INFRA" up >/dev/null
 assert_contains "$FAKE_DOCKER_LOG" "marka-dev-meilisearch"
 assert_contains "$FAKE_DOCKER_LOG" "127.0.0.1:7700:7700"
 assert_contains "$FAKE_DOCKER_LOG" "getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c"
 assert_contains "$FAKE_DOCKER_LOG" "marka-dev-meilisearch-v155-data:/meili_data"
+[[ -e "$FAKE_DOCKER_VOLUMES/marka-dev-meilisearch-v155-data" ]] || fail "Fresh startup did not create the current volume"
+
+# Teardown and recreation reuse the migrated volume even with rollback retained.
+touch "$FAKE_DOCKER_VOLUMES/marka-dev-meilisearch-data"
+bash "$INFRA" down >"$root/migrated-down.out"
+assert_contains "$root/migrated-down.out" "marka-dev-meilisearch-v155-data was preserved"
+: >"$FAKE_DOCKER_LOG"
+bash "$INFRA" up >/dev/null
+assert_contains "$FAKE_DOCKER_LOG" "marka-dev-meilisearch-v155-data:/meili_data"
+[[ -e "$FAKE_DOCKER_VOLUMES/marka-dev-meilisearch-data" ]] || fail "Recreation removed the rollback volume"
+[[ -e "$FAKE_DOCKER_VOLUMES/marka-dev-meilisearch-v155-data" ]] || fail "Recreation removed the active volume"
 
 # Refuse an implicit search-engine upgrade against an existing database.
 if FAKE_MEILI_IMAGE=getmeili/meilisearch:v1.41.0 bash "$INFRA" up >"$root/meili-mismatch.out" 2>&1; then

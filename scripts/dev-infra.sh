@@ -7,6 +7,7 @@ BROWSERLESS_CONTAINER="marka-dev-browserless"
 LEGACY_MEILI_CONTAINER="karakeep-dev-meilisearch"
 LEGACY_CHROME_CONTAINER="karakeep-dev-chrome"
 MEILI_VOLUME="marka-dev-meilisearch-v155-data"
+LEGACY_MEILI_VOLUME="marka-dev-meilisearch-data"
 MEILI_PORT="7700"
 CHROME_PORT="${MARKA_DEV_CHROME_PORT:-9250}"
 BROWSERLESS_PORT="${MARKA_DEV_BROWSERLESS_PORT:-9251}"
@@ -97,6 +98,11 @@ ensure_meilisearch() {
     docker start "$MEILI_CONTAINER" >/dev/null || die "Failed to start existing $MEILI_CONTAINER container."
     info "Started existing shared Meilisearch on http://127.0.0.1:$MEILI_PORT"
     return
+  fi
+
+  if ! docker volume inspect "$MEILI_VOLUME" >/dev/null 2>&1 &&
+      docker volume inspect "$LEGACY_MEILI_VOLUME" >/dev/null 2>&1; then
+    die "Search migration required: $LEGACY_MEILI_VOLUME exists but $MEILI_VOLUME is missing. Back up and import the old engine's dump into $MEILI_VOLUME before starting shared search. See docs/operator-setup.md."
   fi
 
   ensure_available_port "$MEILI_PORT" "$MEILI_CONTAINER"
