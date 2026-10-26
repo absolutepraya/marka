@@ -5,7 +5,11 @@ const args = process.argv.slice(2);
 if (args.length > 1 || (args.length === 1 && args[0] !== "--with-baseline"))
   throw new Error("Usage: test-browserless-reuse.mjs [--with-baseline]");
 const withBaseline = args[0] === "--with-baseline";
-const container = "marka-dev-browserless";
+const container =
+  process.env.MARKA_BROWSERLESS_TEST_CONTAINER ?? "marka-dev-browserless";
+const sessionTimeout = process.env.MARKA_BROWSERLESS_TEST_SESSION_TIMEOUT_MS;
+if (sessionTimeout !== undefined && !/^(0|[1-9]\d*)$/.test(sessionTimeout))
+  throw new Error("Session timeout override must be non-negative milliseconds");
 const root = fileURLToPath(new URL("../", import.meta.url));
 let info;
 try {
@@ -27,14 +31,16 @@ const token = info.Config.Env.find((value) =>
   value.startsWith("TOKEN="),
 )?.slice(6);
 if (!token) throw new Error("Local Browserless test token is missing");
-console.log(
-  "Testing local Browserless only; production and app data are not accessed.",
-);
+const endpoint = new URL(`ws://127.0.0.1:${binding.HostPort}`);
+if (sessionTimeout !== undefined)
+  endpoint.searchParams.set("timeout", sessionTimeout);
+console.log("Testing loopback Browserless only; app data is not accessed.");
 console.log(
   "BROWSERLESS_CONTAINER",
   JSON.stringify({
     image: info.Config.Image,
     memoryLimitBytes: info.HostConfig.Memory,
+    sessionTimeoutOverride: sessionTimeout ?? null,
   }),
 );
 function memoryEvents() {
@@ -108,7 +114,7 @@ const child = spawn(
       NO_COLOR: "false",
       CRAWLER_BROWSERLESS_INTEGRATION: "1",
       CRAWLER_BROWSERLESS_BASELINE: withBaseline ? "1" : "0",
-      CRAWLER_BROWSERLESS_TEST_URL: `ws://127.0.0.1:${binding.HostPort}`,
+      CRAWLER_BROWSERLESS_TEST_URL: endpoint.toString(),
       CRAWLER_BROWSERLESS_TEST_TOKEN: token,
     },
   },

@@ -1,0 +1,5 @@
+# Follow-up experiment after the 1 GiB shared workload hit its cgroup ceiling.
+# Applies only to the temporary staging project, never production.
+services:
+  browserless:
+    mem_limit: 1536m
