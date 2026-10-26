@@ -92,6 +92,7 @@ export default function BasicStats() {
           version={<ReleaseInfo />}
           labels={{
             heading: t("admin.server_stats.server_stats"),
+            description: t("admin.server_stats.description"),
             users: t("admin.server_stats.total_users"),
             bookmarks: t("admin.server_stats.total_bookmarks"),
             version: t("admin.server_stats.server_version"),

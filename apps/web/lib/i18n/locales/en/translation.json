@@ -682,6 +682,7 @@
   "admin": {
     "admin_settings": "Admin Settings",
     "server_stats": {
+      "description": "Core usage and release signals for the current instance.",
       "server_stats": "Server Stats",
       "total_users": "Total Users",
       "total_bookmarks": "Total Bookmarks",

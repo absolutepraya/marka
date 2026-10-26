@@ -620,6 +620,7 @@
   "admin": {
     "admin_settings": "Yönetici Ayarları",
     "server_stats": {
+      "description": "Geçerli örneğin temel kullanım ve sürüm bilgileri.",
       "server_stats": "Sunucu İstatistikleri",
       "total_users": "Toplam Kullanıcı",
       "total_bookmarks": "Toplam Yer İşareti",

@@ -506,6 +506,7 @@
   },
   "admin": {
     "server_stats": {
+      "description": "Osnovni podatki o uporabi in različici trenutnega primerka.",
       "server_stats": "Statistika strežnika",
       "total_users": "Skupno število uporabnikov",
       "total_bookmarks": "Skupno število zaznamkov",

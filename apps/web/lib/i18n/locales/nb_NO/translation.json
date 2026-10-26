@@ -62,6 +62,7 @@
       "unlimited": "Ubegrenset"
     },
     "server_stats": {
+      "description": "Grunnleggende bruks- og versjonsinformasjon for gjeldende instans.",
       "server_version": "Serverversjon",
       "server_stats": "Serverstatistikk",
       "total_users": "Totalt antall brukere",

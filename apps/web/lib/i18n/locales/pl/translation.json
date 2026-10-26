@@ -624,6 +624,7 @@
     },
     "admin_settings": "Ustawienia administratora",
     "server_stats": {
+      "description": "Podstawowe dane dotyczące użycia i wersji bieżącej instancji.",
       "server_stats": "Statystyki serwera",
       "total_users": "Łączna liczba użytkowników",
       "total_bookmarks": "Łączna liczba zakładek",

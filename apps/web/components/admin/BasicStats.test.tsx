@@ -4,6 +4,8 @@ import React from "react";
 import { renderToString } from "react-dom/server";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import english from "@/lib/i18n/locales/en/translation.json";
+import french from "@/lib/i18n/locales/fr/translation.json";
 
 import BasicStats from "./BasicStats";
 import BasicStatsSkeleton from "./BasicStatsSkeleton";
@@ -11,6 +13,7 @@ import bones from "./bones/admin-stats.bones.json";
 
 const queryState = vi.hoisted(() => ({
   stats: undefined as { numUsers: number; numBookmarks: number } | undefined,
+  language: "en" as "en" | "fr",
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
@@ -31,13 +34,21 @@ vi.mock("@/lib/clientConfig", () => ({
 }));
 vi.mock("@/lib/i18n/client", () => ({
   useTranslation: () => ({
-    t: (key: string) => (key === "common.loading" ? "Chargement…" : key),
+    t: (key: string) => {
+      if (key === "common.loading") return "Chargement…";
+      if (key === "admin.server_stats.description") {
+        return (queryState.language === "fr" ? french : english).admin
+          .server_stats.description;
+      }
+      return key;
+    },
   }),
 }));
 
 beforeEach(() => {
   vi.stubGlobal("React", React);
   queryState.stats = undefined;
+  queryState.language = "en";
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -58,6 +69,15 @@ afterEach(() => {
 });
 
 describe("admin statistics skeleton", () => {
+  it("updates the description with the selected language", () => {
+    queryState.stats = { numUsers: 7, numBookmarks: 2468 };
+    const view = render(<BasicStats />);
+    expect(view.getByText(english.admin.server_stats.description)).toBeTruthy();
+    queryState.language = "fr";
+    view.rerender(<BasicStats />);
+    expect(view.getByText(french.admin.server_stats.description)).toBeTruthy();
+    expect(view.queryByText(english.admin.server_stats.description)).toBeNull();
+  });
   it("keeps a translated announcement and visible fallback in server HTML", () => {
     const html = renderToString(<BasicStatsSkeleton />);
     expect(html).toContain('aria-label="Chargement…"');

@@ -661,6 +661,7 @@
       }
     },
     "server_stats": {
+      "description": "Grundlæggende oplysninger om brug og versioner for den aktuelle instans.",
       "server_version": "Server-version",
       "server_stats": "Serverstatistik",
       "total_users": "Brugere i alt",

@@ -676,6 +676,7 @@
   "admin": {
     "admin_settings": "Impostazioni amministratore",
     "server_stats": {
+      "description": "Indicatori principali di utilizzo e versione dell’istanza corrente.",
       "server_stats": "Statistiche server",
       "total_bookmarks": "Segnalibri totali",
       "server_version": "Versione server",

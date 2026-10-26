@@ -875,6 +875,7 @@
       }
     },
     "server_stats": {
+      "description": "Základné údaje o využití a verziách aktuálnej inštancie.",
       "server_version": "Verzia servera",
       "server_stats": "Štatistiky servera",
       "total_users": "Celkový počet používateľov",

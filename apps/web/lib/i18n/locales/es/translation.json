@@ -617,6 +617,7 @@
   "admin": {
     "admin_settings": "Ajustes de Administrador",
     "server_stats": {
+      "description": "Indicadores principales de uso y versión de la instancia actual.",
       "server_stats": "Estadísticas del servidor",
       "total_users": "Número de usuarios",
       "total_bookmarks": "Número de marcadores",

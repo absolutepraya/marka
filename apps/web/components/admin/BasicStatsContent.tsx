@@ -42,6 +42,7 @@ export function BasicStatsContent({
   version: ReactNode;
   labels: {
     heading: string;
+    description: string;
     users: string;
     bookmarks: string;
     version: string;
@@ -53,9 +54,7 @@ export function BasicStatsContent({
         <h2 className="text-lg font-semibold tracking-tight text-foreground">
           {labels.heading}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Core usage and release signals for the current instance.
-        </p>
+        <p className="text-sm text-muted-foreground">{labels.description}</p>
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         <MetricTile
@@ -91,6 +90,7 @@ export function BasicStatsFixture() {
       }
       labels={{
         heading: "Server Stats",
+        description: "Core usage and release signals for the current instance.",
         users: "Total Users",
         bookmarks: "Total Bookmarks",
         version: "Server Version",

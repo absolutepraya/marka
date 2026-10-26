@@ -620,6 +620,7 @@
   "admin": {
     "admin_settings": "إعدادات المشرف",
     "server_stats": {
+      "description": "مؤشرات الاستخدام الأساسية والإصدارات للمثيل الحالي.",
       "server_stats": "إحصائيات الخادم",
       "total_users": "إجمالي المستخدمين",
       "total_bookmarks": "إجمالي الإشارات المرجعية",

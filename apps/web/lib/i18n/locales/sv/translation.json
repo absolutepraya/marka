@@ -616,6 +616,7 @@
   },
   "admin": {
     "server_stats": {
+      "description": "Grundläggande användnings- och versionsinformation för den aktuella instansen.",
       "server_stats": "Serverstatistik",
       "server_version": "Serverversion",
       "total_bookmarks": "Totalt antal bokmärken",

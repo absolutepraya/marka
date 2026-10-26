@@ -870,6 +870,7 @@
   },
   "admin": {
     "server_stats": {
+      "description": "Základní údaje o využití a verzích aktuální instance.",
       "server_stats": "Statistiky serveru",
       "total_users": "Celkem uživatelů",
       "total_bookmarks": "Celkem záložek",

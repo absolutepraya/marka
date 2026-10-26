@@ -620,6 +620,7 @@
   "admin": {
     "admin_settings": "Configurações de Administrador",
     "server_stats": {
+      "description": "Indicadores principais de uso e versão da instância atual.",
       "server_stats": "Status do Servidor",
       "total_users": "Total de Usuários",
       "total_bookmarks": "Total de Favoritos",
