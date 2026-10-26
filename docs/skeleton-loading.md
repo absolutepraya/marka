@@ -108,14 +108,19 @@ These local dashboard previews use synthetic data.
 - [Desktop compact, 1440px](pr-assets/boneyard/dashboard-compact-desktop.png)
 - [Mobile service connections, 390px](pr-assets/boneyard/service-connections-mobile.png)
 - [Desktop background jobs, 1440px](pr-assets/boneyard/background-jobs-desktop.png)
+- [Desktop import session details, 1440px](pr-assets/boneyard/import-detail-desktop.png)
+- [Mobile highlights, 390px](pr-assets/boneyard/highlights-mobile.png)
 
 ## Other content surfaces
 
 `pnpm skeletons:surfaces http://localhost:3000` captures the remaining content
 placeholders: admin users, invitations, service connections and background jobs;
 personal usage statistics; subscription details, inline pricing and quota usage;
-the lists index; tag groups; and bookmark tags. The command produces 99 samples
-across eleven surfaces and the same nine viewport breakpoints as admin statistics.
+the lists index; tag groups; bookmark tags; RSS feeds, webhooks, backups, assets
+and broken links; automation rules and custom AI prompts; import history,
+session details and filtered results; and highlight search results and reader
+highlight cards. The command produces 207 samples across 23 surfaces and the
+same nine viewport breakpoints as admin statistics.
 Replace the port with the current workspace's web port.
 
 The development-only `/dev/boneyard/surfaces` gallery shows these placeholders.
@@ -136,6 +141,21 @@ the existing reduced-motion rules. Each consumer imports only its own capture.
 Action spinners, import progress, media preparation, and page-level startup
 indicators retain their existing behavior. Cached content, background refresh,
 and pagination decisions remain owned by the existing query components.
+
+The high-priority settings views share their real table headers and row display
+components with the capture fixtures. Mutation controls remain in their existing
+controllers. Import fixtures use fixed relative-date labels and inert action
+slots, while live cards keep polling and their original lifecycle actions. A
+separate results capture lets an import session keep showing progress while a
+new filter loads. Highlight search captures appear only when the active query
+has no data; server-seeded and cached results remain visible. Reader highlights
+return to their existing hidden empty state after loading.
+The highlights route streams its data below a visible heading and search frame,
+using the same captured rows as the Suspense fallback.
+
+Settings captures mirror the centered `max-w-4xl` column and the inner section
+padding. Rules and prompt rows wrap at narrow widths. Native mobile, sharing
+dialogs, and variable article/preview bodies are separate follow-up scopes.
 
 All three capture commands validate their complete output before replacing
 tracked JSON. Each replacement uses a temporary file in the destination

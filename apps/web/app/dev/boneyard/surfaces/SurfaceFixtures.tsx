@@ -1,4 +1,5 @@
 "use client";
+import { highPriorityNames, HighPriorityFixture } from "./HighPriorityFixtures";
 
 import { UsersContent } from "@/components/admin/UserList";
 import { InvitesContent } from "@/components/admin/InvitesList";
@@ -92,6 +93,7 @@ export const surfaceNames = [
   "lists",
   "tags",
   "bookmark-tags",
+  ...highPriorityNames,
 ] as const;
 export type SurfaceName = (typeof surfaceNames)[number];
 
@@ -332,5 +334,7 @@ export function SurfaceFixture({ name }: { name: SurfaceName }) {
           ))}
         </div>
       );
+    default:
+      return <HighPriorityFixture name={name} />;
   }
 }

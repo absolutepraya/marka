@@ -1,4 +1,6 @@
 "use client";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import highlightBones from "@/components/loading-ui/bones/highlight-cards.bones.json";
 
 import { Suspense, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -343,7 +345,12 @@ export default function ReaderViewPage() {
                     ))}
                   </div>
                 ) : (
-                  showHighlights && <FullPageSpinner />
+                  showHighlights && (
+                    <CapturedSkeleton
+                      name="highlight-cards"
+                      bones={highlightBones}
+                    />
+                  )
                 )}
               </div>
             </div>

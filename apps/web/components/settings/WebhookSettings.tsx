@@ -1,4 +1,6 @@
 "use client";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/webhooks.bones.json";
 
 import React from "react";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -11,7 +13,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "@/lib/i18n/client";
@@ -455,6 +456,53 @@ export function WebhookRow({ webhook }: { webhook: ZWebhook }) {
   );
 
   return (
+    <WebhookRowContent
+      webhook={webhook}
+      actions={
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <EditWebhookDialog webhook={webhook} />
+            <EditTokenDialog webhook={webhook} />
+            <ActionConfirmingDialog
+              title={t("settings.webhooks.delete_webhook")}
+              description={t("settings.webhooks.delete_webhook_confirmation")}
+              actionButton={() => (
+                <ActionButton
+                  loading={isDeleting}
+                  variant="destructive"
+                  onClick={() => deleteWebhook({ webhookId: webhook.id })}
+                  className="items-center"
+                  type="button"
+                >
+                  <Trash2 className="mr-2 size-4" />
+                  {t("actions.delete")}
+                </ActionButton>
+              )}
+            >
+              <Button
+                variant="destructiveOutline"
+                size="sm"
+                disabled={isDeleting}
+              >
+                <Trash2 className="mr-2 size-4" />
+                {t("actions.delete")}
+              </Button>
+            </ActionConfirmingDialog>
+          </div>
+        </>
+      }
+    />
+  );
+}
+
+export function WebhookRowContent({
+  webhook,
+  actions,
+}: {
+  webhook: ZWebhook;
+  actions: React.ReactNode;
+}) {
+  return (
     <TableRow>
       <TableCell className="max-w-[360px] truncate font-medium">
         {webhook.url}
@@ -471,37 +519,7 @@ export function WebhookRow({ webhook }: { webhook: ZWebhook }) {
           <X className="size-4 text-muted-foreground" />
         )}
       </TableCell>
-      <TableCell>
-        <div className="flex flex-wrap items-center gap-2">
-          <EditWebhookDialog webhook={webhook} />
-          <EditTokenDialog webhook={webhook} />
-          <ActionConfirmingDialog
-            title={t("settings.webhooks.delete_webhook")}
-            description={t("settings.webhooks.delete_webhook_confirmation")}
-            actionButton={() => (
-              <ActionButton
-                loading={isDeleting}
-                variant="destructive"
-                onClick={() => deleteWebhook({ webhookId: webhook.id })}
-                className="items-center"
-                type="button"
-              >
-                <Trash2 className="mr-2 size-4" />
-                {t("actions.delete")}
-              </ActionButton>
-            )}
-          >
-            <Button
-              variant="destructiveOutline"
-              size="sm"
-              disabled={isDeleting}
-            >
-              <Trash2 className="mr-2 size-4" />
-              {t("actions.delete")}
-            </Button>
-          </ActionConfirmingDialog>
-        </div>
-      </TableCell>
+      <TableCell>{actions}</TableCell>
     </TableRow>
   );
 }
@@ -525,8 +543,8 @@ export default function WebhookSettings() {
         action={<WebhooksEditorDialog />}
       >
         {isLoading && (
-          <div className="flex min-h-40 items-center justify-center rounded-xl border border-border/70 bg-background/80">
-            <FullPageSpinner />
+          <div>
+            <CapturedSkeleton name="webhooks" bones={bones} />
           </div>
         )}
 
@@ -542,24 +560,31 @@ export default function WebhookSettings() {
 
         {webhooks && webhooks.webhooks.length > 0 && (
           <div className="shadow-xs overflow-hidden rounded-xl border border-border/70 bg-background/80">
-            <Table className="table-auto whitespace-nowrap">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("common.url")}</TableHead>
-                  <TableHead>{t("settings.webhooks.events.title")}</TableHead>
-                  <TableHead>{t("settings.webhooks.auth_token")}</TableHead>
-                  <TableHead>{t("common.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {webhooks.webhooks.map((webhook) => (
-                  <WebhookRow key={webhook.id} webhook={webhook} />
-                ))}
-              </TableBody>
-            </Table>
+            <WebhooksTable>
+              {webhooks.webhooks.map((webhook) => (
+                <WebhookRow key={webhook.id} webhook={webhook} />
+              ))}
+            </WebhooksTable>
           </div>
         )}
       </SettingsSection>
     </SettingsPage>
+  );
+}
+
+export function WebhooksTable({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <Table className="table-auto whitespace-nowrap">
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t("common.url")}</TableHead>
+          <TableHead>{t("settings.webhooks.events.title")}</TableHead>
+          <TableHead>{t("settings.webhooks.auth_token")}</TableHead>
+          <TableHead>{t("common.actions")}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>{children}</TableBody>
+    </Table>
   );
 }

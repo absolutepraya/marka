@@ -1,4 +1,6 @@
 "use client";
+import { CapturedSkeleton } from "@/components/loading-ui/CapturedSkeleton";
+import bones from "@/components/loading-ui/bones/feeds.bones.json";
 
 import React from "react";
 import Link from "next/link";
@@ -12,7 +14,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
@@ -396,6 +397,59 @@ export function FeedRow({ feed }: { feed: ZFeed }) {
   };
 
   return (
+    <FeedRowContent
+      feed={feed}
+      actions={
+        <>
+          <Switch checked={feed.enabled} onCheckedChange={handleToggle} />
+          <EditFeedDialog feed={feed} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ActionButton
+                loading={isFetching}
+                variant="ghost"
+                className="items-center"
+                onClick={() => fetchNow({ feedId: feed.id })}
+              >
+                <ArrowDownToLine className="size-4" />
+              </ActionButton>
+            </TooltipTrigger>
+            <TooltipContent>{t("actions.fetch_now")}</TooltipContent>
+          </Tooltip>
+          <ActionConfirmingDialog
+            title={`Delete Feed "${feed.name}"?`}
+            description={`Are you sure you want to delete the feed "${feed.name}"?`}
+            actionButton={() => (
+              <ActionButton
+                loading={isDeleting}
+                variant="destructive"
+                onClick={() => deleteFeed({ feedId: feed.id })}
+                className="items-center"
+                type="button"
+              >
+                <Trash2 className="mr-2 size-4" />
+                {t("actions.delete")}
+              </ActionButton>
+            )}
+          >
+            <Button variant="ghostDestructive" disabled={isDeleting}>
+              <Trash2 className="size-4" />
+            </Button>
+          </ActionConfirmingDialog>
+        </>
+      }
+    />
+  );
+}
+
+export function FeedRowContent({
+  feed,
+  actions,
+}: {
+  feed: ZFeed;
+  actions: React.ReactNode;
+}) {
+  return (
     <TableRow>
       <TableCell>
         <Link
@@ -429,43 +483,7 @@ export function FeedRow({ feed }: { feed: ZFeed }) {
           </span>
         )}
       </TableCell>
-      <TableCell className="flex items-center gap-2">
-        <Switch checked={feed.enabled} onCheckedChange={handleToggle} />
-        <EditFeedDialog feed={feed} />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ActionButton
-              loading={isFetching}
-              variant="ghost"
-              className="items-center"
-              onClick={() => fetchNow({ feedId: feed.id })}
-            >
-              <ArrowDownToLine className="size-4" />
-            </ActionButton>
-          </TooltipTrigger>
-          <TooltipContent>{t("actions.fetch_now")}</TooltipContent>
-        </Tooltip>
-        <ActionConfirmingDialog
-          title={`Delete Feed "${feed.name}"?`}
-          description={`Are you sure you want to delete the feed "${feed.name}"?`}
-          actionButton={() => (
-            <ActionButton
-              loading={isDeleting}
-              variant="destructive"
-              onClick={() => deleteFeed({ feedId: feed.id })}
-              className="items-center"
-              type="button"
-            >
-              <Trash2 className="mr-2 size-4" />
-              {t("actions.delete")}
-            </ActionButton>
-          )}
-        >
-          <Button variant="ghostDestructive" disabled={isDeleting}>
-            <Trash2 className="size-4" />
-          </Button>
-        </ActionConfirmingDialog>
-      </TableCell>
+      <TableCell className="flex items-center gap-2">{actions}</TableCell>
     </TableRow>
   );
 }
@@ -482,31 +500,38 @@ export default function FeedSettings() {
       action={<FeedsEditorDialog />}
     >
       <SettingsSection>
-        {isLoading && <FullPageSpinner />}
+        {isLoading && <CapturedSkeleton name="feeds" bones={bones} />}
         {feeds && feeds.feeds.length == 0 && (
           <p className="rounded-md bg-muted p-3 text-center text-sm text-muted-foreground">
             You don&apos;t have any RSS subscriptions yet.
           </p>
         )}
         {feeds && feeds.feeds.length > 0 && (
-          <Table className="whitespace-nowrap">
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("common.name")}</TableHead>
-                <TableHead>{t("common.url")}</TableHead>
-                <TableHead>Last Fetch</TableHead>
-                <TableHead>Last Status</TableHead>
-                <TableHead>{t("common.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {feeds.feeds.map((feed) => (
-                <FeedRow key={feed.id} feed={feed} />
-              ))}
-            </TableBody>
-          </Table>
+          <FeedsTable>
+            {feeds.feeds.map((feed) => (
+              <FeedRow key={feed.id} feed={feed} />
+            ))}
+          </FeedsTable>
         )}
       </SettingsSection>
     </SettingsPage>
+  );
+}
+
+export function FeedsTable({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <Table className="whitespace-nowrap">
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t("common.name")}</TableHead>
+          <TableHead>{t("common.url")}</TableHead>
+          <TableHead>Last Fetch</TableHead>
+          <TableHead>Last Status</TableHead>
+          <TableHead>{t("common.actions")}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>{children}</TableBody>
+    </Table>
   );
 }
