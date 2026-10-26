@@ -8,6 +8,11 @@ interface BookmarkState {
   selectedBookmarkIds: string[];
   visibleBookmarks: ZBookmark[];
   isBulkEditEnabled: boolean;
+  selectionSession: number;
+  completeBookmarkDrag: (
+    bookmarkIds: string[],
+    selectionSession: number,
+  ) => void;
   setIsBulkEditEnabled: (isEnabled: boolean) => void;
   toggleBookmark: (bookmarkId: string) => void;
   setSelectedBookmarkIds: (bookmarkIds: string[]) => void;
@@ -28,6 +33,16 @@ const useBulkActionsStore = create<BookmarkState>((set, get) => ({
   selectedBookmarkIds: [],
   visibleBookmarks: [],
   isBulkEditEnabled: false,
+  selectionSession: 0,
+  completeBookmarkDrag: (bookmarkIds, selectionSession) => {
+    if (get().selectionSession !== selectionSession) return;
+    const completed = new Set(bookmarkIds);
+    set((state) => ({
+      selectedBookmarkIds: state.selectedBookmarkIds.filter(
+        (id) => !completed.has(id),
+      ),
+    }));
+  },
   listContext: undefined,
 
   toggleBookmark: (bookmarkId: string) => {
@@ -52,7 +67,10 @@ const useBulkActionsStore = create<BookmarkState>((set, get) => ({
     set({ selectedBookmarkIds: get().visibleBookmarks.map((b) => b.id) });
   },
   unSelectAll: () => {
-    set({ selectedBookmarkIds: [] });
+    set((state) => ({
+      selectedBookmarkIds: [],
+      selectionSession: state.selectionSession + 1,
+    }));
   },
 
   isBookmarkSelected: (bookmarkId: string) => {
@@ -83,7 +101,11 @@ const useBulkActionsStore = create<BookmarkState>((set, get) => ({
     if (state.isBulkEditEnabled === isEnabled) {
       return;
     }
-    set({ isBulkEditEnabled: isEnabled, selectedBookmarkIds: [] });
+    set({
+      isBulkEditEnabled: isEnabled,
+      selectedBookmarkIds: [],
+      selectionSession: state.selectionSession + 1,
+    });
   },
 
   setVisibleBookmarks: (visibleBookmarks: ZBookmark[]) => {

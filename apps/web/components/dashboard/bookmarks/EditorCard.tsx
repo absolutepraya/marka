@@ -14,6 +14,7 @@ import { useTranslation } from "@/lib/i18n/client";
 import { cn, getOS } from "@/lib/utils";
 import {
   AlertCircle,
+  Bookmark,
   ChevronDown,
   ChevronUp,
   ClipboardPaste,
@@ -167,9 +168,11 @@ function CaptureItem({
 export default function EditorCard({
   className,
   onCreated,
+  emptyList = false,
 }: {
   className?: string;
   onCreated?: () => void;
+  emptyList?: boolean;
 }) {
   const { t } = useTranslation();
   const composer = useCaptureComposer();
@@ -336,6 +339,21 @@ export default function EditorCard({
           <Kbd>{getOS() === "macos" ? "⌘" : "Ctrl"} + E</Kbd>
         )}
       </div>
+      {emptyList && (
+        <div
+          className="flex items-start gap-2 text-sm text-muted-foreground"
+          role="status"
+        >
+          <Bookmark className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <p>
+            <span className="font-medium text-foreground">
+              {t("editor.capture.empty_list_title")}
+            </span>
+            <br />
+            {t("editor.capture.empty_list_hint")}
+          </p>
+        </div>
+      )}
       <div className="flex min-h-36 min-w-0 flex-1 flex-col gap-3">
         <Textarea
           ref={inputRef}
@@ -347,7 +365,7 @@ export default function EditorCard({
             clipboardError ? `${helpId} ${clipboardErrorId}` : helpId
           }
           placeholder={t("editor.capture.placeholder")}
-          className="min-h-36 min-w-0 max-w-full flex-1 resize-y rounded-xl border-0 bg-muted p-3 text-sm leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-background"
+          className="min-h-36 min-w-0 max-w-full flex-1 resize-y rounded-xl border-0 bg-muted p-3 text-sm leading-relaxed shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-background"
           onChange={(event) => {
             composer.setText(event.target.value);
             setClipboardError(null);
