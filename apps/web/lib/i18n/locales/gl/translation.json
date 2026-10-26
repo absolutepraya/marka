@@ -677,6 +677,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Buscar destacados...",
     "no_highlights": "Aínda non tes nada destacado."
   },
   "admin": {

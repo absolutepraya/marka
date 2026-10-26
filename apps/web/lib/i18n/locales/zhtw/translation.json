@@ -1081,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "搜尋標記重點...",
     "no_highlights": "您目前尚未有任何標記重點。"
   },
   "bookmark_editor": {

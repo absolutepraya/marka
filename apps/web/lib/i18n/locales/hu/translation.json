@@ -1081,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Keresés a kiemelésekben...",
     "no_highlights": "Még nem emeltél kis semmit."
   },
   "banners": {

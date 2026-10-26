@@ -1081,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "搜索高亮...",
     "no_highlights": "你目前没有高亮的地方。"
   },
   "banners": {

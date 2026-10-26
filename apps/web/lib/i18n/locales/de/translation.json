@@ -1026,6 +1026,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Textmarkierungen durchsuchen...",
     "no_highlights": "Du hast noch keine Highlights."
   },
   "dialogs": {

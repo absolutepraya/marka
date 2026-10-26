@@ -785,6 +785,7 @@
     "last_used": "Lần cuối sử dụng"
   },
   "highlights": {
+    "search_placeholder": "Tìm kiếm phần đánh dấu...",
     "no_highlights": "Bạn chưa có đánh dấu nào."
   },
   "lists": {

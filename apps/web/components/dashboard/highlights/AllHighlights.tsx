@@ -135,8 +135,8 @@ export default function AllHighlights({
       <div className="relative">
         <Input
           type="text"
-          placeholder="Search highlights..."
-          aria-label={t("search.placeholder")}
+          placeholder={t("highlights.search_placeholder")}
+          aria-label={t("highlights.search_placeholder")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           startIcon={<Search className="size-4 text-muted-foreground" />}

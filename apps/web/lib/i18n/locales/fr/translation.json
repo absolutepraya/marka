@@ -1118,6 +1118,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Rechercher dans les surlignages...",
     "no_highlights": "Vous n'avez pas encore de surlignages."
   },
   "banners": {

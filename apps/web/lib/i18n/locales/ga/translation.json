@@ -1055,6 +1055,7 @@
     "compact": "Dlúth"
   },
   "highlights": {
+    "search_placeholder": "Cuardaigh buaicphointí...",
     "no_highlights": "Níl aird a tharraingt ar bith agat go fóill."
   },
   "options": {

@@ -34,8 +34,8 @@ export default async function HighlightsPage() {
             <div className="flex flex-col gap-4">
               <Input
                 disabled
-                placeholder="Search highlights..."
-                aria-label={t("search.placeholder")}
+                placeholder={t("highlights.search_placeholder")}
+                aria-label={t("highlights.search_placeholder")}
                 startIcon={<Search className="size-4 text-muted-foreground" />}
               />
               <CapturedSkeleton name="highlights" bones={bones} />

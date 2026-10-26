@@ -110,6 +110,7 @@
     "rename": "Μετεωνομασία"
   },
   "highlights": {
+    "search_placeholder": "Αναζήτηση επισημάνσεων...",
     "no_highlights": "Δεν έχετε ακόμα επιλογές."
   },
   "settings": {

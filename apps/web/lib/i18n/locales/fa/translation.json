@@ -615,6 +615,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "جستجو در هایلایت‌ها...",
     "no_highlights": "هنوز هیچ هایلایتی ندارید."
   },
   "admin": {

@@ -680,6 +680,7 @@
     "compact": "Компактний"
   },
   "highlights": {
+    "search_placeholder": "Пошук у виділеннях...",
     "no_highlights": "У вас ще немає виділень."
   },
   "admin": {

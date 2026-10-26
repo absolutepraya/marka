@@ -1081,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Cerca evidenziazioni...",
     "no_highlights": "Non hai ancora nessun evidenziatore."
   },
   "banners": {

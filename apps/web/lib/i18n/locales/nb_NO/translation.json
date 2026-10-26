@@ -1059,6 +1059,7 @@
     "grid": "Rutenett"
   },
   "highlights": {
+    "search_placeholder": "Søk i uthevinger...",
     "no_highlights": "Du har ingen uthevinger ennå."
   },
   "preview": {

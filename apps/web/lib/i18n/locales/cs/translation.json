@@ -1055,6 +1055,7 @@
     "compact": "Kompaktní"
   },
   "highlights": {
+    "search_placeholder": "Hledat ve zvýrazněních...",
     "no_highlights": "Zatím nemáš žádné zvýraznění."
   },
   "options": {

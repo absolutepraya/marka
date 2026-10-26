@@ -615,6 +615,7 @@
     "compact": "Compacto"
   },
   "highlights": {
+    "search_placeholder": "Pesquisar destaques...",
     "no_highlights": "Você ainda não tem nenhum destaque."
   },
   "admin": {

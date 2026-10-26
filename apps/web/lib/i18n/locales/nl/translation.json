@@ -1081,6 +1081,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Markeringen zoeken...",
     "no_highlights": "Je hebt nog geen markeringen."
   },
   "bookmark_editor": {

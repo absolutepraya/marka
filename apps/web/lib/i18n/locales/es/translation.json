@@ -1026,6 +1026,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Buscar destacados...",
     "no_highlights": "Aún no tienes nada destacado."
   },
   "search": {

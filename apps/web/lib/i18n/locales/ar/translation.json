@@ -110,6 +110,7 @@
     "rename": "تغيير الاسم"
   },
   "highlights": {
+    "search_placeholder": "البحث في التمييزات...",
     "no_highlights": "ليس لديك أي تمييزات بعد."
   },
   "settings": {

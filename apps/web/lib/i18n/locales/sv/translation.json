@@ -1081,6 +1081,7 @@
     "is_not_from_source": "Källa är inte"
   },
   "highlights": {
+    "search_placeholder": "Sök bland markeringar...",
     "no_highlights": "Du har inga markeringar ännu."
   },
   "banners": {

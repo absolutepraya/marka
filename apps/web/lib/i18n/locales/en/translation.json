@@ -166,6 +166,7 @@
     "load_more": "Load More"
   },
   "highlights": {
+    "search_placeholder": "Search highlights...",
     "no_highlights": "You don't have any highlights yet."
   },
   "settings": {

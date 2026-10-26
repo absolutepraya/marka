@@ -785,6 +785,7 @@
     "rename": "Preimenuj"
   },
   "highlights": {
+    "search_placeholder": "Pretraži istaknute stavke...",
     "no_highlights": "Još nemaš nijednu istaknutu stavku."
   },
   "options": {

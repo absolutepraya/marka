@@ -1081,6 +1081,7 @@
     "cleanups": "クリーンアップ"
   },
   "highlights": {
+    "search_placeholder": "ハイライトを検索...",
     "no_highlights": "まだハイライトがありません。"
   },
   "banners": {

@@ -119,6 +119,7 @@
     "rename": "Rename"
   },
   "highlights": {
+    "search_placeholder": "Search highlights...",
     "no_highlights": "You don't have any highlights yet."
   },
   "tags": {

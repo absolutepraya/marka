@@ -1081,6 +1081,7 @@
     "continue_button": "Nadaljuj"
   },
   "highlights": {
+    "search_placeholder": "Išči po poudarkih...",
     "no_highlights": "Še nimaš nobenih poudarkov."
   },
   "banners": {

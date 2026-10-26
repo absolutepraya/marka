@@ -110,6 +110,7 @@
     "rename": "Nimeä uudelleen"
   },
   "highlights": {
+    "search_placeholder": "Hae korostuksia...",
     "no_highlights": "Sinulla ei ole vielä yhtään korostusta."
   },
   "settings": {

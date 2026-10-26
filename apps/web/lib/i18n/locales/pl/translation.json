@@ -1026,6 +1026,7 @@
     "continue_button": "Kontynuuj"
   },
   "highlights": {
+    "search_placeholder": "Szukaj w wyróżnieniach...",
     "no_highlights": "Nie masz jeszcze żadnych wyróżnień."
   },
   "search": {

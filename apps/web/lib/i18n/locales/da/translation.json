@@ -1026,6 +1026,7 @@
     }
   },
   "highlights": {
+    "search_placeholder": "Søg i fremhævninger...",
     "no_highlights": "Du har ikke nogen fremhævninger endnu."
   },
   "search": {
