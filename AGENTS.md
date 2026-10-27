@@ -145,7 +145,7 @@ Local-dev ownership model:
 - one machine-level Browserless container is shared at `http://127.0.0.1:9251`; `MARKA_DEV_BROWSERLESS_PORT` changes this endpoint
 - `pnpm dev:start` automatically ensures those shared containers exist
 - `pnpm dev:stop` never stops shared infrastructure because other worktrees may still use it
-- the default renderer is the pinned production Browserless v1 image documented in `scripts/dev-infra.sh`; it runs as linux/amd64, including on Apple Silicon
+- the default renderer is the pinned multi-architecture Browserless v2 image documented in `scripts/dev-infra.sh`; Docker selects native arm64 on Apple Silicon. Shared local search uses Meilisearch 1.55 in its migrated volume. Renderer endpoints, limits, and migration recovery are documented in `docs/operator-setup.md`.
 - no local SMTP or mail container is started by this workflow; email behavior uses the configured external SMTP settings when present
 
 Parallel-worktree isolation:

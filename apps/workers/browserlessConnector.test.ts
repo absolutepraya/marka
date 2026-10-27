@@ -27,16 +27,19 @@ describe("Browserless connector", () => {
     expect(url.searchParams.get("token")).toBe("test-token");
   });
 
-  it("preserves an explicit operator session timeout", () => {
-    const url = new URL(
-      buildBrowserlessWebSocketUrl(
-        "ws://shared-browserless:3000/?timeout=120000",
-        "test-token",
-        true,
-      ),
-    );
-    expect(url.searchParams.get("timeout")).toBe("120000");
-  });
+  it.each(["0", "120000"])(
+    "preserves an explicit operator session timeout %s",
+    (timeout) => {
+      const url = new URL(
+        buildBrowserlessWebSocketUrl(
+          `ws://shared-browserless:3000/?timeout=${timeout}`,
+          "test-token",
+          true,
+        ),
+      );
+      expect(url.searchParams.get("timeout")).toBe(timeout);
+    },
+  );
 
   it("keeps provider defaults for per-job connections", () => {
     const url = new URL(

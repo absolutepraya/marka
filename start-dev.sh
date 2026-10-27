@@ -110,7 +110,7 @@ export API_URL="http://localhost:$WEB_PORT" NEXTAUTH_URL="http://localhost:$WEB_
 bash "$SCRIPT_DIR/scripts/dev-infra.sh" up
 case "$MARKA_DEV_RENDERER" in
     browserless)
-        BROWSERLESS_URL="ws://127.0.0.1:$MARKA_DEV_BROWSERLESS_PORT"
+        BROWSERLESS_URL="ws://127.0.0.1:$MARKA_DEV_BROWSERLESS_PORT/?timeout=0"
         BROWSERLESS_TOKEN="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' marka-dev-browserless | sed -n 's/^TOKEN=//p')"
         [[ -n "$BROWSERLESS_TOKEN" ]] || { echo "Error: local Browserless token is missing." >&2; exit 1; }
         export BROWSERLESS_URL BROWSERLESS_TOKEN

@@ -1,0 +1,78 @@
+# Temporary native rehearsal only. Never use this as production Compose.
+name: marka-upgrade-rehearsal-20261026
+
+services:
+  meilisearch:
+    profiles: [search]
+    image: getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c
+    restart: "no"
+    mem_limit: 512m
+    cpus: 1
+    env_file:
+      - path: .meili.env
+        format: raw
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    command: [meilisearch, --import-dump, /input.dump]
+    ports:
+      - 127.0.0.1:17755:7700
+    volumes:
+      - search-data:/meili_data
+      - type: bind
+        source: ./input.dump
+        target: /input.dump
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [lab]
+
+  browserless:
+    profiles: [browser]
+    image: ghcr.io/browserless/chromium:v2.57.3@sha256:40dff7c23e0e378ba451c23ef66394ffb81bd11e6b9fe8ef3066d59eb402cc5d
+    restart: "no"
+    mem_limit: 1g
+    shm_size: 256m
+    cpus: 1
+    env_file:
+      - path: .renderer.env
+        format: raw
+    environment:
+      CONCURRENT: "2"
+      QUEUED: "4"
+      TIMEOUT: "60000"
+    ports:
+      - 127.0.0.1:19252:3000
+    networks:
+      lab:
+        aliases: [marka-rehearsal-browserless]
+
+  rsshub:
+    profiles: [browser]
+    image: diygod/rsshub@sha256:bf72c101c07c3c1cc077eedbc75496021260536e3c9b387860d1ddbf91d7d9cd
+    restart: "no"
+    mem_limit: 512m
+    cpus: 1
+    env_file:
+      - path: .rsshub.env
+        format: raw
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+    ports:
+      - 127.0.0.1:11200:1200
+    networks:
+      - lab
+      # Preserve the separate existing real-browser helper dependency.
+      # The clone uses memory cache; it never receives the production Redis URL.
+      - rsshub-helper
+
+volumes:
+  search-data:
+    name: marka-upgrade-rehearsal-20261026-search
+
+networks:
+  lab:
+    name: marka-upgrade-rehearsal-20261026
+  rsshub-helper:
+    external: true
+    name: rsshub_default

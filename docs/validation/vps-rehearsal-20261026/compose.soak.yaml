@@ -1,0 +1,29 @@
+name: marka-renderer-soak-20261026-1400
+services:
+  browserless:
+    image: ghcr.io/browserless/chromium:v2.57.3@sha256:40dff7c23e0e378ba451c23ef66394ffb81bd11e6b9fe8ef3066d59eb402cc5d
+    restart: "no"
+    mem_limit: 1536m
+    shm_size: 256m
+    cpus: 1
+    env_file:
+      - path: .renderer.env
+        format: raw
+    environment:
+      CONCURRENT: "2"
+      QUEUED: "4"
+      TIMEOUT: "60000"
+    ports: ["127.0.0.1:19252:3000"]
+  rsshub:
+    image: diygod/rsshub@sha256:bf72c101c07c3c1cc077eedbc75496021260536e3c9b387860d1ddbf91d7d9cd
+    restart: "no"
+    mem_limit: 512m
+    cpus: 1
+    env_file:
+      - path: .rsshub.env
+        format: raw
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+      REQUEST_RETRY: "0"
+    ports: ["127.0.0.1:11200:1200"]
