@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import EditorCard from "@/components/dashboard/bookmarks/EditorCard";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogDescription,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { haptic } from "@/lib/haptic";
 import { useTranslation } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 
 // The right-most item in the floating mobile nav: a capture button that
@@ -35,7 +37,10 @@ export default function MobileAddButton() {
           }}
           aria-label={label}
           title={label}
-          className="ease-(--ease-out) flex min-h-[52px] w-full items-center justify-center rounded-[14px] bg-accent px-1.5 py-2 text-accent-foreground transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:scale-[0.96] motion-reduce:transition-none dark:bg-primary dark:text-primary-foreground"
+          className={cn(
+            buttonVariants({ size: "none" }),
+            "min-h-[52px] w-full rounded-[14px] px-1.5 py-2 focus-visible:ring-inset focus-visible:ring-offset-0 active:scale-[0.96]",
+          )}
         >
           <span className="flex size-6 items-center justify-center">
             <Plus size={24} strokeWidth={2} />
