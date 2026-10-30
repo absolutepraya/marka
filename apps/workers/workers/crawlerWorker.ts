@@ -6,6 +6,7 @@ import * as os from "os";
 import { Transform } from "stream";
 import { pipeline } from "stream/promises";
 import { PlaywrightBlocker } from "@ghostery/adblocker-playwright";
+import { loadAdblocker } from "../adblocker";
 import { Mutex } from "async-mutex";
 import { and, eq } from "drizzle-orm";
 import { execa } from "execa";
@@ -374,7 +375,7 @@ export class CrawlerWorker {
         if (serverConfig.crawler.enableAdblocker) {
           logger.info("[crawler] Loading adblocker ...");
           const globalBlockerResult = await tryCatch(
-            PlaywrightBlocker.fromPrebuiltFull(fetchWithProxy, {
+            loadAdblocker(fetchWithProxy, {
               path: path.join(os.tmpdir(), "karakeep_adblocker.bin"),
               read: fs.readFile,
               write: fs.writeFile,
