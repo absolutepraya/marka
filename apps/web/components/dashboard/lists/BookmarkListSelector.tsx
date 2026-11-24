@@ -14,7 +14,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import LoadingSpinner from "@/components/ui/spinner";
-import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 
@@ -82,7 +81,6 @@ function ListSelectorComponent({
   rootLabel,
 }: ListSelectorComponentProps) {
   const [searchValue, setSearchValue] = useState("");
-  const isMobile = useIsMobile();
   const filteredPaths = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
     if (!allPaths || !query) {
@@ -95,7 +93,6 @@ function ListSelectorComponent({
       );
     });
   }, [allPaths, searchValue]);
-  const visiblePaths = isMobile ? filteredPaths?.slice(0, 3) : filteredPaths;
 
   if (isPending) {
     return <LoadingSpinner />;
@@ -131,7 +128,7 @@ function ListSelectorComponent({
                 ? "You don't currently have any lists."
                 : "No lists found."}
             </CommandEmpty>
-            <CommandGroup className="max-h-60 overflow-y-auto">
+            <CommandGroup className="max-h-44 overflow-y-auto overscroll-contain sm:max-h-60">
               {rootLabel &&
                 (!searchValue.trim() ||
                   rootLabel
@@ -151,7 +148,7 @@ function ListSelectorComponent({
                     {rootLabel}
                   </CommandItem>
                 )}
-              {visiblePaths?.map((path) => {
+              {filteredPaths?.map((path) => {
                 const list = path[path.length - 1];
                 const fullName = listNameFromPath(path);
                 const name = truncateListPath(path);
