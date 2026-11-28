@@ -44,3 +44,8 @@ minimumReleaseAgeExclude:
   - '@next/swc-win32-x64-msvc@16.3.2'
   - next@16.3.2
   - '@next/bundle-analyzer@16.3.2'
+
+overrides:
+  # react-native-css-interop otherwise pulls a second react-native-reanimated
+  # (4.2.x) whose worklets peer is incompatible with the app's Expo SDK pin.
+  react-native-css-interop>react-native-reanimated: ~4.1.1
